@@ -1,43 +1,52 @@
 import { Router } from "express";
-import budgets from "../data/budgets.json";
+import { db } from "../../src/db";
+import { budgetsTable } from "../../src/db/schemas/budgetsSchema";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
 // endpoints for budgets
-router.get("/", (req, res) => {
-  res.json(budgets);
+router.get("/", async (req, res) => {
+  try {
+    const allBudgets = await db.select().from(budgetsTable);
+    if (!allBudgets) {
+      res.status(404).send("No budgets found!");
+    }
+    res.json(allBudgets);
+
+  } catch (error) {
+    res.status(500).send(error);
+  }
 });
 
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   const id = req.params.id;
-  const budget = budgets.find((budget) => budget.budget_id === Number(id));
+  const budget = await db.select().from(budgetsTable).where(eq(budgetsTable.id, Number(id)));
   if (!budget) {
     res.status(404).send("Budget Not found!");
   }
   res.json(budget);
 });
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const budget = req.body;
-  console.log(budget);
   if (!budget) {
     res.status(404).send("Budget Not found!");
   }
-  budgets.push(budget);
-  res.status(201).json(budget);
+  const newBudget = await db.insert(budgetsTable).values(budget).returning();  
+  res.status(201).json(newBudget);
 });
 
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   const id = req.params.id;
   const updateBudget = req.body;
-  console.log(updateBudget);
   if (!updateBudget) {
     res.status(404).send("Budget Not found!");
   }
 
-  const oldBudget = budgets.find((budget) => budget.budget_id === Number(id));
+  const oldBudget = await db.select().from(budgetsTable).where(eq(budgetsTable.id, Number(id)));
 
-  Object.assign(oldBudget, updateBudget);
+  Object.assign(oldBudget || "", updateBudget);
 
   res.status(201).json(oldBudget);
 });
