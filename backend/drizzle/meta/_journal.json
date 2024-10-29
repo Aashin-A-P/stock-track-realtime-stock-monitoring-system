@@ -8,6 +8,13 @@
       "when": 1730145984671,
       "tag": "0000_normal_tenebrous",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1730190059776,
+      "tag": "0001_smart_ricochet",
+      "breakpoints": true
     }
   ]
 }
