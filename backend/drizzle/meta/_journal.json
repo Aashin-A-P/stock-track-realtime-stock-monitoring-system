@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1730145984671,
-      "tag": "0000_normal_tenebrous",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1730190059776,
-      "tag": "0001_smart_ricochet",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1730192340473,
-      "tag": "0002_low_texas_twister",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1730193536736,
-      "tag": "0003_pale_squadron_supreme",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1730194873632,
-      "tag": "0004_amused_clint_barton",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1730195150988,
-      "tag": "0005_fancy_ironclad",
+      "when": 1730199854842,
+      "tag": "0000_nice_skin",
       "breakpoints": true
     }
   ]

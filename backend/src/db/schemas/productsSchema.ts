@@ -1,19 +1,17 @@
-import { pgTable, serial,  doublePrecision, integer, text, varchar} from 'drizzle-orm/pg-core';
-import { locationsTable } from './locations ';
+import { pgTable, serial, varchar, text, integer, decimal } from 'drizzle-orm/pg-core';
+import { locationTable } from './locationsSchema';
 import { remarksTable } from './remarksSchema';
-import { invoicesTable } from './invoiceSchema';
+import { invoiceTable } from './invoicesSchema';
 import { categoriesTable } from './categoriesSchema';
 
-
-export const productsTable = pgTable('products', {
-    product_id: serial('product_id').primaryKey(),
-    product_name: varchar('product_name', { length: 255 }).notNull(),
-    product_description: text('product_description'),
-    location_id: integer('location_id').references(() => locationsTable.location_id, { onDelete: 'set null' }),
-    remark_id: integer('remark_id').references(() => remarksTable.remark_id, { onDelete: 'set null' }),
-    GST: doublePrecision('GST'),
-    product_image: text('product_image'),  // Storing image as a URL or path
-    invoice_id: integer('invoice_id').references(() => invoicesTable.invoice_id, { onDelete: 'set null' }),
-    category_id: integer('category_id').references(() => categoriesTable.category_id, { onDelete: 'set null' }),
-  });
-  
+export const productsTable = pgTable('ProductsTable', {
+  productId: serial('product_id').primaryKey(),
+  productName: varchar('product_name').notNull(),
+  productDescription: text('product_description'),
+  locationId: integer('location_id').references(() => locationTable.locationId),
+  remarkId: integer('remark_id').references(() => remarksTable.remarkId),
+  gst: decimal('GST'),
+  productImage: varchar('product_image'),
+  invoiceId: integer('invoice_id').references(() => invoiceTable.invoiceId),
+  categoryId: integer('category_id').references(() => categoriesTable.categoryId),
+});
