@@ -7,5 +7,5 @@ export const categoryWiseBudgetsTable = pgTable('category_wise_budgets', {
     category_id: integer('category_id').notNull().references(() => categoriesTable.category_id, { onDelete: 'cascade' }),
     amount: doublePrecision('amount').notNull(),
   }, (table) => ({
-    pk: primaryKey({ columns: [table.budget_id, table.category_id] }),
-  }))
+    pk: primaryKey({ columns: [table.budget_id, table.category_id] }),
+  }))

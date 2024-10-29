@@ -21,7 +21,7 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   const id = req.params.id;
-  const budget = await db.select().from(budgetsTable).where(eq(budgetsTable.id, Number(id)));
+  const budget = await db.select().from(budgetsTable).where(eq(budgetsTable.budget_id, Number(id)));
   if (!budget) {
     res.status(404).send("Budget Not found!");
   }
@@ -44,7 +44,7 @@ router.put("/:id", async (req, res) => {
     res.status(404).send("Budget Not found!");
   }
 
-  const oldBudget = await db.select().from(budgetsTable).where(eq(budgetsTable.id, Number(id)));
+  const oldBudget = await db.select().from(budgetsTable).where(eq(budgetsTable.budget_id, Number(id)));
 
   Object.assign(oldBudget || "", updateBudget);
 
