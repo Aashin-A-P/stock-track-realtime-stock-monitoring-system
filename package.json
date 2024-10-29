@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "drizzle-zod": "^0.5.1"
+  }
+}
