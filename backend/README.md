@@ -114,7 +114,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 - **Response**:
   ```json
-    {
+  {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTczMTc2NjkxNCwiZXhwIjoxNzM0MzU4OTE0fQ.wx_usVUbwuzS5oJwIg5E6B0OoouzC4j1hhjYFmJhrso",
     "user": {
       "userId": 1,
