@@ -4,6 +4,7 @@ import cors from "cors";
 import authRouter from "./routes/auth/index";
 import dashboardRouter from "./routes/dashboard";
 import userManagement from "./routes/userManagement"
+import addPrivilege  from "./routes/privileges";
 const app = express();
 const port = process.env.PORT;
 
@@ -21,6 +22,8 @@ app.use("/auth", authRouter);
 app.use("/dashboard", dashboardRouter);
 
 app.use("/usermanagement",userManagement)
+app.use("/privileges", addPrivilege);
+
 app.listen(port, () => {
   console.log(`Server listening on  ${process.env.SERVER_URL}:${port}`);
 });
