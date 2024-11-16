@@ -3,6 +3,10 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Pie } from "react-chartjs-2";
 import Dropdown from "react-bootstrap/Dropdown";
 
+type AnalysisData = {
+    
+};
+
 // Register Chart.js modules
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -10,9 +14,9 @@ function Dashboard() {
     const [analysisData, setAnalysisData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [year, setYear] = useState(new Date().getFullYear() - 3);
+    const [year, setYear] = useState(new Date().getFullYear()-1);
   
-    const fetchData = async (selectedYear: Number) => {
+    const fetchData = async (selectedYear: number) => {
       setLoading(true);
       setError("");
       try {
@@ -52,7 +56,7 @@ function Dashboard() {
       return <div>Error: {error}</div>;
     }
   
-    const handleYearSelect = (selectedYear: Number) => {
+    const handleYearSelect = (selectedYear: number) => {
       setYear(selectedYear);
     };
   
@@ -82,17 +86,6 @@ function Dashboard() {
     };
   
     return (
-      <div className="dashboard-container">
-        <div className="sidebar">
-          <h3>Stock Management</h3>
-          <ul>
-            <li>Add Stock</li>
-            <li>Search Stock</li>
-            <li>Logs</li>
-            <li>User Management</li>
-            <li>Report Generation</li>
-          </ul>
-        </div>
         <div className="main-content">
           <h2>Dashboard</h2>
           <div className="charts">
@@ -101,7 +94,7 @@ function Dashboard() {
                 Stock Status <span>Total Budget: {analysisData.totalBudget}</span>
                 <Dropdown onSelect={(eventKey) => handleYearSelect(Number(eventKey))}>
                   <Dropdown.Toggle variant="secondary" id="dropdown-basic">
-                    Select Year
+                    {year ? year:"Select Year"}
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
                     {[2019, 2020, 2021, 2022, 2023].map((y) => (
@@ -121,7 +114,6 @@ function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
     );
 }
 
