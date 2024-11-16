@@ -80,9 +80,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Request Body**:
   ```json
   {
-    "firstName": "mukun",
-    "lastName": "dev",
-    "email": "mukun@dev.com",
+    "userName": "mukun",
     "password": "password"
   }
   ```
@@ -91,9 +89,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
   {
     "user": {
       "userId": 12,
-      "firstName": "mukun",
-      "lastName": "dev",
-      "email": "mukun@dev.com",
+      "userName": "mukun",
       "createdAt": "2024-10-30T09:01:38.513Z",
       "role": "user"
     },
