@@ -12,24 +12,6 @@ const generateUserToken = (user: any) => {
     });
 };
 
-export const registerUser = async (req: Request, res: Response) => {
-    try {
-      const data = req.cleanBody;
-      data.password = await bcrypt.hash(data.password, 10);
-  
-      const [user] = await db.insert(usersTable).values(data).returning();
-  
-      // @ts-ignore
-      delete user.password;
-      const token = generateUserToken(user);
-  
-      res.status(201).json({ user, token });
-    } catch (e) {
-      console.log(e);
-      res.status(500).send('Something went wrong');
-    }
-};
-
 export const loginUser = async (req: Request, res: Response) => {
     try {
       const { userName, password } = req.cleanBody;
