@@ -108,19 +108,17 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Request Body**:
   ```json
   {
-    "email": "mukun@dev.com",
+    "userName": "User",
     "password": "password"
   }
   ```
 - **Response**:
   ```json
   {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzMwMjc5MDUwLCJleHAiOjE3MzI4NzEwNTB9.BA3l264M4ezn2qVbin3V08s79er5wt2tZVYQ97dJam8",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTczMTc2NjkxNCwiZXhwIjoxNzM0MzU4OTE0fQ.wx_usVUbwuzS5oJwIg5E6B0OoouzC4j1hhjYFmJhrso",
     "user": {
       "userId": 1,
-      "firstName": "User",
-      "lastName": "1",
-      "email": "user@dev.com",
+      "userName": "User",
       "createdAt": "2024-10-30T06:24:21.321Z",
       "role": "admin"
     }

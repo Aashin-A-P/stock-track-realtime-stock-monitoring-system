@@ -32,12 +32,12 @@ export const registerUser = async (req: Request, res: Response) => {
 
 export const loginUser = async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.cleanBody;
+      const { userName, password } = req.cleanBody;
   
       const [user] = await db
         .select()
         .from(usersTable)
-        .where(eq(usersTable.email, email));
+        .where(eq(usersTable.userName, userName ));
       if (!user) {
         res.status(401).json({ error: 'Authentication failed' });
         return;
