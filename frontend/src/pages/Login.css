@@ -1,0 +1,122 @@
+/* Full-page container for the login form */
+.login-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+	width: 100vw; /* Make sure it spans the entire viewport width */
+	background: linear-gradient(135deg, #6a11cb, #2575fc);
+	font-family: Arial, sans-serif;
+	margin: 0;
+	padding: 0;
+}
+
+/* The login form */
+.login-form {
+	background: #ffffff;
+	padding: 60px 50px;
+	border-radius: 20px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+	max-width: 400px;
+	width: 90%; /* Ensure responsiveness */
+	text-align: center;
+}
+
+/* Title for the login form */
+.login-form h2 {
+	margin-bottom: 30px;
+	color: #333;
+	font-size: 2rem;
+	font-weight: bold;
+}
+
+/* Error styling */
+.error {
+	color: red;
+	font-size: 1rem;
+	margin-bottom: 20px;
+	text-align: center;
+}
+
+/* Form group container */
+.form-group {
+	margin-bottom: 25px;
+	text-align: left;
+}
+
+/* Label styling */
+.form-group label {
+	display: block;
+	margin-bottom: 8px;
+	color: #555;
+	font-size: 1.1rem;
+	font-weight: 500;
+}
+
+/* Input field styling */
+.form-group input {
+	width: 100%;
+	padding: 15px;
+	border: 1px solid #ccc;
+	border-radius: 10px;
+	font-size: 1rem;
+	outline: none;
+	transition: all 0.3s ease-in-out;
+}
+
+.form-group input:focus {
+	border-color: #6a11cb;
+	box-shadow: 0 0 5px rgba(106, 17, 203, 0.5);
+}
+
+/* Submit button styling */
+.login-button {
+	width: 100%;
+	padding: 15px;
+	background: #6a11cb;
+	color: white;
+	font-size: 1.2rem;
+	font-weight: bold;
+	border: none;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+}
+
+.login-button:hover {
+	background: #2575fc;
+	box-shadow: 0 4px 15px rgba(37, 117, 252, 0.5);
+}
+
+/* Loading Spinner Styles */
+.loading-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(255, 255, 255, 0.8);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+}
+
+.loading-spinner {
+	border: 4px solid #f3f3f3; /* Light grey background */
+	border-top: 4px solid #6a11cb; /* Blue color */
+	border-radius: 50%;
+	width: 50px;
+	height: 50px;
+	animation: spin 2s linear infinite;
+}
+
+/* Animation for spinning effect */
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}

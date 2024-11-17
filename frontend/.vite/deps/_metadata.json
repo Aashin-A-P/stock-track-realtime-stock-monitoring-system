@@ -1,0 +1,56 @@
+{
+  "hash": "c158dadc",
+  "browserHash": "9d017e3e",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "e2a941b3",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "bfd2304a",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "77738dbf",
+      "needsInterop": false
+    },
+    "chart.js": {
+      "src": "../../node_modules/chart.js/dist/chart.js",
+      "file": "chart__js.js",
+      "fileHash": "648a374d",
+      "needsInterop": false
+    },
+    "react-chartjs-2": {
+      "src": "../../node_modules/react-chartjs-2/dist/index.js",
+      "file": "react-chartjs-2.js",
+      "fileHash": "1a7a574f",
+      "needsInterop": false
+    },
+    "react-bootstrap/Dropdown": {
+      "src": "../../node_modules/react-bootstrap/esm/Dropdown.js",
+      "file": "react-bootstrap_Dropdown.js",
+      "fileHash": "060843ab",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-NEWEHRJ5": {
+      "file": "chunk-NEWEHRJ5.js"
+    },
+    "chunk-OEMDL75K": {
+      "file": "chunk-OEMDL75K.js"
+    },
+    "chunk-QC2YXQ2P": {
+      "file": "chunk-QC2YXQ2P.js"
+    },
+    "chunk-TCQZMY3T": {
+      "file": "chunk-TCQZMY3T.js"
+    }
+  }
+}
