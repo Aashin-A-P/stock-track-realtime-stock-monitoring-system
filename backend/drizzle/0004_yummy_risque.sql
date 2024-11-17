@@ -1,0 +1,1 @@
+ALTER TABLE "UserPrivilegeTable" ADD COLUMN "user_privilege_id" integer PRIMARY KEY NOT NULL;
