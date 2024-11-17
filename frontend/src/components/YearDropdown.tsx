@@ -10,7 +10,7 @@ const YearDropdown: React.FC<YearDropdownProps> = ({ onSelectYear, years }) => {
   return (
     <Dropdown onSelect={(eventKey) => onSelectYear(Number(eventKey))}>
       <Dropdown.Toggle variant="secondary" id="dropdown-basic">
-        Select Year
+        {years ? years : "Select Year"}
       </Dropdown.Toggle>
       <Dropdown.Menu>
         {years.map((year) => (

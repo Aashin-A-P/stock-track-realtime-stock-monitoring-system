@@ -5,11 +5,12 @@ const Sidebar: React.FC = () => {
     <div className="sidebar">
       <h3>Stock Management</h3>
       <ul>
+        <li><a href="/"> Home </a></li>
         <li><a href="/addstock">Add Stock</a></li>
-        <li>Search Stock</li>
-        <li>Logs</li>
-        <li>User Management</li>
-        <li>Report Generation</li>
+        <li><a href="/">Search Stock</a></li>
+        <li><a href="/">Logs</a></li>
+        <li><a href="/">User Management</a></li>
+        <li><a href="/">Report Generation</a></li>
       </ul>
     </div>
   );

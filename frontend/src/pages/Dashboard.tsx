@@ -49,7 +49,9 @@ function Dashboard() {
     }, [year]);
   
     if (loading) {
-      return <div>Loading...</div>;
+        return <div class="spinner-border m-5" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
     }
   
     if (error) {
@@ -113,7 +115,37 @@ function Dashboard() {
               <Pie data={pieChartData2} />
             </div>
           </div>
+          <br /><br />
+          
+          <div class="list-group">
+          <h3>Logs</h3>
+  <a href="#" class="list-group-item list-group-item-action active" aria-current="true">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">List group item heading</h5>
+      <small>3 days ago</small>
+    </div>
+    <p class="mb-1">Some placeholder content in a paragraph.</p>
+    <small>And some small print.</small>
+  </a>
+  <a href="#" class="list-group-item list-group-item-action">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">List group item heading</h5>
+      <small class="text-body-secondary">3 days ago</small>
+    </div>
+    <p class="mb-1">Some placeholder content in a paragraph.</p>
+    <small class="text-body-secondary">And some muted small print.</small>
+  </a>
+  <a href="#" class="list-group-item list-group-item-action">
+    <div class="d-flex w-100 justify-content-between">
+      <h5 class="mb-1">List group item heading</h5>
+      <small class="text-body-secondary">3 days ago</small>
+    </div>
+    <p class="mb-1">Some placeholder content in a paragraph.</p>
+    <small class="text-body-secondary">And some muted small print.</small>
+  </a>
+</div>
         </div>
+
     );
 }
 
