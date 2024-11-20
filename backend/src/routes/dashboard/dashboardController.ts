@@ -66,6 +66,56 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
     }
   }
 
+  export const getAllYearPieChartAnalysis = async (req: Request, res: Response) => {
+  
+    try {
+      // Fetch total amount allocated for the year
+      const [totalBudgetData] = await db
+        .select({
+          total_amount: sql<number>`sum(${budgetsTable.amount})`
+        })
+        .from(budgetsTable);
+
+      if (!totalBudgetData) {
+        return res.status(404).json({ error: 'No budget data found for the year' });
+      }
+
+      // Fetch total amount spent for the year
+      const totalSpentData = await db.select({
+        total_spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`
+      })
+      .from(categoryWiseBudgetsTable);
+
+      if (!totalSpentData) {
+        return res.status(404).json({ error: 'No spent data found for the year' });
+      }
+
+      // Fetch category-wise amount spent for the year
+      const categorySpentData = await db
+        .select({
+          category: categoriesTable.categoryName,
+          spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`,
+        })
+        .from(categoryWiseBudgetsTable)
+        .leftJoin(categoriesTable, eq(categoryWiseBudgetsTable.categoryId, categoriesTable.categoryId))
+        .leftJoin(budgetsTable, eq(categoryWiseBudgetsTable.budgetId, budgetsTable.budgetId))
+        .groupBy(categoriesTable.categoryName);
+  
+      // Construct response data
+      const responseData = {
+        totalBudget: totalBudgetData.total_amount,
+        totalSpent: totalSpentData[0].total_spent,
+        categorySpent: categorySpentData,
+      };
+  
+      res.json(responseData);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Something went wrong' });
+    }
+  }
+
+
   export const getAllYears = async (req: Request, res: Response) => {
     try {
       const years = await db

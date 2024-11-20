@@ -19,7 +19,8 @@ Welcome to the Stock Management System backend built with Express.js! This appli
   - [User Login](#user-login)
   - [Dashboard Analysis](#dashboard-analysis)
   - [Recent Logs](#recent-logs)
-  - [Budget Years](#budget-years)
+  - [All Budget Years](#budget-years)
+  - [All years Analysis](#all-years-analysis)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -197,7 +198,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ]
   ```
   
-### Recent Logs
+### All Budget Years
 
 - **URL**: `/dashboard/budget-years`
 - **Method**: `GET`
@@ -214,6 +215,44 @@ SECRET_KEY=your_secret_key        # JWT secret key
         "2022",
         "2023",
         "2024"
+    ]
+  }
+  ```
+  
+ 
+### All years Analysis
+
+- **URL**: `/dashboard/all-years-analysis`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **Response**:
+  ```json
+  {
+    "totalBudget": "12700000",
+    "totalSpent": "335000.00",
+    "categorySpent": [
+        {
+            "category": "Electronics",
+            "spent": "75000.00"
+        },
+        {
+            "category": "Hardwares",
+            "spent": "79500.00"
+        },
+        {
+            "category": "Systems",
+            "spent": "75000.00"
+        },
+        {
+            "category": "Vehicles",
+            "spent": "55500.00"
+        },
+        {
+            "category": "Projectors",
+            "spent": "50000"
+        }
     ]
   }
   ```
