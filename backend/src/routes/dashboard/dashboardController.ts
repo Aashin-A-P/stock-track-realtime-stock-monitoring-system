@@ -66,6 +66,30 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
     }
   }
 
+  export const getAllYears = async (req: Request, res: Response) => {
+    try {
+      const years = await db
+        .select({
+          extractedYear: sql<number>`EXTRACT(YEAR FROM ${budgetsTable.startDate})`
+        })
+        .from(budgetsTable)
+        .groupBy(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`)
+        .orderBy(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`);
+  
+      if (!years || years.length === 0) {
+        return res.status(404).json({ error: "No years found in the budgets table" });
+      }
+  
+      // Map the result to an array of years
+      const yearList = years.map((row) => row.extractedYear);
+  
+      res.json({ years: yearList });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Something went wrong" });
+    }
+  };
+
 export const getRecentLogs = async (req: Request, res: Response) => {
     const numberOfLogs: number = parseInt(req.query.numberOfLogs as string);
 

@@ -19,6 +19,7 @@ Welcome to the Stock Management System backend built with Express.js! This appli
   - [User Login](#user-login)
   - [Dashboard Analysis](#dashboard-analysis)
   - [Recent Logs](#recent-logs)
+  - [Budget Years](#budget-years)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -80,7 +81,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Request Body**:
   ```json
   {
-    "userName": "mukun",
+    "userName": "user",
     "password": "password"
   }
   ```
@@ -89,7 +90,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
   {
     "user": {
       "userId": 12,
-      "userName": "mukun",
+      "userName": "user",
       "createdAt": "2024-10-30T09:01:38.513Z",
       "role": "user"
     },
@@ -104,7 +105,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Request Body**:
   ```json
   {
-    "userName": "User",
+    "userName": "admin",
     "password": "password"
   }
   ```
@@ -114,7 +115,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTczMTc2NjkxNCwiZXhwIjoxNzM0MzU4OTE0fQ.wx_usVUbwuzS5oJwIg5E6B0OoouzC4j1hhjYFmJhrso",
     "user": {
       "userId": 1,
-      "userName": "User",
+      "userName": "admin",
       "createdAt": "2024-10-30T06:24:21.321Z",
       "role": "admin"
     }
@@ -194,6 +195,27 @@ SECRET_KEY=your_secret_key        # JWT secret key
       "userId": 3
     }
   ]
+  ```
+  
+### Recent Logs
+
+- **URL**: `/dashboard/budget-years`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **Response**:
+  ```json
+  {
+    "years": [
+        "2019",
+        "2020",
+        "2021",
+        "2022",
+        "2023",
+        "2024"
+    ]
+  }
   ```
 
 ## Contributing

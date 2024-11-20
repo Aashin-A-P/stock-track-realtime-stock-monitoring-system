@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getPieChartAnalysis, getRecentLogs } from "./dashboardController";
+import { getAllYears, getPieChartAnalysis, getRecentLogs } from "./dashboardController";
 import { AdminOnlyAccess, verifyToken } from "../../middlewares/authMiddleware";
 
 const router = Router();
@@ -10,5 +10,9 @@ const router = Router();
 router.get('/analysis', verifyToken, AdminOnlyAccess, getPieChartAnalysis);
 // @ts-ignore
 router.get('/recent-logs', verifyToken, AdminOnlyAccess, getRecentLogs);
+// @ts-ignore
+router.get('/budget-years', verifyToken, AdminOnlyAccess, getAllYears);
+
+
 
 export default router;
