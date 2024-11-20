@@ -1,6 +1,6 @@
-import { pgTable, serial, text } from 'drizzle-orm/pg-core';
+import { pgTable, integer, text } from 'drizzle-orm/pg-core';
 
 export const remarksTable = pgTable('RemarksTable', {
-  remarkId: serial('remark_id').primaryKey(),
+  remarkId: integer('remark_id').primaryKey().generatedAlwaysAsIdentity(),
   remark: text('remark').notNull(),
 });

@@ -4,14 +4,16 @@ import { Pie } from "react-chartjs-2";
 import Dropdown from "react-bootstrap/Dropdown";
 
 type AnalysisData = {
-    
+  totalBudget: number;
+  totalSpent: number;
+  categorySpent: { category: string; spent: number }[];
 };
 
 // Register Chart.js modules
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 function Dashboard() {
-    const [analysisData, setAnalysisData] = useState(null);
+    const [analysisData, setAnalysisData] = useState<AnalysisData|null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [year, setYear] = useState(new Date().getFullYear()-1);
@@ -25,8 +27,7 @@ function Dashboard() {
           {
             headers: {
               "Content-Type": "application/json",
-              Authorization:
-                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTczMTc1NTA4NywiZXhwIjoxNzM0MzQ3MDg3fQ.Wr3ZKYdBjDc-7QBNWWKXa6QRqavG2QcNx3X3sm5UBlM",
+              "Authorization": localStorage.getItem("token") || ""
             },
             mode: "cors",
           }
@@ -49,8 +50,8 @@ function Dashboard() {
     }, [year]);
   
     if (loading) {
-        return <div class="spinner-border m-5" role="status">
-        <span class="visually-hidden">Loading...</span>
+        return <div className="spinner-border m-5" role="status">
+        <span className="visually-hidden">Loading...</span>
       </div>
     }
   
@@ -61,7 +62,10 @@ function Dashboard() {
     const handleYearSelect = (selectedYear: number) => {
       setYear(selectedYear);
     };
-  
+    if (!analysisData) {
+      return <div>No data available</div>;
+    }
+
     const pieChartData1 = {
       labels: ["Available", "Used"],
       datasets: [
@@ -117,31 +121,31 @@ function Dashboard() {
           </div>
           <br /><br />
           
-          <div class="list-group">
+          <div className="list-group">
           <h3>Logs</h3>
-  <a href="#" class="list-group-item list-group-item-action active" aria-current="true">
-    <div class="d-flex w-100 justify-content-between">
-      <h5 class="mb-1">List group item heading</h5>
+  <a href="#" className="list-group-item list-group-item-action active" aria-current="true">
+    <div className="d-flex w-100 justify-content-between">
+      <h5 className="mb-1">List group item heading</h5>
       <small>3 days ago</small>
     </div>
-    <p class="mb-1">Some placeholder content in a paragraph.</p>
+    <p className="mb-1">Some placeholder content in a paragraph.</p>
     <small>And some small print.</small>
   </a>
-  <a href="#" class="list-group-item list-group-item-action">
-    <div class="d-flex w-100 justify-content-between">
-      <h5 class="mb-1">List group item heading</h5>
-      <small class="text-body-secondary">3 days ago</small>
+  <a href="#" className="list-group-item list-group-item-action">
+    <div className="d-flex w-100 justify-content-between">
+      <h5 className="mb-1">List group item heading</h5>
+      <small className="text-body-secondary">3 days ago</small>
     </div>
-    <p class="mb-1">Some placeholder content in a paragraph.</p>
-    <small class="text-body-secondary">And some muted small print.</small>
+    <p className="mb-1">Some placeholder content in a paragraph.</p>
+    <small className="text-body-secondary">And some muted small print.</small>
   </a>
-  <a href="#" class="list-group-item list-group-item-action">
-    <div class="d-flex w-100 justify-content-between">
-      <h5 class="mb-1">List group item heading</h5>
-      <small class="text-body-secondary">3 days ago</small>
+  <a href="#" className="list-group-item list-group-item-action">
+    <div className="d-flex w-100 justify-content-between">
+      <h5 className="mb-1">List group item heading</h5>
+      <small className="text-body-secondary">3 days ago</small>
     </div>
-    <p class="mb-1">Some placeholder content in a paragraph.</p>
-    <small class="text-body-secondary">And some muted small print.</small>
+    <p className="mb-1">Some placeholder content in a paragraph.</p>
+    <small className="text-body-secondary">And some muted small print.</small>
   </a>
 </div>
         </div>

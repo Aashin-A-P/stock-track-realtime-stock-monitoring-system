@@ -1,5 +1,5 @@
 {
-  "id": "0496690e-de4c-4538-b55c-d021def537c1",
+  "id": "b1cf2ae3-fdd2-484f-9a1e-451a5ae0cefd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -10,9 +10,20 @@
       "columns": {
         "budget_id": {
           "name": "budget_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "BudgetsTable_budget_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "start_date": {
           "name": "start_date",
@@ -45,9 +56,20 @@
       "columns": {
         "category_id": {
           "name": "category_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "CategoriesTable_category_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "category_name": {
           "name": "category_name",
@@ -74,6 +96,12 @@
       "name": "CategoryWiseBudgetsTable",
       "schema": "",
       "columns": {
+        "category_wise_budget_id": {
+          "name": "category_wise_budget_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
         "budget_id": {
           "name": "budget_id",
           "type": "integer",
@@ -132,9 +160,20 @@
       "columns": {
         "invoice_id": {
           "name": "invoice_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "InvoiceTable_invoice_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "from_address": {
           "name": "from_address",
@@ -185,15 +224,26 @@
       "columns": {
         "location_id": {
           "name": "location_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "LocationTable_location_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "location_name": {
           "name": "location_name",
           "type": "varchar",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -216,64 +266,37 @@
       "columns": {
         "log_id": {
           "name": "log_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "LogsTable_log_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
-        "accessed_page_url": {
-          "name": "accessed_page_url",
+        "description": {
+          "name": "description",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
         },
-        "operation_done": {
-          "name": "operation_done",
-          "type": "varchar",
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
           "primaryKey": false,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": "now()"
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "LogsTable_product_id_ProductsTable_product_id_fk": {
-          "name": "LogsTable_product_id_ProductsTable_product_id_fk",
-          "tableFrom": "LogsTable",
-          "tableTo": "ProductsTable",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "product_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "LogsTable_user_id_UsersTable_user_id_fk": {
-          "name": "LogsTable_user_id_UsersTable_user_id_fk",
-          "tableFrom": "LogsTable",
-          "tableTo": "UsersTable",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "user_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -284,9 +307,20 @@
       "columns": {
         "privilege_id": {
           "name": "privilege_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "PrivilegesTable_privilege_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "privilege": {
           "name": "privilege",
@@ -315,8 +349,25 @@
       "columns": {
         "product_id": {
           "name": "product_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "ProductsTable_product_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "product_vol_page_serial": {
+          "name": "product_vol_page_serial",
+          "type": "varchar",
+          "primaryKey": false,
           "notNull": true
         },
         "product_name": {
@@ -433,9 +484,20 @@
       "columns": {
         "remark_id": {
           "name": "remark_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "RemarksTable_remark_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "remark": {
           "name": "remark",
@@ -454,6 +516,12 @@
       "name": "UserPrivilegeTable",
       "schema": "",
       "columns": {
+        "user_privilege_id": {
+          "name": "user_privilege_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
         "user_id": {
           "name": "user_id",
           "type": "integer",
@@ -506,24 +574,23 @@
       "columns": {
         "user_id": {
           "name": "user_id",
-          "type": "serial",
+          "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "UsersTable_user_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
-        "first_name": {
-          "name": "first_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_name": {
-          "name": "last_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
+        "user_name": {
+          "name": "user_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -553,11 +620,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "UsersTable_email_unique": {
-          "name": "UsersTable_email_unique",
+        "UsersTable_user_name_unique": {
+          "name": "UsersTable_user_name_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "email"
+            "user_name"
           ]
         }
       },
