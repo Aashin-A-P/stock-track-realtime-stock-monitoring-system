@@ -134,16 +134,42 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Response**:
   ```json
   {
-    "totalBudget": "450000",
-    "totalSpent": "110000",
+    "totalBudget": "2000000",
+    "totalSpent": "49000.00",
     "categorySpent": [
       {
-        "category": "IT Infrastructure",
-        "spent": "50000"
+        "category": "Electronics",
+        "spent": "13000.00"
       },
       {
-        "category": "Student Activities",
-        "spent": "60000"
+        "category": "Hardwares",
+        "spent": "13500.00"
+      },
+      {
+        "category": "Systems",
+        "spent": "13000.00"
+      },
+      {
+        "category": "Vehicles",
+        "spent": "9500.00"
+      }
+    ],
+    "monthlySpent": [
+      {
+        "month": "3",
+        "total_spent": "13000.00"
+      },
+      {
+        "month": "4",
+        "total_spent": "9500.00"
+      },
+      {
+        "month": "7",
+        "total_spent": "13500.00"
+      },
+      {
+        "month": "11",
+        "total_spent": "13000.00"
       }
     ]
   }
@@ -161,39 +187,29 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```json
   [
     {
-      "logId": 84,
-      "accessedPageUrl": "/products/view/21",
-      "operationDone": "VIEW",
-      "productId": 21,
-      "userId": 3
+      "logId": 10,
+      "description": "Email notification sent",
+      "createdAt": "2024-01-05T08:45:00.000Z"
     },
     {
-      "logId": 83,
-      "accessedPageUrl": "/products/create",
-      "operationDone": "CREATE",
-      "productId": 20,
-      "userId": 1
+      "logId": 9,
+      "description": "System maintenance completed",
+      "createdAt": "2024-01-05T02:30:00.000Z"
     },
     {
-      "logId": 82,
-      "accessedPageUrl": "/products/update/19",
-      "operationDone": "UPDATE",
-      "productId": 19,
-      "userId": 5
+      "logId": 8,
+      "description": "System maintenance started",
+      "createdAt": "2024-01-04T22:00:00.000Z"
     },
     {
-      "logId": 81,
-      "accessedPageUrl": "/products/view/18",
-      "operationDone": "VIEW",
-      "productId": 18,
-      "userId": 4
+      "logId": 7,
+      "description": "New user registered",
+      "createdAt": "2024-01-04T10:00:00.000Z"
     },
     {
-      "logId": 80,
-      "accessedPageUrl": "/products/delete/17",
-      "operationDone": "DELETE",
-      "productId": 17,
-      "userId": 3
+      "logId": 6,
+      "description": "Error in processing payment",
+      "createdAt": "2024-01-03T16:45:00.000Z"
     }
   ]
   ```

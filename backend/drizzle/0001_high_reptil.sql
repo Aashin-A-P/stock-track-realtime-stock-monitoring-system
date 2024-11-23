@@ -1,0 +1,1 @@
+ALTER TABLE "CategoryWiseBudgetsTable" ADD COLUMN "created_at" timestamp DEFAULT now();

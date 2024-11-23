@@ -40,6 +40,19 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'No spent data found for the year' });
       }
 
+      // Fetch total amount spent for the year
+      const monthlySpentData = await db.select({
+        month: sql`EXTRACT(MONTH FROM ${categoryWiseBudgetsTable.createdAt})`,
+        total_spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`
+      })
+      .from(categoryWiseBudgetsTable)
+      .where(eq(categoryWiseBudgetsTable.budgetId, totalBudgetData.budget_id))
+      .groupBy(sql`EXTRACT(MONTH FROM ${categoryWiseBudgetsTable.createdAt})`);
+
+      if (!totalSpentData) {
+        return res.status(404).json({ error: 'No spent data found for the year' });
+      }
+
       // Fetch category-wise amount spent for the year
       const categorySpentData = await db
         .select({
@@ -57,6 +70,7 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
         totalBudget: totalBudgetData.amount,
         totalSpent: totalSpentData[0].total_spent,
         categorySpent: categorySpentData,
+        monthlySpent: monthlySpentData,
       };
   
       res.json(responseData);
