@@ -26,7 +26,7 @@ type AnalysisData = {
   totalBudget: number;
   totalSpent: number;
   categorySpent: { category: string; spent: number }[];
-  monthlySpendings: number[];
+  monthlySpent: number[];
 };
 
 type LogData = {
@@ -82,7 +82,7 @@ function Dashboard() {
         throw new Error(`HTTP error! Status: ${totalAnalysisDataresponse.status}`);
       }
       const totalAnalysisDataresult = await totalAnalysisDataresponse.json();
-      setAnalysisData(totalAnalysisDataresult);
+      setAnalysisData({ ...totalAnalysisDataresult, monthlySpent:[] });
       }
 
       //Years Array
@@ -206,7 +206,7 @@ function Dashboard() {
     datasets: [
       {
         label: `Monthly Spendings for ${year}`,
-        data: analysisData.monthlySpendings,
+        data: analysisData.monthlySpent,
         fill: false,
         borderColor: "#36A2EB",
         backgroundColor: "#36A2EB",
