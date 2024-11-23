@@ -155,22 +155,18 @@ SECRET_KEY=your_secret_key        # JWT secret key
       }
     ],
     "monthlySpent": [
-      {
-        "month": "3",
-        "total_spent": "13000.00"
-      },
-      {
-        "month": "4",
-        "total_spent": "9500.00"
-      },
-      {
-        "month": "7",
-        "total_spent": "13500.00"
-      },
-      {
-        "month": "11",
-        "total_spent": "13000.00"
-      }
+      0,
+      0,
+      0,
+      "13000.00",
+      "9500.00",
+      0,
+      0,
+      "13500.00",
+      0,
+      0,
+      0,
+      "13000.00"
     ]
   }
   ```
