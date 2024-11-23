@@ -9,6 +9,7 @@ import { logsTable } from "../../db/schemas/logsSchema";
 
 export const getPieChartAnalysis = async (req: Request, res: Response) => {
     const { year }: { year?: string } = req.query;
+    const monthlySpentResponseArray = [0,0,0,0,0,0,0,0,0,0,0,0];
   
     if (!year) {
       return res.status(400).json({ error: 'Year is required' });
@@ -52,6 +53,9 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
       if (!totalSpentData) {
         return res.status(404).json({ error: 'No spent data found for the year' });
       }
+      monthlySpentData.forEach((data) => {
+        monthlySpentResponseArray[Number(data.month)] = data.total_spent;
+      });
 
       // Fetch category-wise amount spent for the year
       const categorySpentData = await db
@@ -70,7 +74,7 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
         totalBudget: totalBudgetData.amount,
         totalSpent: totalSpentData[0].total_spent,
         categorySpent: categorySpentData,
-        monthlySpent: monthlySpentData,
+        monthlySpent: monthlySpentResponseArray,
       };
   
       res.json(responseData);
