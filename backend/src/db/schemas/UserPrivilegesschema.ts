@@ -3,7 +3,9 @@ import { usersTable } from './usersSchema';
 import { privilegesTable } from './privilegesSchema';
 
 export const userPrivilegeTable = pgTable('UserPrivilegeTable', {
-  userPrivilegeId: integer('user_privilege_id').primaryKey(),
+  userPrivilegeId: integer('user_privilege_id').primaryKey()
+  .notNull()
+  .generatedAlwaysAsIdentity(),
   userId: integer('user_id').references(() => usersTable.userId),
   privilegeId: integer('privilege_id').references(() => privilegesTable.privilegeId),
 });

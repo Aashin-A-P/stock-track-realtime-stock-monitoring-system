@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { db } from '../../db/index.js';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
+import { userPrivilegeTable } from '../../db/schemas/UserPrivilegesschema';
+import { privilegesTable } from '../../db/schemas/privilegesSchema';
 
 const generateUserToken = (user: any) => {
     const secretKey : string = process.env.SECRET_KEY!;
@@ -30,6 +32,17 @@ export const loginUser = async (req: Request, res: Response) => {
         res.status(401).json({ error: 'Authentication failed' });
         return;
       }
+
+      // get user privileges
+      const [privileges] = await db
+      .select({
+          userName: usersTable.userName,
+          privilege: privilegesTable.privilege,
+      })
+      .from(userPrivilegeTable)
+      .innerJoin(usersTable, eq(userPrivilegeTable.userId, usersTable.userId))
+      .innerJoin(privilegesTable, eq(userPrivilegeTable.privilegeId, privilegesTable.privilegeId))
+      .where(eq(usersTable.userName, user.userName));
   
       // create a jwt token
       const token = generateUserToken(user);
