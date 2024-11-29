@@ -3,9 +3,11 @@ import { usersTable } from './usersSchema';
 import { privilegesTable } from './privilegesSchema';
 
 export const userPrivilegeTable = pgTable('UserPrivilegeTable', {
-  userPrivilegeId: integer('user_privilege_id').primaryKey()
-  .notNull()
-  .generatedAlwaysAsIdentity(),
-  userId: integer('user_id').references(() => usersTable.userId),
-  privilegeId: integer('privilege_id').references(() => privilegesTable.privilegeId),
+  userPrivilegeId: integer('user_privilege_id').primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => usersTable.userId, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  privilegeId: integer('privilege_id')
+    .notNull()
+    .references(() => privilegesTable.privilegeId, { onDelete: 'cascade', onUpdate: 'cascade' }),
 });

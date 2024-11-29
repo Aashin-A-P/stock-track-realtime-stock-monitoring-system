@@ -1,4 +1,3 @@
-import { int } from 'drizzle-orm/mysql-core';
 import { pgTable, integer, varchar } from 'drizzle-orm/pg-core';
 
 export const categoriesTable = pgTable('CategoriesTable', {

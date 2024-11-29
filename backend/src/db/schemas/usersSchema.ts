@@ -1,6 +1,7 @@
 import { pgTable, integer, varchar, timestamp } from 'drizzle-orm/pg-core';
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
+
 export const usersTable = pgTable('UsersTable', {
   userId: integer('user_id').primaryKey().generatedAlwaysAsIdentity(),
   userName: varchar('user_name').notNull().unique(),
