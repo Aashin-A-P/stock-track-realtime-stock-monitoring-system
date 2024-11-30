@@ -10,7 +10,7 @@ import userManagementRouter from "./routes/userManagement";
 import privilegeRouter from "./routes/privileges";
 import stockRouter from "./routes/stock";
 import uploadRouter from "./routes/uploads";
-
+import LogsRouter from "./routes/logsRoutes"
 // Resolve __dirname in ES Module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +36,7 @@ app.use("/usermanagement", userManagementRouter);
 app.use("/privileges", privilegeRouter);
 app.use("/stock", stockRouter);
 app.use("/upload", uploadRouter);
-
+app.use("/logs",LogsRouter);
 // Start Server
 app.listen(port, () => {
   console.log(`Server listening on ${process.env.SERVER_URL}:${port}`);

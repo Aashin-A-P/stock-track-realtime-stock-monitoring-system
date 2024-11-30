@@ -105,7 +105,7 @@ function Dashboard() {
 
       // get logs data
       const logsResponse = await fetch(
-        `http://localhost:3000/dashboard/recent-logs?numberOfLogs=5`,
+        `http://localhost:3000/logs/recent-logs?numberOfLogs=5`,
         {
           headers: {
             "Content-Type": "application/json",

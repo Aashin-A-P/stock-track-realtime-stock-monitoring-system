@@ -7,8 +7,12 @@ interface Log {
   createdAt: string;
 }
 
+
+
 const LogsTable: React.FC = () => {
   const [logs, setLogs] = useState<Log[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +21,7 @@ const LogsTable: React.FC = () => {
       try {
         setLoading(true);
         const response = await fetch(
-            `http://localhost:3000/dashboard/recent-logs`,
+            `http://localhost:3000/logs/recent-logs`,
             {
               headers: {
                 "Content-Type": "application/json",
@@ -25,14 +29,16 @@ const LogsTable: React.FC = () => {
               },
               mode: "cors",
             }
-          );
-        if (!response.ok) {
-          throw new Error("Failed to fetch logs.");
+          );        
+          if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.json();
         setLogs(data);
-      } catch (err:any) {
-        setError(err.message);
+        setFilteredLogs(data);
+      } catch (err) {
+        console.error("Failed to fetch logs:", err);
+        setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
       }
@@ -41,13 +47,32 @@ const LogsTable: React.FC = () => {
     fetchLogs();
   }, []);
 
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const searchValue = event.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+    const filtered = logs.filter((log) =>
+      log.description.toLowerCase().includes(searchValue)
+    );
+    setFilteredLogs(filtered);
+  };
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="logs-table-container">
       <h2>Logs Table</h2>
-      {logs.length > 0 ? (
+      <div className="search-box">
+        <label htmlFor="search">Search by Description:</label>
+        <input
+          type="text"
+          id="search"
+          placeholder="Enter description..."
+          value={searchTerm}
+          onChange={handleSearch}
+        />
+      </div>
+      {filteredLogs.length > 0 ? (
         <table className="logs-table">
           <thead>
             <tr>
@@ -57,7 +82,7 @@ const LogsTable: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {logs.map((log) => (
+            {filteredLogs.map((log) => (
               <tr key={log.logId}>
                 <td>{log.logId}</td>
                 <td>{log.description}</td>
