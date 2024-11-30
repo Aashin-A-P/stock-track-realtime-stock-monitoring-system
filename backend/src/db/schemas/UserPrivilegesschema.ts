@@ -1,6 +1,7 @@
 import { pgTable, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { usersTable } from './usersSchema';
 import { privilegesTable } from './privilegesSchema';
+import { z } from 'zod';
 
 export const userPrivilegeTable = pgTable('UserPrivilegeTable', {
   userPrivilegeId: integer('user_privilege_id').primaryKey().generatedAlwaysAsIdentity(),
@@ -10,4 +11,9 @@ export const userPrivilegeTable = pgTable('UserPrivilegeTable', {
   privilegeId: integer('privilege_id')
     .notNull()
     .references(() => privilegesTable.privilegeId, { onDelete: 'cascade', onUpdate: 'cascade' }),
+});
+
+export const addUserPrivilegeSchema = z.object({
+  userId: z.number().int().positive(),
+  privilege: z.string().nonempty(),
 });
