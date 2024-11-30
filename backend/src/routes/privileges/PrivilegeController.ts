@@ -6,7 +6,7 @@ import { userPrivilegeTable } from '../../db/schemas/UserPrivilegesschema';
 import { eq } from 'drizzle-orm';
 export const addPrivilege = async (req: Request, res: Response) => {
   try {
-    const { privilege } = req.body;
+    const { privilege } = req.cleanBody;
 
     if (!privilege) {
       res.status(400).send('Privilege is required');
@@ -18,6 +18,7 @@ export const addPrivilege = async (req: Request, res: Response) => {
     .values({ privilege })
     .returning();
 
+    req.logMessage = `Privilege added: ${privilege}`;
     res.status(201).json({ message: 'Privilege added successfully', privilege: newPrivilege });
   } catch (error: any) {
     if (error.code === '23505') {
@@ -31,8 +32,7 @@ export const addPrivilege = async (req: Request, res: Response) => {
 };
 export const addUserPrivilege = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, privilegeId } = req.body;
-    console.log('Request Body:', req.body);
+    const { userId, privilegeId } = req.cleanBody;
 
     // Validate input
     if (!userId || !privilegeId) {
@@ -59,6 +59,8 @@ export const addUserPrivilege = async (req: Request, res: Response): Promise<voi
       .insert(userPrivilegeTable)
       .values({ userId, privilegeId })
       .returning();
+
+    req.logMessage = `User privilege added: ${userPrivilege}`;
 
     res.status(201).json({
       message: 'User privilege added successfully',

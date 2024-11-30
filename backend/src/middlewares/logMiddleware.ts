@@ -14,7 +14,6 @@ export const logger = async (req: Request, res: Response, next: NextFunction) =>
         // Decode the token to get userName
         const secretKey = process.env.SECRET_KEY!;
         const decodedToken = jwt.verify(token, secretKey) as { userName: string };
-        console.log("Decoded Token : ", decodedToken);
 
         const description = `${logMessage} | Performed by: ${decodedToken.userName}`;
 

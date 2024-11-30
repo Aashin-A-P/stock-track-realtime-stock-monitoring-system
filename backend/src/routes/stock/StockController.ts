@@ -41,7 +41,7 @@ export const addStock = async (req: Request, res: Response) => {
         categoryId,
       })
       .returning();
-      console.log("newProduct", newProduct);
+      
     req.logMessage =
       "Stock with id " + newProduct.productId + " added successfully";
     res
