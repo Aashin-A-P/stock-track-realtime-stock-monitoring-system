@@ -166,7 +166,7 @@ export const getRecentLogs = async (req: Request, res: Response) => {
     }
 
     try {
-        const logs = await db.select().from(logsTable).orderBy(desc(logsTable.logId)).limit(numberOfLogs);
+        const logs = (!numberOfLogs) ? await db.select().from(logsTable).orderBy(desc(logsTable.logId)).limit(numberOfLogs) : await db.select().from(logsTable).orderBy(desc(logsTable.logId));
         res.json(logs);
     } catch (error) {
         res.status(500).json({ error: 'Something went wrong' });
