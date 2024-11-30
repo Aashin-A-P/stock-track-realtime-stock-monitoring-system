@@ -13,9 +13,11 @@ export const usersTable = pgTable('UsersTable', {
 export const loginSchema = createInsertSchema(usersTable).pick({ userName: true, password: true });
 
 export const createUserSchema = createInsertSchema(usersTable)
-  .omit({ userId: true, createdAt: true, role: true })
+  .omit({ userId: true, createdAt: true , role: true })
   .extend({
     privileges: z.array(z.string()),
   });
 
-export const deleteUserSchema = createInsertSchema(usersTable).pick({ userId: true });
+export const updateUserSchema = createInsertSchema(usersTable).pick({ userName: true }).extend({
+  privileges: z.array(z.string()),
+});

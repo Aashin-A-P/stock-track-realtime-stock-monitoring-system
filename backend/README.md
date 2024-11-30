@@ -89,30 +89,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   ```
 
-### User Registration
-
-- **URL**: `/auth/register`
-- **Method**: `POST`
-- **Request Body**:
-  ```json
-  {
-    "userName": "user",
-    "password": "password"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "user": {
-      "userId": 12,
-      "userName": "user",
-      "createdAt": "2024-10-30T09:01:38.513Z",
-      "role": "user"
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEyLCJyb2xlIjoidXNlciIsImlhdCI6MTczMDI3ODg5OCwiZXhwIjoxNzMyODcwODk4fQ.ZMUQmkxYaoZn15oaWzR4KrN9HM9MTIEAKrFQhKH5M0I"
-  }
-  ```
-
 ### User Login
 
 - **URL**: `/auth/login`
@@ -394,8 +370,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
     ```
 
----
-
 ### **Show Invoice**
 
 - **URL**: `/stock/invoice/:invoiceId`
@@ -443,8 +417,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
     ```
 
----
-
 ### **Show All Invoices**
 
 - **URL**: `/stock/invoices`
@@ -489,8 +461,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
       "message": "Failed to fetch invoices"
     }
     ```
-
----
 
 ### **Update Invoice**
 
@@ -553,8 +523,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
       "message": "Failed to update invoice"
     }
     ```
-
----
 
 ### **Delete Invoice**
 
@@ -638,8 +606,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
     ```
 
----
-
 #### **2. Show Location**
 
 - **URL**: `/stock/location/:locationId`
@@ -682,8 +648,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
     ```
 
----
-
 #### **3. Show All Locations**
 
 - **URL**: `/stock/locations`
@@ -718,8 +682,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
       "message": "Failed to fetch locations"
     }
     ```
-
----
 
 #### **4. Update Location**
 
@@ -772,8 +734,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
       "message": "Failed to update location"
     }
     ```
-
----
 
 #### **5. Delete Location**
 
@@ -839,8 +799,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   ```
 
----
-
 #### Get Remark by ID
 
 - **URL**: `/stock/remark/:id`
@@ -856,8 +814,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
   }
   ```
-
----
 
 #### Get All Remarks
 
@@ -881,8 +837,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   ```
 
----
-
 #### Update Remark by ID
 
 - **URL**: `/stock/remark/:id`
@@ -905,8 +859,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
   }
   ```
-
----
 
 #### Delete Remark by ID
 
@@ -948,8 +900,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   ```
 
----
-
 #### 2. **Add a Stock**
 
 - **URL**: `/stock`
@@ -987,8 +937,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   ```
 
----
-
 #### 3. **Search Stocks**
 
 - **URL**: `/stock/search`
@@ -1018,8 +966,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ]
   ```
 
----
-
 #### 4. **Delete a Stock**
 
 - **URL**: `/stock/:productId`
@@ -1039,8 +985,6 @@ SECRET_KEY=your_secret_key        # JWT secret key
     "message": "Stock deleted successfully"
   }
   ```
-
----
 
 #### 5. **Update a Stock**
 
@@ -1085,6 +1029,107 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
   }
   ```
+
+### Get All Users
+
+   - **Endpoint:** `/usermanagement/`
+   - **Method:** `GET`
+   - **Headers:** `Authorization: <token>`
+   - **Description:** Fetch all users.
+   - **Response:**
+     ```json
+     [
+       {
+         "userId": 1,
+         "userName": "JohnDoe",
+         "role": "admin"
+       }
+     ]
+     ```
+
+### Get User by ID
+
+   - **Endpoint:** `/usermanagement/:userId`
+   - **Method:** `GET`
+   - **Headers:** `Authorization: <token>`
+   - **Description:** Fetch a specific user and their privileges.
+   - **Response:**
+     ```json
+     {
+       "user": {
+         "userId": 1,
+         "userName": "JohnDoe",
+         "role": "admin"
+       },
+       "privileges": [
+         {
+           "privilegeId": 1,
+           "privilege": "view_dashboard"
+         }
+       ]
+     }
+     ```
+
+### Register User
+
+   - **Endpoint:** `/usermanagement/register`
+   - **Method:** `POST`
+   - **Headers:** `Authorization: <token>`
+   - **Body:**
+     ```json
+     {
+       "userName": "JohnDoe",
+       "password": "securePassword",
+       "privileges": ["view_dashboard", "edit_profile"],
+       "role": "admin"
+     }
+     ```
+   - **Description:** Registers a new user with privileges.
+   - **Response:**
+     ```json
+     {
+       "user": {
+         "userId": 1,
+         "userName": "JohnDoe",
+         "role": "admin"
+       },
+       "token": "<jwt_token>"
+     }
+     ```
+
+### Update User
+
+   - **Endpoint:** `/usermanagement/:userId`
+   - **Method:** `PUT`
+   - **Headers:** `Authorization: <token>`
+   - **Body:**
+     ```json
+     {
+       "userName": "UpdatedUserName",
+       "privileges": ["view_dashboard"]
+     }
+     ```
+   - **Description:** Updates user details and privileges.
+   - **Response:** `204 No Content`
+
+### Delete User
+
+   - **Endpoint:** `/usermanagement/:userId`
+   - **Method:** `DELETE`
+   - **Headers:** `Authorization: <token>`
+   - **Description:** Deletes a user and their associated privileges.
+   - **Response:** `204 No Content`
+
+## Middleware
+
+### Validation Middleware
+   - Ensures request data conforms to the schema before proceeding.
+
+### Authorization Middleware
+   - Requires a valid token to access all routes.
+
+### Logger middleware
+   - Requires to log sensitive changes in database.
 
 ## Contributing
 
