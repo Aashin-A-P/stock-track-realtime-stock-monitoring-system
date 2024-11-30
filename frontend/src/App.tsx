@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Addstock from "./pages/Addstock";
 import SearchStock from "./pages/SearchStock";
+import UserManagement from "./pages/UserManagement"; // Importing the UserManagement page
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar"; // Sidebar removed
 import "./App.css";
@@ -52,7 +53,10 @@ const MainApp = () => {
 						path="/searchstock"
 						element={token ? <SearchStock /> : <Navigate to="/login" />}
 					/>
-					
+					<Route
+						path="/user-management"
+						element={token ? <UserManagement /> : <Navigate to="/login" />}
+					/>
 				</Routes>
 			</div>
 		</BrowserRouter>
