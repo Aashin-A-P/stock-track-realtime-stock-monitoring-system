@@ -294,6 +294,577 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   }  
 
+### Upload Image
+
+- **URL**: `/upload`
+- **Method**: `POST`
+- **Headers**:
+  - `Content-Type`: `multipart/form-data`
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **Body**:
+  - **Key**: `image` (file field)
+  - **Value**: Image file to upload (e.g., `.png`, `.jpg`, etc.)
+
+- **Response**:
+
+  **Success**:
+  ```json
+  {
+    "message": "Image uploaded successfully",
+    "imageUrl": "/uploads/<unique-file-name>"
+  }
+  ```
+
+  **Error**:
+  ```json
+  {
+    "error": "No file uploaded"
+  }
+  ```
+
+### **Add Invoice**
+
+- **URL**: `/stock/invoice/add`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+  - `Content-Type`: `application/json`
+  
+- **Body Parameters**:
+  ```json
+  {
+    "fromAddress": "string",    // Address from where the invoice is sent
+    "toAddress": "string",      // Address to where the invoice is sent
+    "actualAmount": "decimal",  // Total amount before tax
+    "gstAmount": "decimal",     // GST amount for the invoice
+    "invoiceDate": "date",      // Date when the invoice was created (YYYY-MM-DD)
+    "invoiceImage": "string"    // Optional. Path to the uploaded image of the invoice (relative path)
+  }
+  ```
+
+- **Response**:
+  - **Success (201 - Created)**:
+    ```json
+    {
+      "message": "Invoice added successfully",
+      "invoice": {
+        "invoiceId": 1,
+        "fromAddress": "123 Main St, Cityville",
+        "toAddress": "456 Elm St, Townsville",
+        "actualAmount": 1000.0,
+        "gstAmount": 180.0,
+        "invoiceDate": "2024-11-29",
+        "invoiceImage": "/uploads/invoice-12345.png"
+      }
+    }
+    ```
+  - **Error (400 - Bad Request)**:
+    If any required field is missing:
+    ```json
+    {
+      "message": "All fields except invoiceImage are required"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to add invoice"
+    }
+    ```
+
+---
+
+### **Show Invoice**
+
+- **URL**: `/stock/invoice/:invoiceId`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **URL Parameters**:
+  - `invoiceId`: The ID of the invoice to retrieve.
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "invoice": {
+        "invoiceId": 1,
+        "fromAddress": "123 Main St, Cityville",
+        "toAddress": "456 Elm St, Townsville",
+        "actualAmount": 1000.0,
+        "gstAmount": 180.0,
+        "invoiceDate": "2024-11-29",
+        "invoiceImage": "/uploads/invoice-12345.png"
+      }
+    }
+    ```
+
+  - **Error (404 - Not Found)**:
+    If the invoice with the given `invoiceId` does not exist:
+    ```json
+    {
+      "message": "Invoice not found"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to fetch invoice"
+    }
+    ```
+
+---
+
+### **Show All Invoices**
+
+- **URL**: `/stock/invoices`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "invoices": [
+        {
+          "invoiceId": 1,
+          "fromAddress": "123 Main St, Cityville",
+          "toAddress": "456 Elm St, Townsville",
+          "actualAmount": 1000.0,
+          "gstAmount": 180.0,
+          "invoiceDate": "2024-11-29",
+          "invoiceImage": "/uploads/invoice-12345.png"
+        },
+        {
+          "invoiceId": 2,
+          "fromAddress": "789 Oak St, Villageville",
+          "toAddress": "123 Pine St, Villagewood",
+          "actualAmount": 2000.0,
+          "gstAmount": 360.0,
+          "invoiceDate": "2024-11-28",
+          "invoiceImage": "/uploads/invoice-67890.png"
+        }
+      ]
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to fetch invoices"
+    }
+    ```
+
+---
+
+### **Update Invoice**
+
+- **URL**: `/stock/invoice/update/:invoiceId`
+- **Method**: `PUT`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+  - `Content-Type`: `application/json`
+
+- **URL Parameters**:
+  - `invoiceId`: The ID of the invoice to update.
+
+- **Body Parameters**:
+  ```json
+  {
+    "fromAddress": "string",    // Address from where the invoice is sent
+    "toAddress": "string",      // Address to where the invoice is sent
+    "actualAmount": "decimal",  // Total amount before tax
+    "gstAmount": "decimal",     // GST amount for the invoice
+    "invoiceDate": "date",      // Date when the invoice was created (YYYY-MM-DD)
+    "invoiceImage": "string"    // Optional. Path to the uploaded image of the invoice (relative path)
+  }
+  ```
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "message": "Invoice updated successfully",
+      "invoice": {
+        "invoiceId": 1,
+        "fromAddress": "123 New St, Cityville",
+        "toAddress": "789 New St, Townsville",
+        "actualAmount": 1200.0,
+        "gstAmount": 216.0,
+        "invoiceDate": "2024-11-30",
+        "invoiceImage": "/uploads/invoice-12345-updated.png"
+      }
+    }
+    ```
+
+  - **Error (404 - Not Found)**:
+    If the invoice with the given `invoiceId` does not exist:
+    ```json
+    {
+      "message": "Invoice not found"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to update invoice"
+    }
+    ```
+
+---
+
+### **Delete Invoice**
+
+- **URL**: `/stock/invoice/delete/:invoiceId`
+- **Method**: `DELETE`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **URL Parameters**:
+  - `invoiceId`: The ID of the invoice to delete.
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "message": "Invoice deleted successfully"
+    }
+    ```
+
+  - **Error (404 - Not Found)**:
+    If the invoice with the given `invoiceId` does not exist:
+    ```json
+    {
+      "message": "Invoice not found"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to delete invoice"
+    }
+    ```
+
+### **Location Routes Documentation**
+
+#### **1. Add Location**
+
+- **URL**: `/stock/location/add`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+  - `Content-Type`: `application/json`
+  
+- **Body Parameters**:
+  ```json
+  {
+    "locationName": "string"   // The name of the location (must be unique)
+  }
+  ```
+
+- **Response**:
+  - **Success (201 - Created)**:
+    ```json
+    {
+      "message": "Location added successfully",
+      "location": {
+        "locationId": 1,
+        "locationName": "New York"
+      }
+    }
+    ```
+  - **Error (400 - Bad Request)**:
+    If the required field `locationName` is missing:
+    ```json
+    {
+      "message": "Location name is required"
+    }
+    ```
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to add location"
+    }
+    ```
+
+---
+
+#### **2. Show Location**
+
+- **URL**: `/stock/location/:locationId`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **URL Parameters**:
+  - `locationId`: The ID of the location to retrieve.
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "location": {
+        "locationId": 1,
+        "locationName": "New York"
+      }
+    }
+    ```
+
+  - **Error (404 - Not Found)**:
+    If the location with the given `locationId` does not exist:
+    ```json
+    {
+      "message": "Location not found"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to fetch location"
+    }
+    ```
+
+---
+
+#### **3. Show All Locations**
+
+- **URL**: `/stock/locations`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "locations": [
+        {
+          "locationId": 1,
+          "locationName": "New York"
+        },
+        {
+          "locationId": 2,
+          "locationName": "San Francisco"
+        }
+      ]
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to fetch locations"
+    }
+    ```
+
+---
+
+#### **4. Update Location**
+
+- **URL**: `/stock/location/update/:locationId`
+- **Method**: `PUT`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+  - `Content-Type`: `application/json`
+
+- **URL Parameters**:
+  - `locationId`: The ID of the location to update.
+
+- **Body Parameters**:
+  ```json
+  {
+    "locationName": "string"   // New name for the location
+  }
+  ```
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "message": "Location updated successfully",
+      "location": {
+        "locationId": 1,
+        "locationName": "Los Angeles"
+      }
+    }
+    ```
+
+  - **Error (404 - Not Found)**:
+    If the location with the given `locationId` does not exist:
+    ```json
+    {
+      "message": "Location not found"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to update location"
+    }
+    ```
+
+---
+
+#### **5. Delete Location**
+
+- **URL**: `/stock/location/delete/:locationId`
+- **Method**: `DELETE`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **URL Parameters**:
+  - `locationId`: The ID of the location to delete.
+
+- **Response**:
+  - **Success (200 - OK)**:
+    ```json
+    {
+      "message": "Location deleted successfully"
+    }
+    ```
+
+  - **Error (404 - Not Found)**:
+    If the location with the given `locationId` does not exist:
+    ```json
+    {
+      "message": "Location not found"
+    }
+    ```
+
+  - **Error (500 - Internal Server Error)**:
+    If there is an issue with the database or server:
+    ```json
+    {
+      "message": "Failed to delete location"
+    }
+    ```
+
+### Remarks API Documentation
+
+#### Add Remark
+
+- **URL**: `/stock/remark/add`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+- **Body** (JSON):
+  ```json
+  {
+    "remark": "This is a sample remark"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Remark added successfully",
+    "remark": {
+      "remarkId": 1,
+      "remark": "This is a sample remark"
+    }
+  }
+  ```
+
+---
+
+#### Get Remark by ID
+
+- **URL**: `/stock/remark/:id`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+- **Response**:
+  ```json
+  {
+    "remark": {
+      "remarkId": 1,
+      "remark": "This is a sample remark"
+    }
+  }
+  ```
+
+---
+
+#### Get All Remarks
+
+- **URL**: `/stock/remark/`
+- **Method**: `GET`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+- **Response**:
+  ```json
+  {
+    "remarks": [
+      {
+        "remarkId": 1,
+        "remark": "This is a sample remark"
+      },
+      {
+        "remarkId": 2,
+        "remark": "Another remark"
+      }
+    ]
+  }
+  ```
+
+---
+
+#### Update Remark by ID
+
+- **URL**: `/stock/remark/:id`
+- **Method**: `PUT`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+- **Body** (JSON):
+  ```json
+  {
+    "remark": "Updated remark content"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Remark updated successfully",
+    "remark": {
+      "remarkId": 1,
+      "remark": "Updated remark content"
+    }
+  }
+  ```
+
+---
+
+#### Delete Remark by ID
+
+- **URL**: `/stock/remark/:id`
+- **Method**: `DELETE`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+- **Response**:
+  ```json
+  {
+    "message": "Remark deleted successfully"
+  }
+  ```
+
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue.

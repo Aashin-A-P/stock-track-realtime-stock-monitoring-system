@@ -3,16 +3,9 @@ import { usersTable } from '../../db/schemas/usersSchema';
 import bcrypt from 'bcryptjs';
 import { db } from '../../db/index.js';
 import { eq } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
 import { userPrivilegeTable } from '../../db/schemas/UserPrivilegesschema';
 import { privilegesTable } from '../../db/schemas/privilegesSchema';
-
-const generateUserToken = (user: any) => {
-    const secretKey : string = process.env.SECRET_KEY!;
-    return jwt.sign({ userId: user.userId, role: user.role }, secretKey, {
-        expiresIn: '30d',
-    });
-};
+import { generateUserToken } from '../../../utils';
 
 export const loginUser = async (req: Request, res: Response) => {
     try {
@@ -34,18 +27,23 @@ export const loginUser = async (req: Request, res: Response) => {
       }
 
       // get user privileges
-      const [privileges] = await db
+      const privileges = await db
       .select({
-          userName: usersTable.userName,
           privilege: privilegesTable.privilege,
       })
       .from(userPrivilegeTable)
       .innerJoin(usersTable, eq(userPrivilegeTable.userId, usersTable.userId))
       .innerJoin(privilegesTable, eq(userPrivilegeTable.privilegeId, privilegesTable.privilegeId))
       .where(eq(usersTable.userName, user.userName));
+
+      const AllPrivileges : String[] = privileges.map((p: {privilege : String}) => p.privilege);
   
-      // create a jwt token
-      const token = generateUserToken(user);
+      // Generate token with user privileges
+    const token = generateUserToken({
+      user,
+      privileges: AllPrivileges,
+    });
+
       // @ts-ignore
       delete user.password;
       res.status(200).json({ token, user });

@@ -1,4 +1,5 @@
 import { pgTable, integer, varchar, decimal, date } from 'drizzle-orm/pg-core';
+import { createInsertSchema } from 'drizzle-zod';
 
 export const invoiceTable = pgTable('InvoiceTable', {
   invoiceId: integer('invoice_id').primaryKey().generatedAlwaysAsIdentity(),
@@ -9,3 +10,8 @@ export const invoiceTable = pgTable('InvoiceTable', {
   invoiceDate: date('invoice_date').notNull(),
   invoiceImage: varchar('invoice_image'),
 });
+
+
+export const createInvoiceSchema = createInsertSchema(invoiceTable)
+  .omit({ invoiceId: true })
+  .pick({ fromAddress: true, toAddress: true, actualAmount: true, gstAmount: true, invoiceDate: true, invoiceImage: true });

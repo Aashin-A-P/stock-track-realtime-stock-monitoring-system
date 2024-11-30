@@ -1,4 +1,4 @@
-import { pgTable, integer } from 'drizzle-orm/pg-core';
+import { pgTable, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { usersTable } from './usersSchema';
 import { privilegesTable } from './privilegesSchema';
 
