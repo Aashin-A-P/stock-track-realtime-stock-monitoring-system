@@ -268,6 +268,31 @@ SECRET_KEY=your_secret_key        # JWT secret key
     ]
   }
   ```
+### Add User Privilege
+
+- **URL**: `/adduserprivilege`
+- **Method**: `POST`
+- **Headers**:
+  - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
+
+- **Request**:
+  ```json
+
+  {
+    "userId": 11,
+    "privilegeId": 5
+  }
+- **Response**:
+  ```json
+  
+  {
+  "message": "User privilege added successfully",
+  "data": {
+    "userPrivilegeId": 55,
+    "userId": 11,
+    "privilegeId": 5
+  }
+  }  
 
 ## Contributing
 

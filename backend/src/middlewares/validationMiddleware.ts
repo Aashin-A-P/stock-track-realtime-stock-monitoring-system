@@ -20,3 +20,7 @@ export function validateData(schema: z.ZodObject<any, any>) {
     }
   };
 }
+export const addUserPrivilegeSchema = z.object({
+  userId: z.number().int().positive(),
+  privilege: z.string().nonempty(),
+});
