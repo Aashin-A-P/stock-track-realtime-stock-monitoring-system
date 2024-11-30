@@ -19,29 +19,43 @@ Welcome to the Stock Management System backend built with Express.js! This appli
   - [User Login](#user-login)
   - [Dashboard Analysis](#dashboard-analysis)
   - [Recent Logs](#recent-logs)
-  - [All Budget Years](#budget-years)
-  - [All years Analysis](#all-years-analysis)
+  - [All Budget Years](#all-budget-years)
+  - [All Years Analysis](#all-years-analysis)
+  - [Add User Privilege](#add-user-privilege)
+  - [Upload Image](#upload-image)
+  - [Add Invoice](#add-invoice)
+  - [Show Invoice](#show-invoice)
+  - [Show All Invoices](#show-all-invoices)
+  - [Update Invoice](#update-invoice)
+  - [Delete Invoice](#delete-invoice)
+  - [Location Routes Documentation](#location-routes-documentation)
+  - [Remarks API Documentation](#remarks-api-documentation)
+  - [Stock Routes Documentation](#stock-routes-documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
 ## Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/Aashin-A-P/stock-track-realtime-stock-monitoring-system.git
    ```
 
 2. Navigate to the backend project directory:
+
    ```bash
    cd stock-track-realtime-stock-monitoring-system/backend
    ```
 
 3. Install the dependencies:
+
    ```bash
    npm install
    ```
 
 4. Create a `.env` file in the backend directory and add the following dummy data:
+
    ```plaintext
    SERVER_URL=http://localhost
    SECRET_KEY=your_secret_key
@@ -209,34 +223,28 @@ SECRET_KEY=your_secret_key        # JWT secret key
     }
   ]
   ```
-  
+
 ### All Budget Years
 
 - **URL**: `/dashboard/budget-years`
 - **Method**: `GET`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **Response**:
   ```json
   {
-    "years": [
-        "2019",
-        "2020",
-        "2021",
-        "2022",
-        "2023",
-        "2024"
-    ]
+    "years": ["2019", "2020", "2021", "2022", "2023", "2024"]
   }
   ```
-  
- 
+
 ### All years Analysis
 
 - **URL**: `/dashboard/all-years-analysis`
 - **Method**: `GET`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **Response**:
@@ -245,70 +253,78 @@ SECRET_KEY=your_secret_key        # JWT secret key
     "totalBudget": "12700000",
     "totalSpent": "335000.00",
     "categorySpent": [
-        {
-            "category": "Electronics",
-            "spent": "75000.00"
-        },
-        {
-            "category": "Hardwares",
-            "spent": "79500.00"
-        },
-        {
-            "category": "Systems",
-            "spent": "75000.00"
-        },
-        {
-            "category": "Vehicles",
-            "spent": "55500.00"
-        },
-        {
-            "category": "Projectors",
-            "spent": "50000"
-        }
+      {
+        "category": "Electronics",
+        "spent": "75000.00"
+      },
+      {
+        "category": "Hardwares",
+        "spent": "79500.00"
+      },
+      {
+        "category": "Systems",
+        "spent": "75000.00"
+      },
+      {
+        "category": "Vehicles",
+        "spent": "55500.00"
+      },
+      {
+        "category": "Projectors",
+        "spent": "50000"
+      }
     ]
   }
   ```
+
 ### Add User Privilege
 
 - **URL**: `/adduserprivilege`
 - **Method**: `POST`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **Request**:
-  ```json
 
-  {
-    "userId": 11,
-    "privilegeId": 5
-  }
-- **Response**:
   ```json
-  
   {
-  "message": "User privilege added successfully",
-  "data": {
-    "userPrivilegeId": 55,
     "userId": 11,
     "privilegeId": 5
   }
-  }  
+  ```
+
+- **Response**:
+
+  ```json
+  {
+    "message": "User privilege added successfully",
+    "data": {
+      "userPrivilegeId": 55,
+      "userId": 11,
+      "privilegeId": 5
+    }
+  }
+  ```
 
 ### Upload Image
 
 - **URL**: `/upload`
 - **Method**: `POST`
 - **Headers**:
+
   - `Content-Type`: `multipart/form-data`
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **Body**:
+
   - **Key**: `image` (file field)
   - **Value**: Image file to upload (e.g., `.png`, `.jpg`, etc.)
 
 - **Response**:
 
   **Success**:
+
   ```json
   {
     "message": "Image uploaded successfully",
@@ -317,6 +333,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 
   **Error**:
+
   ```json
   {
     "error": "No file uploaded"
@@ -330,20 +347,21 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Headers**:
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
   - `Content-Type`: `application/json`
-  
 - **Body Parameters**:
+
   ```json
   {
-    "fromAddress": "string",    // Address from where the invoice is sent
-    "toAddress": "string",      // Address to where the invoice is sent
-    "actualAmount": "decimal",  // Total amount before tax
-    "gstAmount": "decimal",     // GST amount for the invoice
-    "invoiceDate": "date",      // Date when the invoice was created (YYYY-MM-DD)
-    "invoiceImage": "string"    // Optional. Path to the uploaded image of the invoice (relative path)
+    "fromAddress": "string", // Address from where the invoice is sent
+    "toAddress": "string", // Address to where the invoice is sent
+    "actualAmount": "decimal", // Total amount before tax
+    "gstAmount": "decimal", // GST amount for the invoice
+    "invoiceDate": "date", // Date when the invoice was created (YYYY-MM-DD)
+    "invoiceImage": "string" // Optional. Path to the uploaded image of the invoice (relative path)
   }
   ```
 
 - **Response**:
+
   - **Success (201 - Created)**:
     ```json
     {
@@ -361,6 +379,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
     ```
   - **Error (400 - Bad Request)**:
     If any required field is missing:
+
     ```json
     {
       "message": "All fields except invoiceImage are required"
@@ -382,13 +401,17 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/invoice/:invoiceId`
 - **Method**: `GET`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **URL Parameters**:
+
   - `invoiceId`: The ID of the invoice to retrieve.
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "invoice": {
@@ -405,6 +428,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
   - **Error (404 - Not Found)**:
     If the invoice with the given `invoiceId` does not exist:
+
     ```json
     {
       "message": "Invoice not found"
@@ -426,10 +450,13 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/invoices`
 - **Method**: `GET`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "invoices": [
@@ -470,26 +497,31 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/invoice/update/:invoiceId`
 - **Method**: `PUT`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
   - `Content-Type`: `application/json`
 
 - **URL Parameters**:
+
   - `invoiceId`: The ID of the invoice to update.
 
 - **Body Parameters**:
+
   ```json
   {
-    "fromAddress": "string",    // Address from where the invoice is sent
-    "toAddress": "string",      // Address to where the invoice is sent
-    "actualAmount": "decimal",  // Total amount before tax
-    "gstAmount": "decimal",     // GST amount for the invoice
-    "invoiceDate": "date",      // Date when the invoice was created (YYYY-MM-DD)
-    "invoiceImage": "string"    // Optional. Path to the uploaded image of the invoice (relative path)
+    "fromAddress": "string", // Address from where the invoice is sent
+    "toAddress": "string", // Address to where the invoice is sent
+    "actualAmount": "decimal", // Total amount before tax
+    "gstAmount": "decimal", // GST amount for the invoice
+    "invoiceDate": "date", // Date when the invoice was created (YYYY-MM-DD)
+    "invoiceImage": "string" // Optional. Path to the uploaded image of the invoice (relative path)
   }
   ```
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "message": "Invoice updated successfully",
@@ -507,6 +539,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
   - **Error (404 - Not Found)**:
     If the invoice with the given `invoiceId` does not exist:
+
     ```json
     {
       "message": "Invoice not found"
@@ -528,13 +561,17 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/invoice/delete/:invoiceId`
 - **Method**: `DELETE`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **URL Parameters**:
+
   - `invoiceId`: The ID of the invoice to delete.
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "message": "Invoice deleted successfully"
@@ -543,6 +580,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
   - **Error (404 - Not Found)**:
     If the invoice with the given `invoiceId` does not exist:
+
     ```json
     {
       "message": "Invoice not found"
@@ -566,11 +604,11 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Headers**:
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
   - `Content-Type`: `application/json`
-  
 - **Body Parameters**:
+
   ```json
   {
-    "locationName": "string"   // The name of the location (must be unique)
+    "locationName": "string" // The name of the location (must be unique)
   }
   ```
 
@@ -607,13 +645,17 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/location/:locationId`
 - **Method**: `GET`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **URL Parameters**:
+
   - `locationId`: The ID of the location to retrieve.
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "location": {
@@ -625,6 +667,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
   - **Error (404 - Not Found)**:
     If the location with the given `locationId` does not exist:
+
     ```json
     {
       "message": "Location not found"
@@ -646,10 +689,13 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/locations`
 - **Method**: `GET`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "locations": [
@@ -680,21 +726,26 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/location/update/:locationId`
 - **Method**: `PUT`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
   - `Content-Type`: `application/json`
 
 - **URL Parameters**:
+
   - `locationId`: The ID of the location to update.
 
 - **Body Parameters**:
+
   ```json
   {
-    "locationName": "string"   // New name for the location
+    "locationName": "string" // New name for the location
   }
   ```
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "message": "Location updated successfully",
@@ -707,6 +758,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
   - **Error (404 - Not Found)**:
     If the location with the given `locationId` does not exist:
+
     ```json
     {
       "message": "Location not found"
@@ -728,13 +780,17 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **URL**: `/stock/location/delete/:locationId`
 - **Method**: `DELETE`
 - **Headers**:
+
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)
 
 - **URL Parameters**:
+
   - `locationId`: The ID of the location to delete.
 
 - **Response**:
+
   - **Success (200 - OK)**:
+
     ```json
     {
       "message": "Location deleted successfully"
@@ -743,6 +799,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
   - **Error (404 - Not Found)**:
     If the location with the given `locationId` does not exist:
+
     ```json
     {
       "message": "Location not found"
@@ -864,6 +921,170 @@ SECRET_KEY=your_secret_key        # JWT secret key
   }
   ```
 
+### Stock Routes Documentation
+
+#### 1. **Get All Stocks**
+
+- **URL**: `/stock`
+- **Method**: `GET`
+- **Description**: Retrieve all stocks.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "stocks": [
+      {
+        "productId": 1,
+        "productName": "Sample Product",
+        "gst": 18.0,
+        ...
+      }
+    ]
+  }
+  ```
+
+---
+
+#### 2. **Add a Stock**
+
+- **URL**: `/stock`
+- **Method**: `POST`
+- **Description**: Add a new stock.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Request Body**:
+  ```json
+  {
+    "productVolPageSerial": "1234",
+    "productName": "Sample Product",
+    "productDescription": "Sample Description",
+    "locationId": 1,
+    "remarkId": 2,
+    "gst": 18.0,
+    "productImage": "image_url",
+    "invoiceId": 101,
+    "categoryId": 3
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Stock added successfully",
+    "product": {
+      "productId": 1,
+      "productName": "Sample Product",
+      ...
+    }
+  }
+  ```
+
+---
+
+#### 3. **Search Stocks**
+
+- **URL**: `/stock/search`
+- **Method**: `GET`
+- **Description**: Search stocks by column and query.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Query Parameters**:
+  - `query`: The search term (e.g., "Sample Product").
+  - `column`: The column to search in (e.g., "product_name").
+- **Example**:
+  ```
+  /stock/search?query=Sample&column=product_name
+  ```
+- **Response**:
+  ```json
+  [
+    {
+      "productId": 1,
+      "productName": "Sample Product",
+      ...
+    }
+  ]
+  ```
+
+---
+
+#### 4. **Delete a Stock**
+
+- **URL**: `/stock/:productId`
+- **Method**: `DELETE`
+- **Description**: Delete a stock by product ID.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Path Parameter**:
+  - `productId`: The ID of the product to delete.
+- **Response**:
+  ```json
+  {
+    "message": "Stock deleted successfully"
+  }
+  ```
+
+---
+
+#### 5. **Update a Stock**
+
+- **URL**: `/stock/:productId`
+- **Method**: `PUT`
+- **Description**: Update stock details.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Path Parameter**:
+  - `productId`: The ID of the product to update.
+- **Request Body**:
+  ```json
+  {
+    "productName": "Updated Product",
+    "productDescription": "Updated Description",
+    "locationId": 2,
+    "remarkId": 3,
+    "gst": 12.0,
+    "productImage": "new_image_url",
+    "invoiceId": 102,
+    "categoryId": 4
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Stock updated successfully",
+    "stock": {
+      "productId": 1,
+      "productName": "Updated Product",
+      "productDescription": "Updated Description",
+      "locationId": 2,
+      "remarkId": 3,
+      "gst": 12.0,
+      "productImage": "new_image_url",
+      "invoiceId": 102,
+      "categoryId": 4
+    }
+  }
+  ```
 
 ## Contributing
 
