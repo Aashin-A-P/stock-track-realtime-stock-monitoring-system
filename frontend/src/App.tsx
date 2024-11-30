@@ -8,6 +8,7 @@ import UserManagement from "./pages/UserManagement"; // Importing the UserManage
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar"; // Sidebar removed
 import "./App.css";
+import LogsTable from "./pages/logs";
 
 const App = () => {
 	return (
@@ -56,6 +57,10 @@ const MainApp = () => {
 					<Route
 						path="/user-management"
 						element={token ? <UserManagement /> : <Navigate to="/login" />}
+					/>
+					<Route
+						path="/logs"
+						element={token ? <LogsTable /> : <Navigate to="/login" />}
 					/>
 				</Routes>
 			</div>

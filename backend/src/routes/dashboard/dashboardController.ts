@@ -161,10 +161,6 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
 export const getRecentLogs = async (req: Request, res: Response) => {
     const numberOfLogs: number = parseInt(req.query.numberOfLogs as string);
 
-    if (!numberOfLogs) {
-        return res.status(400).json({ error: 'Number of logs is required' });
-    }
-
     try {
         const logs = (!numberOfLogs) ? await db.select().from(logsTable).orderBy(desc(logsTable.logId)).limit(numberOfLogs) : await db.select().from(logsTable).orderBy(desc(logsTable.logId));
         res.json(logs);
