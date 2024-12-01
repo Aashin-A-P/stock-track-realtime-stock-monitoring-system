@@ -117,3 +117,28 @@ export const deleteCategory = async (req: Request, res: Response) => {
     res.status(500).send("Failed to delete category");
   }
 };
+
+export const searchCategory = async (req: Request, res: Response) => {
+  try {
+    const categoryName = req.query.query as string;
+
+    if (!categoryName) {
+      return res.status(400).send("Category name is required");
+    }
+
+    const [category] = await db
+      .select()
+      .from(categoriesTable)
+      .where(eq(categoriesTable.categoryName, categoryName))
+      .limit(1);
+
+    if (!category) {
+      return res.status(404).send("Category not found");
+    }
+
+    res.status(200).json(category);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to search category");
+  }
+};

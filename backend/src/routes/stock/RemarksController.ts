@@ -100,3 +100,27 @@ export const deleteRemark = async (req: Request, res: Response) => {
     res.status(500).send("Failed to delete remark");
   }
 };
+
+export const searchRemark = async (req: Request, res: Response) => {
+  try {
+    const remark = req.query.query as string;
+    console.log("Remark : ",remark);
+
+    if (!remark) {
+      return res.status(400).send("Search query is required");
+    }
+
+    const [remarkData] = await db
+      .select()
+      .from(remarksTable)
+      .where(eq(remarksTable.remark, remark))
+      .limit(1);
+
+    console.log("Remark Data : ",remarkData);
+
+    res.status(200).json(remarkData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to search remark");
+  }
+};
