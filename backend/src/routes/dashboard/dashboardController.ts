@@ -142,7 +142,7 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
         })
         .from(budgetsTable)
         .groupBy(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`)
-        .orderBy(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`);
+        .orderBy(desc(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`));
   
       if (!years || years.length === 0) {
         return res.status(404).json({ error: "No years found in the budgets table" });

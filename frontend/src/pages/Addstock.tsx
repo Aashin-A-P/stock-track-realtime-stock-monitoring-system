@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
 
+import { confirmAlert } from 'react-confirm-alert';
+import 'react-confirm-alert/src/react-confirm-alert.css';
+
 interface Product {
   pageNo: string;
   volNo: string;
@@ -51,6 +54,7 @@ const AddProduct: React.FC = () => {
   const [newLocation, setNewLocation] = useState("");
   const [newRemark, setNewRemark] = useState("");
   const [newCategory, setNewCategory] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleProductChange = (index: number, field: string, value: any) => {
     const updatedProducts = [...products];
@@ -247,13 +251,13 @@ const AddProduct: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setLoading(true);
     const parsedInvoiceData = {
       ...invoiceDetails,
       gstAmount: invoiceDetails.gstAmount.toString(),
       actualAmount: invoiceDetails.actualAmount.toString(),
-    }
-  
+    };
+
     try {
       // Add invoice details to the backend
       const invoiceRes = await fetch(`${baseUrl}/stock/invoice/add`, {
@@ -261,24 +265,28 @@ const AddProduct: React.FC = () => {
         headers: fetchedHeaders,
         body: JSON.stringify(parsedInvoiceData),
       });
-  
+
       if (!invoiceRes.ok) {
         const errorData = await invoiceRes.json();
         console.error("Error adding invoice:", errorData);
         toast.error("Failed to add invoice");
         return;
       }
-  
+
       const { invoice } = await invoiceRes.json();
       const invoiceId = invoice.invoiceId;
       console.log("Invoice added successfully, ID:", invoiceId);
-  
+
       // Fetch data for locations, remarks, and categories in parallel
       const fetchMetadata = async (endpoint: string, key: string) =>
-        await fetch(`${baseUrl}/${endpoint}?query=${key}`, { headers: { Authorization: localStorage.getItem("token") as string } }).then((res) =>
-          res.ok ? res.json() : Promise.reject(`Error fetching ${endpoint}: ${key}`)
+        await fetch(`${baseUrl}/${endpoint}?query=${key}`, {
+          headers: { Authorization: localStorage.getItem("token") as string },
+        }).then((res) =>
+          res.ok
+            ? res.json()
+            : Promise.reject(`Error fetching ${endpoint}: ${key}`)
         );
-  
+
       // Process all products
       for (const product of products) {
         const [locationData, remarkData, categoryData] = await Promise.all([
@@ -286,7 +294,7 @@ const AddProduct: React.FC = () => {
           fetchMetadata("stock/remark/search", product.remarks),
           fetchMetadata("stock/category/search", product.category),
         ]);
-  
+
         const productData = {
           productVolPageSerial: product.productVolPageSerial,
           productName: product.productName,
@@ -298,18 +306,20 @@ const AddProduct: React.FC = () => {
           invoiceId,
           categoryId: categoryData.categoryId,
         };
-  
+
         // Add products based on their quantity
-        const productAddRequests = Array.from({ length: product.quantity }, () =>
-          fetch(`${baseUrl}/stock/add`, {
-            method: "POST",
-            headers: fetchedHeaders,
-            body: JSON.stringify(productData),
-          }).then((res) =>
-            res.ok ? res.json() : Promise.reject("Failed to add product")
-          )
+        const productAddRequests = Array.from(
+          { length: product.quantity },
+          () =>
+            fetch(`${baseUrl}/stock/add`, {
+              method: "POST",
+              headers: fetchedHeaders,
+              body: JSON.stringify(productData),
+            }).then((res) =>
+              res.ok ? res.json() : Promise.reject("Failed to add product")
+            )
         );
-  
+
         // Execute all product addition requests and handle errors
         await Promise.all(productAddRequests).catch((err) => {
           console.error(err);
@@ -317,10 +327,10 @@ const AddProduct: React.FC = () => {
           throw err; // Stop processing further on error
         });
       }
-  
+
       // Success message
       toast.success("Products and invoice added successfully!");
-  
+
       // Reset invoice and products state
       setInvoiceDetails({
         invoiceDate: "",
@@ -330,13 +340,15 @@ const AddProduct: React.FC = () => {
         toAddress: "",
         invoiceImage: "",
       });
-  
+
       setProducts([]);
     } catch (err) {
       console.error("Transaction failed:", err);
       toast.error("An error occurred while processing the request.");
+    } finally {
+      setLoading(false);
     }
-  };  
+  };
 
   return (
     <>
@@ -424,7 +436,7 @@ const AddProduct: React.FC = () => {
               <label
                 htmlFor="invoiceImageInput"
                 className={
-                  `p-2 border rounded bg-blue-700 text-white cursor-pointer inline-block text-center` +
+                  `p-2 border rounded bg-blue-600 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
                   (invoiceDetails.invoiceImage ? " bg-green-500" : "")
                 }
               >
@@ -448,8 +460,31 @@ const AddProduct: React.FC = () => {
           {/* Products Section */}
           {products.map((product, index) => (
             <div key={index} className="bg-white p-4 mb-4 rounded shadow">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              <h3 className="text-lg font-semibold text-gray-700 mb-2 flex">
                 Product {index + 1}
+                <span
+                  className="bg-red-500 text-white cursor-pointer ml-auto px-2 rounded"
+                  onClick={() =>
+                    // confirmation
+                    confirmAlert({
+                      title: 'Confirm to delete',
+                      message: 'Are you sure you want to delete this product?',
+                      buttons: [
+                        {
+                          label: 'Yes',
+                          onClick: () => setProducts(products.filter((_, i) => i !== index))
+                        },
+                        {
+                          label: 'No',
+                          onClick: () => {}
+                        }
+                      ]
+                    })
+                  }
+                >
+                  {" "}
+                  X
+                </span>
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <input
@@ -508,7 +543,9 @@ const AddProduct: React.FC = () => {
                   }
                   className={
                     `p-2 border rounded` +
-                    (product.category === "other" ? " col-span-1" : " col-span-2")
+                    (product.category === "other"
+                      ? " col-span-1"
+                      : " col-span-2")
                   }
                 >
                   <option value="">Select Category</option>
@@ -545,7 +582,9 @@ const AddProduct: React.FC = () => {
                   }
                   className={
                     `p-2 border rounded` +
-                    (product.location == "other" ? " col-span-1" : " col-span-2")
+                    (product.location == "other"
+                      ? " col-span-1"
+                      : " col-span-2")
                   }
                 >
                   <option value="">Select Location</option>
@@ -656,7 +695,7 @@ const AddProduct: React.FC = () => {
                 <label
                   htmlFor="productImageInput"
                   className={
-                    `p-2 border rounded bg-blue-700 text-white cursor-pointer inline-block text-center` +
+                    `p-2 border rounded bg-blue-600 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
                     (products[index].productImage ? " bg-green-500" : "")
                   }
                 >
@@ -672,14 +711,17 @@ const AddProduct: React.FC = () => {
             <button
               type="button"
               onClick={() => setProducts([...products, defaultProduct])}
-              className="bg-gray-700 text-white px-4 py-2 rounded shadow"
+              className="bg-gray-700 text-white px-4 py-2 rounded shadow hover:bg-black transition-all duration-200"
             >
               Add Product
             </button>
             <button
               type="button"
-              className="bg-blue-600 text-white px-4 py-2 rounded shadow"
+              className={`cursor-pointer text-white p-2 rounded-md bg-blue-600 transition-all duration-200 disabled:opacity-50 ${
+                loading ? "" : "hover:bg-blue-700"
+              }`}
               onClick={handleSubmit}
+              disabled={loading}
             >
               Submit Invoice
             </button>

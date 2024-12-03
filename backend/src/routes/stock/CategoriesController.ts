@@ -17,7 +17,7 @@ export const addCategory = async (req: Request, res: Response) => {
       .values({ categoryName })
       .returning();
 
-    req.logMessage = `Category ${categoryName} added successfully`;
+    req.logMessages = [`Category ${categoryName} added successfully`];
 
     res.status(201).json({
       message: "Category added successfully",

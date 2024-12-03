@@ -1,7 +1,26 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
 import { productsTable } from "../../db/schemas/productsSchema";
-import { sql } from "drizzle-orm";
+import { sql, eq, inArray } from "drizzle-orm";
+import { invoiceTable } from "../../db/schemas/invoicesSchema";
+import { locationTable } from "../../db/schemas/locationsSchema";
+import { remarksTable } from "../../db/schemas/remarksSchema";
+import { categoriesTable } from "../../db/schemas/categoriesSchema";
+
+interface Product {
+  pageNo: string;
+  volNo: string;
+  serialNo: string;
+  productVolPageSerial: string;
+  productName: string;
+  productDescription: string;
+  category: string;
+  quantity: number;
+  location: string;
+  remarks: string;
+  price: number;
+  productImage?: string;
+}
 
 export const addStock = async (req: Request, res: Response) => {
   try {
@@ -42,8 +61,8 @@ export const addStock = async (req: Request, res: Response) => {
       })
       .returning();
       
-    req.logMessage =
-      "Stock with id " + newProduct.productId + " added successfully";
+    req.logMessages =
+      ["Stock with id " + newProduct.productId + " added successfully"];
     res
       .status(201)
       .json({ message: "Stock added successfully", product: newProduct });
@@ -126,12 +145,12 @@ export const deleteStock = async (req: Request, res: Response) => {
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
       .returning();
 
-    req.logMessage =
-      "Stock with id " +
+    req.logMessages =
+      ["Stock with id " +
       productId +
       " deleted. " +
       "\nDeleted Data : " +
-      deletedStock;
+      deletedStock];
     res.status(200).send("Stock deleted successfully");
   } catch (error) {
     console.error(error);
@@ -178,13 +197,13 @@ export const updateStock = async (req: Request, res: Response) => {
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
       .returning();
 
-    req.logMessage =
-      "Stock with id " +
+    req.logMessages =
+      ["Stock with id " +
       productId +
       " updated. \nold data: " +
       oldStockData +
       " \nnew data: " +
-      updatedStock;
+      updatedStock];
     res
       .status(200)
       .json({ message: "Stock updated successfully", stock: updatedStock });
@@ -204,3 +223,104 @@ export const getAllStock = async (_req: Request, res: Response) => {
     res.status(500).send("Failed to retrieve stocks");
   }
 };
+
+export const handleInvoiceWithProducts = async (req: Request, res: Response) => {
+  await db.transaction(async (transaction) => {
+    try {
+      const { invoiceDetails, products }: { invoiceDetails: any, products : Product[]} = req.body;
+
+      const {
+        fromAddress,
+        toAddress,
+        actualAmount,
+        gstAmount,
+        invoiceDate,
+        invoiceImage,
+      } = invoiceDetails;
+
+      if (!fromAddress || !toAddress || !actualAmount || !gstAmount || !invoiceDate) {
+        return res
+          .status(400)
+          .send("All invoice fields except invoiceImage are required");
+      }
+
+      // Add invoice
+      const [newInvoice] = await transaction
+        .insert(invoiceTable)
+        .values({
+          fromAddress,
+          toAddress,
+          actualAmount,
+          gstAmount,
+          invoiceDate,
+          invoiceImage,
+        })
+        .returning();
+      const invoiceId = newInvoice.invoiceId;
+
+      // Batch fetch metadata
+      const uniqueLocations = [...new Set(products.map((p) => p.location))];
+      const uniqueRemarks = [...new Set(products.map((p) => p.remarks))];
+      const uniqueCategories = [...new Set(products.map((p) => p.category))];
+
+      const locations = await transaction
+        .select()
+        .from(locationTable)
+        .where(inArray(locationTable.locationName, uniqueLocations));
+      const remarks = await transaction
+        .select()
+        .from(remarksTable)
+        .where(inArray(remarksTable.remark, uniqueRemarks));
+      const categories = await transaction
+        .select()
+        .from(categoriesTable)
+        .where(inArray(categoriesTable.categoryName, uniqueCategories));
+
+      // Create mapping for metadata
+      const locationMap = Object.fromEntries(locations.map((l) => [l.locationName, l]));
+      const remarkMap = Object.fromEntries(remarks.map((r) => [r.remark, r]));
+      const categoryMap = Object.fromEntries(categories.map((c) => [c.categoryName, c]));
+
+      // Validate metadata
+      const invalidMetadata = products.find(
+        (p) =>
+          !locationMap[p.location] ||
+          !remarkMap[p.remarks] ||
+          !categoryMap[p.category]
+      );
+      if (invalidMetadata) {
+        throw new Error("Invalid location, remark, or category");
+      }
+
+      // Prepare product data for batch insert
+      const productData = products.flatMap((product) =>
+        Array.from({ length: product.quantity }, () => ({
+          productVolPageSerial: product.productVolPageSerial,
+          productName: product.productName,
+          productDescription: product.productDescription,
+          locationId: locationMap[product.location].locationId,
+          remarkId: remarkMap[product.remarks].remarkId,
+          gst: invoiceDetails.gstAmount,
+          productImage: product.productImage,
+          invoiceId,
+          categoryId: categoryMap[product.category].categoryId,
+        }))
+      );
+
+      // Batch insert products
+      await transaction.insert(productsTable).values(productData);
+
+      res
+        .status(201)
+        .json({ message: "Invoice and products added successfully", invoiceId });
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("Failed to process the request");
+    }
+  }, {
+    isolationLevel: "read committed",
+    accessMode: "read write",
+    deferrable: true,
+  });
+};
+

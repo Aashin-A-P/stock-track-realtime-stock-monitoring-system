@@ -6,7 +6,7 @@ declare global {
       userId?: number;
       cleanBody?: any;
       role: string;
-      logMessage?: string;
+      logMessages?: string[];
     }
   }
 }

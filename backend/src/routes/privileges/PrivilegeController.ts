@@ -18,7 +18,7 @@ export const addPrivilege = async (req: Request, res: Response) => {
     .values({ privilege })
     .returning();
 
-    req.logMessage = `Privilege added: ${privilege}`;
+    req.logMessages = [`Privilege added: ${privilege}`];
     res.status(201).json({ message: 'Privilege added successfully', privilege: newPrivilege });
   } catch (error: any) {
     if (error.code === '23505') {
@@ -60,7 +60,7 @@ export const addUserPrivilege = async (req: Request, res: Response): Promise<voi
       .values({ userId, privilegeId })
       .returning();
 
-    req.logMessage = `User privilege added: ${userPrivilege}`;
+    req.logMessages = [`User privilege added: ${userPrivilege}`];
 
     res.status(201).json({
       message: 'User privilege added successfully',
