@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
 import { productsTable } from "../../db/schemas/productsSchema";
-import { sql, eq, inArray } from "drizzle-orm";
+import { sql, eq, inArray, count, ilike } from "drizzle-orm";
 import { invoiceTable } from "../../db/schemas/invoicesSchema";
 import { locationTable } from "../../db/schemas/locationsSchema";
 import { remarksTable } from "../../db/schemas/remarksSchema";
@@ -322,5 +322,109 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
     accessMode: "read write",
     deferrable: true,
   });
+};
+
+export const getPaginatedProducts = async (req: Request, res: Response) => {
+  try {
+    const { page, pageSize, query, column } = req.query;
+
+    if (!page || !pageSize) {
+      return res.status(400).send("Page and pageSize are required");
+    }
+    if (!column) {
+      return res.status(400).send("Column is required");
+    }
+
+    // column name -> schema types
+    const columnTypes: Record<string, string> = {
+      product_id: "integer",
+      product_vol_page_serial: "string",
+      product_name: "string",
+      product_description: "string",
+      location_id: "integer",
+      location_name: "string",
+      remark_id: "integer",
+      remark: "string",
+      gst: "decimal",
+      product_image: "string",
+      invoice_id: "integer",
+      category_id: "integer",
+      category_name: "string",
+    };
+
+    const columnType = columnTypes[column as string];
+
+    if (!columnType) {
+      return res.status(400).send("Invalid column name");
+    }
+    
+    let typedQuery: any = query;
+    if (columnType === "integer") {
+      typedQuery = parseInt(query as string, 10);
+      if (isNaN(typedQuery)) {
+        return res.status(400).send("Query must be a valid integer for this column");
+      }
+    } else if (columnType === "decimal") {
+      typedQuery = parseFloat(query as string);
+      if (isNaN(typedQuery)) {
+        return res.status(400).send("Query must be a valid decimal for this column");
+      }
+    }
+
+    const offset = (parseInt(page as string, 10) - 1) * parseInt(pageSize as string, 10);
+
+    let whereClause = sql`true`;
+
+    if (query && query !== "") {
+      whereClause = columnType === "string"
+        ? sql`${sql.identifier(column as string)} ILIKE ${"%" + typedQuery + "%"}`
+        : sql`${sql.identifier(column as string)} = ${typedQuery}`;
+    }
+
+    const totalRecordsQuery = await db
+      .select({ count: count() })
+      .from(productsTable)
+      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(remarksTable, eq(productsTable.remarkId, remarksTable.remarkId))
+      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
+      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .where(whereClause);
+
+    const totalRecords = totalRecordsQuery[0].count;
+
+    // Get paginated products with filtering applied
+    const products = await db
+      .select({
+        productId: productsTable.productId,
+        productName: productsTable.productName,
+        productDescription: productsTable.productDescription,
+        productImage: productsTable.productImage,
+        locationName: locationTable.locationName,
+        remark: remarksTable.remark,
+        categoryName: categoriesTable.categoryName,
+        fromAddress: invoiceTable.fromAddress,
+        toAddress: invoiceTable.toAddress,
+        actualAmount: invoiceTable.actualAmount,
+        gstAmount: invoiceTable.gstAmount,
+        invoiceDate: invoiceTable.invoiceDate,
+      })
+      .from(productsTable)
+      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(remarksTable, eq(productsTable.remarkId, remarksTable.remarkId))
+      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
+      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .where(whereClause)
+      .limit(parseInt(pageSize as string, 10))
+      .offset(offset);
+
+    // Return products and pagination data
+    res.status(200).json({
+      products,
+      totalRecords,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to fetch products");
+  }
 };
 

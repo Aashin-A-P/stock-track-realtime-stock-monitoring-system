@@ -34,7 +34,7 @@ export const useDashboard = (): DashboardContextType => {
   return context;
 };
 
-const API_URL = import.meta.env.VITE_API_BASE_URL +  "/dashboard";
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface DashboardProviderProps {
   children: React.ReactNode;
@@ -58,14 +58,14 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     setError(null);
 
     try {
-      const yearsResponse = await fetch(`${API_URL}/budget-years`, {
+      const yearsResponse = await fetch(`${API_URL}/dashboard/budget-years`, {
         headers: fetchHeaders,
       });
       if (!yearsResponse.ok) throw new Error("Failed to fetch years");
       const { years } = await yearsResponse.json();
       setYears(years);
 
-      const logsResponse = await fetch(`${API_URL}/recent-logs?numberOfLogs=5`, {
+      const logsResponse = await fetch(`${API_URL}/logs/recent-logs?numberOfLogs=5`, {
         headers: fetchHeaders,
       });
       if (!logsResponse.ok) throw new Error("Failed to fetch logs");
@@ -73,8 +73,8 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       setLogs(logs);
 
       const analysisEndpoint = year
-        ? `${API_URL}/analysis?year=${year}`
-        : `${API_URL}/all-years-analysis`;
+        ? `${API_URL}/dashboard/analysis?year=${year}`
+        : `${API_URL}/dashboard/all-years-analysis`;
       const analysisResponse = await fetch(analysisEndpoint, {
         headers: fetchHeaders,
       });

@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Invalid username or password");
+        throw new Error("Invalid username or password");
       }
 
       if (result.token && result.user) {
