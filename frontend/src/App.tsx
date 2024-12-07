@@ -43,7 +43,7 @@ const App = () => {
               <Route path="/stocks" element={<SearchStock />} />
               <Route path="/stocks/:stockId" element={<StockDetails />} />
               <Route path="/logs" element={<Logs />} />
-              <Route path="/user-management" element={<UserManagement />} />
+              <Route path="/usermanagement" element={<UserManagement />} />
 
               {/* Redirect Route */}
               <Route path="*" element={<Navigate to="/login" />} />
