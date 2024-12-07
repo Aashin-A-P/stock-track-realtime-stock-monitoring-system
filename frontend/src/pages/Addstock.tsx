@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface Product {
   pageNo: string;
@@ -21,6 +23,14 @@ interface Product {
 }
 
 const AddProduct: React.FC = () => {
+  const navigate = useNavigate();
+  const { token } = useAuth();
+
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
   const defaultProduct: Product = {
     pageNo: "",
     volNo: "",

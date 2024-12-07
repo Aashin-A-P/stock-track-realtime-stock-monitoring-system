@@ -47,6 +47,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState<number>(0);
+  const token = localStorage.getItem("token");
 
   const fetchData = async (year?: number) => {
     setLoading(true);
@@ -56,7 +57,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       const yearsResponse = await fetch(`${API_URL}/dashboard/budget-years`, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token") || "",
+          Authorization: token || localStorage.getItem("token") || "",
         }
       });
       if (!yearsResponse.ok) throw new Error("Failed to fetch years");
@@ -66,7 +67,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       const logsResponse = await fetch(`${API_URL}/logs/recent-logs?numberOfLogs=5`, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token") || "",
+          Authorization: token || localStorage.getItem("token") || "",
         },
       });
       if (!logsResponse.ok) throw new Error("Failed to fetch logs");
@@ -79,7 +80,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       const analysisResponse = await fetch(analysisEndpoint, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token") || "",
+          Authorization: token || localStorage.getItem("token") || "",
         },
       });
       if (!analysisResponse.ok) throw new Error("Failed to fetch analysis data");
@@ -94,6 +95,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
   };
 
   useEffect(() => {
+    if(localStorage.getItem("token")) 
     fetchData(0);
   }, [setYear]);
 

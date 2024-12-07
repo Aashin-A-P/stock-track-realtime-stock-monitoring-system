@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 
 import Navbar from "../components/Navbar";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 
 interface Log {
@@ -10,6 +12,14 @@ interface Log {
 }
 
 const Logs: React.FC = () => {
+  const navigate = useNavigate();
+  const { token } = useAuth();
+
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
 
   const [logs, setLogs] = useState<Log[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);

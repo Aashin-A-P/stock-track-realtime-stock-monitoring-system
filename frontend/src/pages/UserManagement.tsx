@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+
 // Mock user data (replace with API data in real-world app)
 const mockUsers = [
 	{ id: 1, name: "Alice", password: "alice123", role: "Admin" },
@@ -7,6 +10,14 @@ const mockUsers = [
 ];
 
 const UserManagement: React.FC = () => {
+	const navigate = useNavigate();
+	const { token } = useAuth();
+  
+	useEffect(() => {
+	  if (!token) {
+		navigate("/login");
+	  }
+	}, [token, navigate]);
 	const [users, setUsers] = useState(mockUsers); // State for managing users
 	const [newUser, setNewUser] = useState({ name: "", password: "" }); // Form for new user
 	const [isUpdating, setIsUpdating] = useState(false); // Toggle for update

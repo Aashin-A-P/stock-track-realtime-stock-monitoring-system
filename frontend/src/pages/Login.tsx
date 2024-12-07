@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import { useNavigate } from "react-router-dom";
@@ -18,9 +18,12 @@ const Login: React.FC = () => {
     await login(formState.username, formState.password);
   };
 
-  if(localStorage.getItem("token")) {
-    navigate("/"); 
-  }
+  // Redirect to dashboard if user is logged in
+  useEffect(() => {
+    if (token) {
+      navigate("/");
+    }
+  }, [token, navigate]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
