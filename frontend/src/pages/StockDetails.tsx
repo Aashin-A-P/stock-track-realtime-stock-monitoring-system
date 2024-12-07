@@ -1,183 +1,196 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import Navbar from "../components/Navbar";
 
-const ProductDetails: React.FC = () => {
-  const navigate = useNavigate();
-  const { token } = useAuth();
+const StockDetails: React.FC = () => {
+	const navigate = useNavigate();
+	const { stockId } = useParams<{ stockId: string }>();
+	const [loading, setLoading] = useState<boolean>(true);
+	const [product, setProduct] = useState<any>(null);
+	const [invoice, setInvoice] = useState<any>(null);
 
-  useEffect(() => {
-    if (!token) {
-      navigate("/login");
-    }
-  }, [token, navigate]);
-  const { stockId } = useParams<{ stockId: string }>();
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [products, setProducts] = useState<any[]>([]);
-  const [invoiceDetails, setInvoiceDetails] = useState<any>({
-    fromAddress: "",
-    toAddress: "",
-    gstAmount: 0,
-    actualAmount: 0,
-    invoiceDate: "",
-    invoiceImage: "",
-  });
-  
-  const fetchHeaders = {
-    "Content-Type": "application/json",
-    Authorization: localStorage.getItem("token") || "",
-  };
+	const fetchHeaders = {
+		"Content-Type": "application/json",
+		Authorization: localStorage.getItem("token") || "",
+	};
 
-  const fetchProductDetails = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `http://localhost:3000/stock/details?page=1&pageSize=1&column=product_id&query=${stockId}`,
-        { headers: fetchHeaders }
-      );
-      const data = await response.json();
-      setProduct(data.products[0]);
-    } catch (error) {
-      console.error("Error fetching stock details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+	useEffect(() => {
+		// Using dummy data to populate the sections
+		const fetchDummyData = () => {
+			setLoading(true);
+			try {
+				const dummyProduct = {
+					product_id: "P12345",
+					product_name: "Sample Product",
+					product_description: "This is a sample product description.",
+					location_id: "LOC001",
+					remark_id: "REM123",
+					category_id: "CAT456",
+					GST: 18,
+					product_image: "https://via.placeholder.com/150",
+					invoice_id: "INV789",
+					product_vol_page_serial: "VP1234", // Added product_vol_page_serial
+				};
 
-  const handleInvoiceChange = (key: string, value: any) => {
-    setInvoiceDetails((prev: any) => ({ ...prev, [key]: value }));
-  };
+				const dummyInvoice = {
+					invoice_id: "INV789",
+					from_address: "123 Main Street, Chennai",
+					to_address: "456 Elm Street, Bangalore",
+					actual_amount: 10000,
+					gst_amount: 1800,
+					invoice_date: "2023-12-01",
+					invoice_image: "https://via.placeholder.com/150",
+				};
 
+				setProduct(dummyProduct);
+				setInvoice(dummyInvoice);
+			} catch (error) {
+				console.error("Error loading dummy data:", error);
+			} finally {
+				setLoading(false);
+			}
+		};
 
-  const uploadImageAndGetURL = async (file: File): Promise<string> => {
-    // Simulate image upload and return a URL
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(URL.createObjectURL(file)), 1000);
-    });
-  };
+		fetchDummyData();
+	}, [stockId]);
 
-  const defaultProduct = {
-    volNo: "",
-    pageNo: "",
-    serialNo: "",
-    productName: "",
-    productDescription: "",
-    category: "",
-    location: "",
-    remarks: "",
-    quantity: 0,
-    price: 0,
-    productImage: "",
-  };
+	const handleEdit = () => {
+		navigate(`/stock/edit/${stockId}`);
+	};
 
-  useEffect(() => {
-    fetchProductDetails();
-  }, []);
+	const handleDelete = async () => {
+		try {
+			await fetch(`http://localhost:3000/stock/delete/${stockId}`, {
+				method: "DELETE",
+				headers: fetchHeaders,
+			});
+			navigate("/stocks");
+		} catch (error) {
+			console.error("Error deleting stock:", error);
+		}
+	};
 
-  if (loading) return <div>Loading...</div>;
+	if (loading) return <div className="text-center">Loading...</div>;
 
-  return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-100 rounded-lg shadow-md my-10">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">Add Products</h2>
+	if (!product || !invoice) {
+		return (
+			<div className="text-center text-red-500">
+				Error: Unable to fetch stock or invoice details.
+			</div>
+		);
+	}
 
-      {/* Invoice Details Section */}
-      <div className="bg-white p-4 mb-6 rounded shadow">
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">
-          Invoice Details
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <textarea
-            placeholder="From Address"
-            value={invoiceDetails.fromAddress}
-            onChange={(e) =>
-              handleInvoiceChange("fromAddress", e.target.value)
-            }
-            className="p-2 border rounded col-span-2"
-          />
-          <textarea
-            placeholder="To Address"
-            value={invoiceDetails.toAddress}
-            onChange={(e) =>
-              handleInvoiceChange("toAddress", e.target.value)
-            }
-            className="p-2 border rounded col-span-2"
-          />
-          <input
-            type="number"
-            placeholder="Tax Amount"
-            value={invoiceDetails.gstAmount || ""}
-            onChange={(e) =>
-              handleInvoiceChange("gstAmount", parseFloat(e.target.value))
-            }
-            className="p-2 border rounded"
-          />
-          <input
-            type="number"
-            placeholder="Total Amount"
-            value={invoiceDetails.actualAmount || ""}
-            onChange={(e) =>
-              handleInvoiceChange("actualAmount", parseFloat(e.target.value))
-            }
-            className="p-2 border rounded"
-          />
-          <input
-            placeholder="Invoice Image"
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                uploadImageAndGetURL(file).then((url) =>
-                  handleInvoiceChange("invoiceImage", url)
-                );
-              }
-            }}
-            className="hidden"
-            id="invoiceImageInput"
-          />
-          <label
-            htmlFor="invoiceImageInput"
-            className={`p-2 border rounded bg-blue-600 text-white cursor-pointer text-center ${
-              invoiceDetails.invoiceImage ? "bg-green-500" : ""
-            }`}
-          >
-            {invoiceDetails.invoiceImage
-              ? "Invoice Image Uploaded"
-              : "Choose Invoice Image"}
-          </label>
-          <input
-            placeholder="Invoice Date"
-            type="date"
-            value={invoiceDetails.invoiceDate}
-            onChange={(e) =>
-              handleInvoiceChange("invoiceDate", e.target.value)
-            }
-            className="p-2 border rounded"
-          />
-        </div>
-      </div>
+	return (
+		<>
+			<Navbar />
+			<div className="p-6 max-w-5xl mx-auto">
+				<h1 className="text-2xl font-bold text-blue-700 mb-4 text-center">
+					Stock Details
+				</h1>
 
-      {/* Products Section */}
-      {products.map((product, index) => (
-        <div key={index} className="bg-white p-4 mb-4 rounded shadow">
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            Product {index + 1}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            {/* Add inputs for product details */}
-          </div>
-        </div>
-      ))}
+				{/* Product Details */}
+				<div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+					<h3 className="text-lg font-medium text-gray-700 mb-4">
+						Product Details
+					</h3>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<strong>Product ID:</strong> {product.product_id}
+						</div>
+						<div>
+							<strong>Product Name:</strong> {product.product_name}
+						</div>
+						<div>
+							<strong>Description:</strong> {product.product_description}
+						</div>
+						<div>
+							<strong>Location ID:</strong> {product.location_id}
+						</div>
+						<div>
+							<strong>Remark ID:</strong> {product.remark_id}
+						</div>
+						<div>
+							<strong>Category ID:</strong> {product.category_id}
+						</div>
+						<div>
+							<strong>GST:</strong> {product.GST}%
+						</div>
+						<div>
+							<strong>Invoice ID:</strong> {product.invoice_id}
+						</div>
+						{/* New field */}
+						<div>
+							<strong>Volume/Page/Serial:</strong>{" "}
+							{product.product_vol_page_serial}
+						</div>
+						{product.product_image && (
+							<div className="col-span-2">
+								<strong>Product Image:</strong>
+								<img
+									src={product.product_image}
+									alt="Product"
+									className="w-32 h-32 mt-2"
+								/>
+							</div>
+						)}
+					</div>
+				</div>
 
-      <button
-        onClick={() => setProducts([...products, defaultProduct])}
-        className="bg-gray-700 text-white px-4 py-2 rounded shadow hover:bg-black"
-      >
-        Add New Product
-      </button>
-    </div>
-  );
+				{/* Invoice Details */}
+				<div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+					<h3 className="text-lg font-medium text-gray-700 mb-4">
+						Invoice Details
+					</h3>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<strong>Invoice ID:</strong> {invoice.invoice_id}
+						</div>
+						<div>
+							<strong>From Address:</strong> {invoice.from_address}
+						</div>
+						<div>
+							<strong>To Address:</strong> {invoice.to_address}
+						</div>
+						<div>
+							<strong>Actual Amount:</strong> ₹{invoice.actual_amount}
+						</div>
+						<div>
+							<strong>GST Amount:</strong> ₹{invoice.gst_amount}
+						</div>
+						<div>
+							<strong>Invoice Date:</strong> {invoice.invoice_date}
+						</div>
+						{invoice.invoice_image && (
+							<div className="col-span-2">
+								<strong>Invoice Image:</strong>
+								<img
+									src={invoice.invoice_image}
+									alt="Invoice"
+									className="w-32 h-32 mt-2"
+								/>
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* Action Buttons */}
+				<div className="flex justify-between mt-4">
+					<button
+						onClick={handleEdit}
+						className="text-white bg-blue-600 px-4 py-2 rounded shadow hover:bg-blue-700"
+					>
+						Edit Details
+					</button>
+					<button
+						onClick={handleDelete}
+						className="text-white bg-red-600 px-4 py-2 rounded shadow hover:bg-red-700"
+					>
+						Delete Stock
+					</button>
+				</div>
+			</div>
+		</>
+	);
 };
 
-export default ProductDetails;
+export default StockDetails;
