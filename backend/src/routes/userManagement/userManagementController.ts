@@ -24,7 +24,7 @@ const getPrivilegeIds = async (privileges: string[]) => {
 
 // Main user registration handler
 export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  try {
+  try { 
     const { userName, password, privileges, role } = req.cleanBody;
 
     // Validate required fields

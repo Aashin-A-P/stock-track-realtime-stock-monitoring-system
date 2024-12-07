@@ -89,7 +89,7 @@ const Navbar: React.FC = () => {
               <>
                 <li>
                   <Link
-                    to="/user-management"
+                    to="/usermanagement"
                     className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
                   >
                     User Management
