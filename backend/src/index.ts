@@ -11,7 +11,6 @@ import privilegeRouter from "./routes/privileges";
 import stockRouter from "./routes/stock";
 import uploadRouter from "./routes/uploads";
 import logsRouter from "./routes/logs";
-
 // Resolve __dirname in ES Module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

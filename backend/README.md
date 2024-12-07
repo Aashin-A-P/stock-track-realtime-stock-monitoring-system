@@ -163,7 +163,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
 ### Recent Logs
 
-- **URL**: `/dashboard/recent-logs`
+- **URL**: `/logs/recent-logs`
 - **Method**: `GET`
 - **Headers**:
   - `Authorization`: `<token>` (Replace `<token>` with the JWT obtained during login)

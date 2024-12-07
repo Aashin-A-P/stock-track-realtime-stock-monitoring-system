@@ -1,0 +1,72 @@
+
+.logs-table-container {
+    margin: 20px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .logs-table-container h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+  }
+  
+  .logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+  }
+  
+  .logs-table thead {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .logs-table thead th {
+    padding: 10px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+  }
+  
+  .logs-table tbody tr {
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .logs-table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+  }
+  
+  .logs-table tbody tr:hover {
+    background-color: #e9ecef;
+  }
+  
+  .logs-table tbody td {
+    padding: 10px;
+    text-align: left;
+  }
+  
+  .logs-table tbody td:last-child {
+    font-style: italic;
+    color: #555;
+  }
+  
+  @media (max-width: 768px) {
+    .logs-table-container {
+      padding: 10px;
+    }
+  
+    .logs-table-container h2 {
+      font-size: 1.2rem;
+    }
+  
+    .logs-table thead th,
+    .logs-table tbody td {
+      font-size: 0.9rem;
+      padding: 8px;
+    }
+  }
+  

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+
 import Navbar from "../components/Navbar";
+
 
 interface Log {
   logId: number;
@@ -8,6 +10,7 @@ interface Log {
 }
 
 const Logs: React.FC = () => {
+
   const [logs, setLogs] = useState<Log[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<Log[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
