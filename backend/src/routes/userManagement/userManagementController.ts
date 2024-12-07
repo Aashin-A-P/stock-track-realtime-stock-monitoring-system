@@ -53,6 +53,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 
       req.logMessages = [`User with id ${user.userId} created.`];
 
+
     if (!user) {
       res.status(500).json({ message: "Failed to create user" });
       return;
@@ -66,6 +67,8 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       userId: user.userId,
       privilegeId,
     }));
+
+    console.log("User Privileges Data", userPrivilegesData);
 
     // Insert user-privilege relationships
     await db.insert(userPrivilegeTable).values(userPrivilegesData);
@@ -91,7 +94,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 // Main user deletion handler
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = Number(req.params.userId);
+    const userId = Number(req.cleanBody.userId);
 
     // Validate user ID
     if (!userId) {
@@ -107,7 +110,7 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     // Delete the user and their related data (user-privileges, etc.)
     await db.delete(userPrivilegeTable).where(eq(userPrivilegeTable.userId, userId));
     await db.delete(usersTable).where(eq(usersTable.userId, userId)).execute();
-    
+
     req.logMessages = [`User with id ${userId} deleted.`];
     res.status(204).send();
   } catch (error : Error | any) {
