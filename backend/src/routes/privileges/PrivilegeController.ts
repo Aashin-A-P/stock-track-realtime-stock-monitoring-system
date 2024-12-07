@@ -71,3 +71,43 @@ export const addUserPrivilege = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ error: 'Failed to add user privilege' });
   }
 };
+export const getAllPrivileges = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const privileges = await db.select().from(privilegesTable);
+
+    res.status(200).json({ privileges });
+  } catch (error) {
+    console.error('Error fetching privileges:', error);
+    res.status(500).json({ error: 'Failed to fetch privileges' });
+  }
+};
+export const getUserPrivileges = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    // Validate input
+    if (!userId) {
+      res.status(400).json({ error: 'userId is required' });
+      return;
+    }
+
+    // Check if the user exists
+    const user = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+    if (user.length === 0) {
+      res.status(404).json({ error: `User with ID ${userId} not found` });
+      return;
+    }
+
+    // Get user privileges
+    const userPrivileges = await db
+      .select()
+      .from(userPrivilegeTable)
+      .innerJoin(privilegesTable, eq(userPrivilegeTable.privilegeId, privilegesTable.privilegeId))
+      .where(eq(userPrivilegeTable.userId, userId));
+
+    res.status(200).json({ userPrivileges });
+  } catch (error) {
+    console.error('Error fetching user privileges:', error);
+    res.status(500).json({ error: 'Failed to fetch user privileges' });
+  }
+};
