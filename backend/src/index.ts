@@ -10,6 +10,7 @@ import userManagementRouter from "./routes/userManagement";
 import privilegeRouter from "./routes/privileges";
 import stockRouter from "./routes/stock";
 import uploadRouter from "./routes/uploads";
+import logsRouter from "./routes/logs";
 
 // Resolve __dirname in ES Module
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +23,7 @@ const port = process.env.PORT;
 app.use(json());
 app.use(urlencoded({ extended: true }));
 app.use(cors());
-app.use('/uploads', express.static(path.join(__dirname, 'uploadedImages'))); // Serve Uploaded Files Statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'))); // Serve Uploaded Files Statically
 
 // Base Route
 app.get("/", (req, res) => {
@@ -36,6 +37,7 @@ app.use("/usermanagement", userManagementRouter);
 app.use("/privileges", privilegeRouter);
 app.use("/stock", stockRouter);
 app.use("/upload", uploadRouter);
+app.use("/logs", logsRouter);
 
 // Start Server
 app.listen(port, () => {

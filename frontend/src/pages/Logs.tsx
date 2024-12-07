@@ -68,7 +68,7 @@ const Logs: React.FC = () => {
     <>
       <Navbar />
       <div className="p-6 max-w-5xl mx-auto">
-        <h2 className="text-2xl font-bold text-blue-700 mb-4">Logs Table</h2>
+        <h2 className="text-2xl font-bold text-blue-700 mb-4">Activity log</h2>
         <div className="mb-4">
           <label
             htmlFor="search"

@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
-import { Router } from "react-router-dom";
 
 // Define the shape of the auth context
 interface AuthContextType {

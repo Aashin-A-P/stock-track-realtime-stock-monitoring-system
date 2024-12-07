@@ -51,64 +51,66 @@ const Navbar: React.FC = () => {
 
       {/* Navbar Links */}
       <div className="flex-grow ml-10">
-        <ul className="flex space-x-6">
-          <li>
-            <Link
-              to="/"
-              className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-            >
-              Home
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/addstock"
-              className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-            >
-              Add Stock
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/searchstock"
-              className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-            >
-              Search Stock
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/logs"
-              className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-            >
-              Logs
-            </Link>
-          </li>
-          {role === "admin" && (
-            <>
-              <li>
-                <Link
-                  to="/user-management"
-                  className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-                >
-                  User Management
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/reportgeneration"
-                  className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-                >
-                  Report Generation
-                </Link>
-              </li>
-            </>
-          )}
-        </ul>
+        {username && (
+          <ul className="flex space-x-6">
+            <li>
+              <Link
+                to="/"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/addstock"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Add Stock
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/stocks"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Search Stock
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/logs"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Logs
+              </Link>
+            </li>
+            {role === "admin" && (
+              <>
+                <li>
+                  <Link
+                    to="/user-management"
+                    className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+                  >
+                    User Management
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/reportgeneration"
+                    className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+                  >
+                    Report Generation
+                  </Link>
+                </li>
+              </>
+            )}
+          </ul>
+        )}
       </div>
 
       {/* Username and Dropdown */}
-      { username && (
+      {username && (
         <div className="relative">
           <div
             id="username-button"

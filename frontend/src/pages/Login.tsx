@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     await login(formState.username, formState.password);
   };
 
-  if(localStorage.getItem("token") || token) {
+  if(localStorage.getItem("token")) {
     navigate("/"); 
   }
 

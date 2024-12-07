@@ -48,25 +48,26 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState<number>(0);
 
-  const fetchHeaders = {
-    "Content-Type": "application/json",
-    Authorization: localStorage.getItem("token") || "",
-  };
-
   const fetchData = async (year?: number) => {
     setLoading(true);
     setError(null);
 
     try {
       const yearsResponse = await fetch(`${API_URL}/dashboard/budget-years`, {
-        headers: fetchHeaders,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: localStorage.getItem("token") || "",
+        }
       });
       if (!yearsResponse.ok) throw new Error("Failed to fetch years");
       const { years } = await yearsResponse.json();
       setYears(years);
 
       const logsResponse = await fetch(`${API_URL}/logs/recent-logs?numberOfLogs=5`, {
-        headers: fetchHeaders,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: localStorage.getItem("token") || "",
+        },
       });
       if (!logsResponse.ok) throw new Error("Failed to fetch logs");
       const logs = await logsResponse.json();
@@ -76,7 +77,10 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
         ? `${API_URL}/dashboard/analysis?year=${year}`
         : `${API_URL}/dashboard/all-years-analysis`;
       const analysisResponse = await fetch(analysisEndpoint, {
-        headers: fetchHeaders,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: localStorage.getItem("token") || "",
+        },
       });
       if (!analysisResponse.ok) throw new Error("Failed to fetch analysis data");
       const result = await analysisResponse.json();

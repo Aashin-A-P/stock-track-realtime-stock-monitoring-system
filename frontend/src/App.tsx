@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Addstock from "./pages/Addstock";
 import SearchStock from "./pages/SearchStock";
+import StockDetails from "./pages/StockDetails";
 import UserManagement from "./pages/UserManagement";
 import { AuthProvider } from "./context/AuthContext";
 import { DashboardProvider } from "./context/DashboardContext";
@@ -56,8 +57,12 @@ const App = () => {
                 element={token ? <Addstock /> : <Navigate to="/login" />}
               />
               <Route
-                path="/searchstock"
+                path="/stocks"
                 element={token ? <SearchStock /> : <Navigate to="/login" />}
+              />
+              <Route
+                path="/stocks/:stockId"
+                element={token ? <StockDetails /> : <Navigate to="/login" />}
               />
               <Route
                 path="/logs"

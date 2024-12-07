@@ -72,16 +72,16 @@ router.get('/category/', verifyToken, logger, showCategories);
 
 // // stocks route
 // @ts-ignore
-router.get("/search", verifyToken, logger, searchStock);
+// router.get("/search", verifyToken, logger, searchStock);
 router.get("/details", verifyToken, logger, getPaginatedProducts);
-// @ts-ignore
-router.delete("/:productId", verifyToken, logger, deleteStock);
-// @ts-ignore
-router.put("/:productId", verifyToken, validateData(createProductSchema), logger, updateStock);
 // @ts-ignore
 router.post('/submit', verifyToken, logger, handleInvoiceWithProducts);
 // @ts-ignore
 router.post('/add', verifyToken, validateData(createProductSchema), logger, addStock);
+// @ts-ignore
+router.delete("/:productId", verifyToken, logger, deleteStock);
+// @ts-ignore
+router.put("/:productId", verifyToken, validateData(createProductSchema), logger, updateStock);
 // @ts-ignore
 router.get('/', verifyToken, logger, getAllStock);
                                                             

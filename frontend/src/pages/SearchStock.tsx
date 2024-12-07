@@ -1,53 +1,24 @@
-import React, { useEffect, useState } from "react";
-import {
-  Container,
-  TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TablePagination,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  CircularProgress,
-  Typography,
-  SelectChangeEvent,
-} from "@mui/material";
-import axios from "axios";
-import { debounce } from "lodash";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
+import { set } from "lodash";
 
-// Types for Product and Pagination
+const baseURL = import.meta.env.VITE_API_BASE_URL;
+
 type Product = {
   productId: number;
   productName: string;
   productDescription: string;
-  productImage: string;
+  categoryName: string;
   locationName: string;
   remark: string;
-  categoryName: string;
-  fromAddress: string;
-  toAddress: string;
   actualAmount: string;
   gstAmount: string;
   invoiceDate: string;
 };
 
-type Pagination = {
-  page: number;
-  pageSize: number;
-  totalRecords: number;
-};
-
-// SearchStockPage Component
 const SearchStock: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({
+  const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 10,
     totalRecords: 0,
@@ -62,7 +33,6 @@ const SearchStock: React.FC = () => {
     Authorization: localStorage.getItem("token") || "",
   };
 
-  // Fetch Products with Pagination
   const fetchProducts = async (
     page: number,
     pageSize: number,
@@ -71,18 +41,13 @@ const SearchStock: React.FC = () => {
   ) => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `http://localhost:3000/stock/details?page=${page}&pageSize=${pageSize}&column=${attribute}&query=${query}`,
-        {
-          headers: fetchHeaders,
-        }
+      const response = await fetch(
+        `${baseURL}/stock/details?page=${page}&pageSize=${pageSize}&column=${attribute}&query=${query}`,
+        { headers: fetchHeaders }
       );
-      setProducts(response.data.products);
-      setPagination({
-        page,
-        pageSize,
-        totalRecords: response.data.totalRecords,
-      });
+      const data = await response.json();
+      setProducts(data.products);
+      setPagination({ page, pageSize, totalRecords: data.totalRecords });
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -90,13 +55,7 @@ const SearchStock: React.FC = () => {
     }
   };
 
-  // Debounced version of handleSearch
-  const handleSearchDebounced = debounce((query: string) => {
-    fetchProducts(1, pagination.pageSize, query, selectedAttribute);
-  }, 500); // Debounced for 500ms delay
-
-  // Handle Page Change
-  const handlePageChange = (_: unknown, newPage: number) => {
+  const handlePageChange = (newPage: number) => {
     fetchProducts(
       newPage + 1,
       pagination.pageSize,
@@ -105,27 +64,19 @@ const SearchStock: React.FC = () => {
     );
   };
 
-  // Handle Rows Per Page Change
-  const handlePageSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newSize = parseInt(event.target.value, 10);
-    fetchProducts(1, newSize, searchQuery, selectedAttribute);
-  };
+  // const handlePageSizeChange = (newSize: number) => {
+  //   fetchProducts(1, newSize, searchQuery, selectedAttribute);
+  // };
 
-  // Handle Search Input Change
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-    handleSearchDebounced(event.target.value); // Call the debounced function
+    const query = event.target.value;
+    setSearchQuery(query);
+    fetchProducts(1, pagination.pageSize, query, selectedAttribute);
   };
 
-  // Handle Attribute Selection
-  const handleAttributeChange = (event: SelectChangeEvent<string>) => {
-    setSelectedAttribute(event.target.value as string);
-    fetchProducts(
-      1,
-      pagination.pageSize,
-      searchQuery,
-      event.target.value as string
-    );
+  const handleAttributeChange = (value: string) => {
+    setSelectedAttribute(value);
+    fetchProducts(1, pagination.pageSize, "", "product_name");
   };
 
   useEffect(() => {
@@ -135,130 +86,142 @@ const SearchStock: React.FC = () => {
       searchQuery,
       selectedAttribute
     );
-  }, []); // Fetch initial data when the component mounts
+  }, []);
 
   return (
     <>
       <Navbar />
-      <Container>
-        <Typography
-          variant="h4"
-          gutterBottom
-          align="center"
-          color="primary"
-          className="pt-8 pb-5"
-        >
-          Stock Search
-        </Typography>
+      <div className="p-6 max-w-5xl mx-auto">
+        <h2 className="text-2xl font-bold text-blue-700 mb-4">Search Stock</h2>
 
-        <FormControl
-          fullWidth
-          variant="outlined"
-          style={{ marginBottom: "1rem" }}
-        >
-          <InputLabel htmlFor="search-attribute">Search Attribute</InputLabel>
-          <Select
-            value={selectedAttribute}
-            onChange={handleAttributeChange}
-            label="Search Attribute"
-            inputProps={{
-              id: "search-attribute",
-            }}
-            MenuProps={{
-              PaperProps: {
-                style: {
-                  maxHeight: 300,
-                  width: "fit-content",
-                  overflowY: "auto", // Ensures scrolling is visible
-                },
-              },
-              anchorOrigin: {
-                vertical: "bottom",
-                horizontal: "left",
-              },
-              transformOrigin: {
-                vertical: "top",
-                horizontal: "left",
-              },
-            }}
+        {/* Dropdown */}
+        <div className="mb-4">
+          <label
+            htmlFor="attribute-dropdown"
+            className="block text-gray-700 mb-2"
           >
-            <MenuItem value="product_name">Product Name</MenuItem>
-            <MenuItem value="location_name">Location</MenuItem>
-            <MenuItem value="category_name">Category</MenuItem>
-            <MenuItem value="remark">Remark</MenuItem>
-          </Select>
-        </FormControl>
+            Search Attribute
+          </label>
+          <select
+            id="attribute-dropdown"
+            value={selectedAttribute}
+            onChange={(e) => {
+              setSearchQuery("");
+              handleAttributeChange(e.target.value);
+            }}
+            className="w-full p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="product_name">Product Name</option>
+            <option value="category_name">Category</option>
+            <option value="location_name">Location</option>
+            <option value="product_description">Description</option>
+            <option value="remark">Remark</option>
+            
+          </select>
+        </div>
 
-        {/* Updated TextField with proper margin and styling */}
-        <TextField
-          fullWidth
-          placeholder="Search..."
-          value={searchQuery}
-          onChange={handleSearch}
-          variant="outlined"
-          style={{ marginBottom: "1rem" }}
-        />
-
-        {loading ? (
-          <CircularProgress
-            color="primary"
-            style={{ display: "block", margin: "0 auto" }}
+        {/* Search Bar */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={handleSearch}
+            className="w-full p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div className="flex justify-center items-center h-screen text-blue-600">
+            Loading...
+          </div>
         ) : (
-          <>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Image</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Location</TableCell>
-                    <TableCell>Remark</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>GST</TableCell>
-                    <TableCell>Invoice Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.productId}>
-                      <TableCell>
-                        <img
-                          src={
-                            "http://localhost:3000" +
-                            (product.productImage ||
-                              "/uploads/default-image.jpg")
-                          }
-                          alt={product.productName}
-                          className="w-12 h-12"
-                        />
-                      </TableCell>
-                      <TableCell>{product.productName}</TableCell>
-                      <TableCell>{product.productDescription}</TableCell>
-                      <TableCell>{product.categoryName}</TableCell>
-                      <TableCell>{product.locationName}</TableCell>
-                      <TableCell>{product.remark}</TableCell>
-                      <TableCell>{product.actualAmount}</TableCell>
-                      <TableCell>{product.gstAmount}</TableCell>
-                      <TableCell>{product.invoiceDate}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              component="div"
-              count={pagination.totalRecords}
-              page={pagination.page - 1}
-              onPageChange={handlePageChange}
-              rowsPerPage={pagination.pageSize}
-              onRowsPerPageChange={handlePageSizeChange}
-            />
-          </>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left bg-white shadow border rounded-lg">
+              <thead className="bg-blue-600 text-white">
+                <tr>
+                  <th className="p-4">Product ID</th>
+                  <th className="p-4">Name</th>
+                  <th className="p-4">Description</th>
+                  <th className="p-4">Category</th>
+                  <th className="p-4">Location</th>
+                  <th className="p-4">Remark</th>
+                  <th className="p-4">Amount</th>
+                  <th className="p-4">GST</th>
+                  <th className="p-4">Invoice Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.length > 0 ? (
+                  products.map((product) => (
+                    <tr
+                      key={product.productId}
+                      className="border-b last:border-none hover:bg-blue-50 cursor-pointer"
+                      onClick={() =>
+                        (window.location.href = `/stocks/${product.productId}`)
+                      }
+                    >
+                      <td className="p-4">{product.productId}</td>
+                      <td className="p-4">{product.productName}</td>
+                      <td className="p-4">{product.productDescription}</td>
+                      <td className="p-4">{product.categoryName}</td>
+                      <td className="p-4">{product.locationName}</td>
+                      <td className="p-4">{product.remark}</td>
+                      <td className="p-4">{product.actualAmount}</td>
+                      <td className="p-4">{product.gstAmount}</td>
+                      <td className="p-4">{product.invoiceDate}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={9} className="p-4 text-center text-gray-500">
+                      No products found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
-      </Container>
+
+        {/* Pagination */}
+        <div className="flex justify-between items-center mt-4">
+          <button
+            className={
+              "px-4 py-2 " +
+              (pagination.page !== 1
+                ? ` bg-blue-500 text-white rounded`
+                : ` bg-gray-300 text-gray-500 rounded`)
+            }
+            disabled={pagination.page === 1}
+            onClick={() => handlePageChange(pagination.page - 2)}
+          >
+            Previous
+          </button>
+          <span>
+            Page {pagination.page} of{" "}
+            {Math.ceil(pagination.totalRecords / pagination.pageSize)}
+          </span>
+          <button
+            type="button"
+            className={
+              "px-4 py-2 " +
+              (pagination.page >=
+              Math.ceil(pagination.totalRecords / pagination.pageSize)
+                ? ` bg-gray-300 text-gray-500 rounded`
+                : ` bg-blue-500 text-white rounded`)
+            }
+            disabled={
+              pagination.page >=
+              Math.ceil(pagination.totalRecords / pagination.pageSize)
+            }
+            onClick={() => handlePageChange(pagination.page)}
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </>
   );
 };
