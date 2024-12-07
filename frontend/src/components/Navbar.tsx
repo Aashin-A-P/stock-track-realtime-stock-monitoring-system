@@ -1,75 +1,192 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import "./Navbar.css";
+import { Link, useNavigate } from "react-router-dom";
 
 const Navbar: React.FC = () => {
-	const { username, logout } = useAuth();
-	const [dropdownVisible, setDropdownVisible] = useState(false);
+  const { username, role, logout } = useAuth();
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const navigate = useNavigate();
 
-	// Toggle the visibility of the logout modal
-	const toggleDropdown = () => {
-		setDropdownVisible(!dropdownVisible);
-	};
+  // Toggle the visibility of the dropdown
+  const toggleDropdown = () => {
+    setDropdownVisible((prevState) => !prevState);
+  };
 
-	// Handle user logout
-	const handleLogout = () => {
-		logout();
-		setDropdownVisible(false);
-	};
+  // Handle user logout
+  const handleLogout = () => {
+    logout();
+    setDropdownVisible(false);
+    navigate("/login");
+  };
 
-	return (
-		<>
-			<nav className="navbar">
-				<div className="navbar-left">
-					{/* Sidebar items moved here */}
-					<ul className="navbar-links">
-						<li>
-							<img src="" alt="" />
-						</li>
-						<li>
-							<a href="/">Home</a>
-						</li>
-						<li>
-							<a href="/addstock">Add Stock</a>
-						</li>
-						<li>
-							<a href="/searchstock">Search Stock</a>
-						</li>
-						<li>
-							<a href="/logs">Logs</a>
-						</li>
-						<li>
-							<a href="/user-management">User Management</a>
-						</li>
-						<li>
-							<a href="/reportgeneration">Report Generation</a>
-						</li>
-					</ul>
-				</div>
-				<div className="navbar-right">
-					<div className="username-section" onClick={toggleDropdown}>
-						<span className="username">{username}</span>
-					</div>
-				</div>
-			</nav>
+  // Close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const usernameButton = document.getElementById("username-button");
+      if (
+        dropdownVisible &&
+        usernameButton &&
+        !usernameButton.contains(event.target as Node) &&
+        !(event.target as Element)?.closest("#dropdown-container")
+      ) {
+        setDropdownVisible(false);
+      }
+    };
 
-			{/* Small logout modal */}
-			<div className={`logout-modal ${dropdownVisible ? "visible" : ""}`}>
-				<div className="modal-content">
-					<h4>Are you sure you want to logout?</h4>
-					<button className="logout-button" onClick={handleLogout}>
-						Logout
-					</button>
-					<button
-						className="cancel-button"
-						onClick={() => setDropdownVisible(false)}
-					>
-						Cancel
-					</button>
-				</div>
-			</div>
-		</>
-	);
+    // Add event listener for clicks outside
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Clean up event listener on component unmount
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownVisible]);
+
+  return (
+    <nav className="flex items-center justify-between px-6 py-4 bg-blue-700 shadow-lg sticky top-0 z-10">
+      <div className="flex items-center space-x-4">
+        <img src="/images/mit-logo.png" alt="MIT Logo" className="h-14 w-14" />
+        <h1 className="text-white text-3xl font-bold">MIT IT Stocks Manager</h1>
+      </div>
+
+      {/* Navbar Links */}
+      <div className="flex-grow ml-10">
+        {username && (
+          <ul className="flex space-x-6">
+            <li>
+              <Link
+                to="/"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/addstock"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Add Stock
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/stocks"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Search Stock
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/logs"
+                className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+              >
+                Logs
+              </Link>
+            </li>
+            {role === "admin" && (
+              <>
+                <li>
+                  <Link
+                    to="/user-management"
+                    className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+                  >
+                    User Management
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/reportgeneration"
+                    className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+                  >
+                    Report Generation
+                  </Link>
+                </li>
+              </>
+            )}
+          </ul>
+        )}
+      </div>
+
+      {/* Username and Dropdown */}
+      {username && (
+        <div className="relative">
+          <div
+            id="username-button"
+            className="cursor-pointer text-white p-2 rounded-md bg-blue-600 hover:bg-blue-500 transition-all duration-200"
+            onClick={toggleDropdown}
+          >
+            <span className="username">{username}</span>
+          </div>
+
+          {/* Dropdown */}
+          {dropdownVisible && (
+            <div
+              id="dropdown-container"
+              className="absolute right-0 mt-2 w-48 bg-white bg-opacity-60 backdrop-blur-lg border border-gray-300 shadow-2xl rounded-3xl rounded-tr-none z-20"
+            >
+              <div className="p-4">
+                <h4 className="text-sm text-gray-700 mb-3">
+                  Are you sure you want to logout?
+                </h4>
+
+                {/* Icons in a single line */}
+                <div className="flex space-x-4 w-full">
+                  {/* Logout Icon */}
+                  <div
+                    className="flex flex-1 items-center justify-center p-3 cursor-pointer bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200"
+                    onClick={handleLogout}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      className="icon icon-tabler icons-tabler-outline icon-tabler-logout"
+                    >
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" />
+                      <path d="M9 12h12l-3 -3" />
+                      <path d="M18 15l3 -3" />
+                    </svg>
+                  </div>
+
+                  {/* Cancel Icon */}
+                  <div
+                    className="flex items-center justify-center p-3 cursor-pointer bg-gray-300 text-black rounded-full shadow-lg hover:bg-gray-400 transition-all duration-200"
+                    onClick={() => setDropdownVisible(false)}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      className="icon icon-tabler icons-tabler-outline icon-tabler-circle-x"
+                    >
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                      <path d="M10 10l4 4m0 -4l-4 4" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </nav>
+  );
 };
 
 export default Navbar;

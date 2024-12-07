@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Overlay */
+.react-confirm-alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4); /* Dim background */
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Center the popup vertically and horizontally */
+  z-index: 9999; /* Ensure it appears on top of other elements */
+}
+
+/* Popup Container */
+.react-confirm-alert {
+  width: 400px;
+  max-width: 90%; /* Ensure it’s responsive on smaller screens */
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6); /* Semi-transparent white */
+  backdrop-filter: blur(16px); 
+  /* box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.2) !important; */
+  text-align: center; /* Center content within the box */
+  z-index: 10001; /* Above the overlay */
+}
+
+/* Popup Header */
+.react-confirm-alert h2 {
+  color: #007bff; /* Blue color for header text */
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+/* Popup Paragraph */
+.react-confirm-alert p {
+  font-size: 1rem;
+  color: #333; /* Neutral text color */
+  margin-bottom: 20px;
+}
+
+/* Buttons Container */
+.react-confirm-alert button {
+  margin: 0 5px;
+  padding: 10px 20px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Primary Button */
+.react-confirm-alert button:first-of-type {
+  background-color: #007bff;
+  color: white;
+}
+
+.react-confirm-alert button:first-of-type:hover {
+  background-color: #0056b3;
+}
+
+/* Secondary Button */
+.react-confirm-alert button:last-of-type {
+  background-color: white;
+  color: #007bff;
+  border: 2px solid #007bff;
+}
+
+.react-confirm-alert button:last-of-type:hover {
+  background-color: #e6f3ff;
+}

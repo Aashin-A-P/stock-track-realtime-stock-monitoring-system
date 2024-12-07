@@ -103,3 +103,22 @@ export const deleteLocation = async (req: Request, res: Response) => {
     res.status(500).send("Failed to delete location");
   }
 };
+
+export const searchLocation = async (req: Request, res: Response) => {
+  try {
+    const locationName = req.query.query as string;
+
+    const [location] = await db
+      .select()
+      .from(locationTable)
+      .where(
+        eq(locationTable.locationName, locationName)
+      )
+      .limit(1);
+
+    res.status(200).json(location);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to search location");
+  }
+}

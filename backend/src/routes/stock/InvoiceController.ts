@@ -14,6 +14,8 @@ export const addInvoice = async (req: Request, res: Response) => {
       invoiceImage,
     } = req.cleanBody;
 
+    console.log("Invoice Data : ", req.cleanBody);
+
     if (
       !fromAddress ||
       !toAddress ||

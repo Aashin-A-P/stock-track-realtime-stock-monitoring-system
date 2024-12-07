@@ -10,6 +10,7 @@ import { generateUserToken } from '../../../utils';
 export const loginUser = async (req: Request, res: Response) => {
     try {
       const { userName, password } = req.cleanBody;
+      console.log("data : ", JSON.stringify(req.cleanBody, null, 2));
   
       const [user] = await db
         .select()

@@ -1,97 +1,89 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import "./Login.css";
+import Navbar from "../components/Navbar";
+import { useNavigate } from "react-router-dom";
 
 const Login: React.FC = () => {
-	const [username, setUsername] = useState("");
-	const [password, setPassword] = useState("");
-	const [error, setError] = useState("");
-	const [isLoading, setIsLoading] = useState(false); // State for loading
-	const navigate = useNavigate();
-	const { login } = useAuth();
+  const [formState, setFormState] = useState({ username: "", password: "" });
+  const { login, isLoading, error, token } = useAuth();
+  const navigate = useNavigate();
 
-	const handleLogin = async (e: React.FormEvent) => {
-		e.preventDefault();
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormState((prev) => ({ ...prev, [id]: value }));
+  };
 
-		const data = {
-			userName: username,
-			password: password,
-		};
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await login(formState.username, formState.password);
+  };
 
-		setIsLoading(true); // Start loading when login is attempted
+  if(localStorage.getItem("token")) {
+    navigate("/"); 
+  }
 
-		try {
-			const response = await fetch("http://localhost:3000/auth/login", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json;charset=utf-8",
-				},
-				body: JSON.stringify(data),
-			});
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Navbar */}
+      <Navbar />
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! Status: ${response.status}`);
-			}
+      {/* Main Content */}
+      <div className="flex justify-center items-center flex-1 bg-cover bg-top relative bg-[url('/images/mit-it-front.jpg')]">
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-tl from-black to-transparent opacity-100 mix-blend-darken"></div>
 
-			const result = await response.json();
+        {/* Login Container */}
+        <div className="relative z-10 bg-white bg-opacity-30 backdrop-blur-md p-6 w-11/12 max-w-sm border border-gray-200 shadow-lg rounded-lg">
+          <h2 className="text-2xl font-semibold text-gray-800 text-center mb-6">Login</h2>
 
-			if (result.token && result.user) {
-				// If login is successful, store token and user info
-				login(result.token, result.user.userName, result.user.role);
-				navigate("/");
-			} else {
-				setError("Invalid username or password");
-			}
-		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "An unknown error occurred."
-			);
-		} finally {
-			setIsLoading(false); // End loading
-		}
-	};
+          {/* Error Message */}
+          {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
 
-	return (
-		<div className="login-container">
-			<form className="login-form" onSubmit={handleLogin}>
-				<h2>Login</h2>
-				{error && <p className="error">{error}</p>}
-				<div className="form-group">
-					<label htmlFor="username">Username</label>
-					<input
-						type="text"
-						id="username"
-						value={username}
-						onChange={(e) => setUsername(e.target.value)}
-						placeholder="Enter your username"
-						required
-					/>
-				</div>
-				<div className="form-group">
-					<label htmlFor="password">Password</label>
-					<input
-						type="password"
-						id="password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						placeholder="Enter your password"
-						required
-					/>
-				</div>
-				<button type="submit" className="login-button">
-					Login
-				</button>
-			</form>
+          {/* Username Input */}
+          <div className="mb-4">
+            <label htmlFor="username" className="block text-gray-700 font-medium mb-2">
+              Username
+            </label>
+            <input
+              type="text"
+              id="username"
+              value={formState.username}
+              onChange={handleChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white bg-opacity-70"
+              placeholder="Enter your username"
+              required
+            />
+          </div>
 
-			{/* Show loading spinner if the login is in progress */}
-			{isLoading && (
-				<div className="loading-overlay">
-					<div className="loading-spinner"></div>
-				</div>
-			)}
-		</div>
-	);
+          {/* Password Input */}
+          <div className="mb-6">
+            <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={formState.password}
+              onChange={handleChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white bg-opacity-70"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+
+          {/* Login Button */}
+          <button
+            type="submit"
+            className="w-full p-3 bg-blue-600 bg-opacity-80 text-white font-bold rounded-lg hover:bg-blue-700 hover:bg-opacity-90 transition disabled:opacity-50"
+            disabled={isLoading}
+            onClick={handleLogin}
+          >
+            {isLoading ? "Logging in..." : "Login"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Login;
