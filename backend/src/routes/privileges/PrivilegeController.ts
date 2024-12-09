@@ -74,6 +74,7 @@ export const addUserPrivilege = async (req: Request, res: Response): Promise<voi
 export const getAllPrivileges = async (req: Request, res: Response): Promise<void> => {
   try {
     const privileges = await db.select().from(privilegesTable);
+    console.log('Privileges:', JSON.stringify(privileges, null, 2));
 
     res.status(200).json({ privileges });
   } catch (error) {
@@ -92,7 +93,7 @@ export const getUserPrivileges = async (req: Request, res: Response): Promise<vo
     }
 
     // Check if the user exists
-    const user = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+    const user = await db.select().from(usersTable).where(eq(usersTable.userId, Number(userId)));
     if (user.length === 0) {
       res.status(404).json({ error: `User with ID ${userId} not found` });
       return;
@@ -103,7 +104,7 @@ export const getUserPrivileges = async (req: Request, res: Response): Promise<vo
       .select()
       .from(userPrivilegeTable)
       .innerJoin(privilegesTable, eq(userPrivilegeTable.privilegeId, privilegesTable.privilegeId))
-      .where(eq(userPrivilegeTable.userId, userId));
+      .where(eq(userPrivilegeTable.userId, Number(userId)));
 
     res.status(200).json({ userPrivileges });
   } catch (error) {

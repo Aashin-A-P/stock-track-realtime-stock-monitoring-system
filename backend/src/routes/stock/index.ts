@@ -12,7 +12,7 @@ import { createCategorySchema } from '../../db/schemas/categoriesSchema';
 import { addCategory, deleteCategory, searchCategory, showCategories, showCategory, updateCategory } from './CategoriesController';
 import { logger } from '../../middlewares/logMiddleware';
 import { createProductSchema } from '../../db/schemas/productsSchema';
-import { addStock, deleteStock, getAllStock, getPaginatedProducts, handleInvoiceWithProducts, searchStock, updateStock } from './StockController';
+import { addStock, deleteStock, getAllStock, getPaginatedProducts, handleInvoiceWithProducts, searchStock, updateStock, getProductById } from './StockController';
 
 const router = Router();
 
@@ -82,6 +82,8 @@ router.post('/add', verifyToken, validateData(createProductSchema), logger, addS
 router.delete("/:productId", verifyToken, logger, deleteStock);
 // @ts-ignore
 router.put("/:productId", verifyToken, validateData(createProductSchema), logger, updateStock);
+// @ts-ignore
+router.get("/:productId", verifyToken, logger, getProductById);
 // @ts-ignore
 router.get('/', verifyToken, logger, getAllStock);
                                                             

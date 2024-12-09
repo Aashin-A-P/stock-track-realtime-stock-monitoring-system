@@ -427,4 +427,62 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     res.status(500).send("Failed to fetch products");
   }
 };
+export const getProductById = async (req: Request, res: Response) => {
+  try {
+    const { productId } = req.params;
+    console.log("productId", productId);
 
+    if (!productId) {
+      return res.status(400).send("Product ID is required");
+    }
+
+    // Perform the query with necessary fields
+    const product = await db
+      .select()
+      .from(productsTable)
+      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(remarksTable, eq(productsTable.remarkId, remarksTable.remarkId))
+      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
+      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .where(sql`${productsTable.productId} = ${Number(productId)}`);
+
+    if (!product.length) {
+      return res.status(404).send("Product not found");
+    }
+
+    console.log("Product", JSON.stringify(product, null, 2));
+    
+
+    // Separate the product data and invoice data into two objects
+    const productData = {
+      productId: product[0].ProductsTable.productId,
+      productVolPageSerial: product[0].ProductsTable.productVolPageSerial,
+      productName: product[0].ProductsTable.productName,
+      productDescription: product[0].ProductsTable.productDescription,
+      gst: product[0].ProductsTable.gst,
+      productImage: product[0].ProductsTable.productImage,
+      locationName: product[0].LocationTable?.locationName,  // Location Name
+      categoryName: product[0].CategoriesTable?.categoryName,  // Category Name
+      remark: product[0].RemarksTable?.remark,  // Remark
+    };
+
+    const invoiceData = {
+      invoiceId: product[0].InvoiceTable?.invoiceId,
+      fromAddress: product[0].InvoiceTable?.fromAddress,
+      toAddress: product[0].InvoiceTable?.toAddress,
+      actualAmount: product[0].InvoiceTable?.actualAmount,
+      gstAmount: product[0].InvoiceTable?.gstAmount,
+      invoiceDate: product[0].InvoiceTable?.invoiceDate,
+      invoiceImage: product[0].InvoiceTable?.invoiceImage,
+    };
+
+    // Return both the product and invoice data
+    res.status(200).json({
+      product: productData,
+      invoice: invoiceData,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to fetch product");
+  }
+};

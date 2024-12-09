@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
 
-import { confirmAlert } from 'react-confirm-alert';
-import 'react-confirm-alert/src/react-confirm-alert.css';
+import { confirmAlert } from "react-confirm-alert";
+import "react-confirm-alert/src/react-confirm-alert.css";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -477,18 +477,19 @@ const AddProduct: React.FC = () => {
                   onClick={() =>
                     // confirmation
                     confirmAlert({
-                      title: 'Confirm to delete',
-                      message: 'Are you sure you want to delete this product?',
+                      title: "Confirm to delete",
+                      message: "Are you sure you want to delete this product?",
                       buttons: [
                         {
-                          label: 'Yes',
-                          onClick: () => setProducts(products.filter((_, i) => i !== index))
+                          label: "Yes",
+                          onClick: () =>
+                            setProducts(products.filter((_, i) => i !== index)),
                         },
                         {
-                          label: 'No',
-                          onClick: () => {}
-                        }
-                      ]
+                          label: "No",
+                          onClick: () => {},
+                        },
+                      ],
                     })
                   }
                 >
