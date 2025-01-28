@@ -11,6 +11,8 @@ interface Log {
   createdAt: string;
 }
 
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
 const Logs: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
@@ -31,7 +33,7 @@ const Logs: React.FC = () => {
     const fetchLogs = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/logs/recent-logs`, {
+        const response = await fetch(`${baseUrl}/logs/recent-logs`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: localStorage.getItem("token") || "",
@@ -66,15 +68,21 @@ const Logs: React.FC = () => {
 
   if (loading)
     return (
-      <div className="flex justify-center items-center h-screen text-blue-600">
-        Loading...
-      </div>
+      <>
+        <Navbar />
+        <div className="flex justify-center items-center h-screen text-blue-600">
+          Loading...
+        </div>
+      </>
     );
   if (error)
     return (
-      <div className="flex justify-center items-center h-screen text-red-500">
-        Error: {error}
-      </div>
+      <>
+        <Navbar />
+        <div className="flex justify-center items-center h-screen text-red-500">
+          Error: {error}
+        </div>
+      </>
     );
 
   return (
@@ -125,7 +133,10 @@ const Logs: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="text-gray-500 mt-4">No logs found.</div>
+          <>
+            <Navbar />
+            <div className="text-gray-500 mt-4">No logs found.</div>
+          </>
         )}
       </div>
     </>

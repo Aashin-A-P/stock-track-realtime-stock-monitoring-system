@@ -2,7 +2,6 @@ import React, { useState, useEffect, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
-import { User } from "../../../backend/utils/index";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -28,7 +27,7 @@ const UsersListPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    pageSize: 10,
+    pageSize: 15,
     totalRecords: 0,
   });
   const [loading, setLoading] = useState<boolean>(true);
@@ -87,14 +86,23 @@ const UsersListPage: React.FC = () => {
           User Management
         </h1>
 
-        {/* Search Bar */}
-        <input
-          type="text"
-          placeholder="Search by username"
-          value={searchQuery}
-          onChange={handleSearchChange}
-          className="w-full p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-        />
+        <div className="flex items-center space-x-3 mb-3">
+          {/* Search Bar */}
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="flex-grow px-4 py-2 border rounded-lg"
+          />
+          {/* Create User Button */}
+          <button
+            onClick={() => navigate("/users/create")}
+            className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700"
+          >
+            Create User
+          </button>
+        </div>
 
         {/* Users Table */}
         <div className="overflow-x-auto">

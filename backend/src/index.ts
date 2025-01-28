@@ -22,7 +22,7 @@ const port = process.env.PORT;
 app.use(json());
 app.use(urlencoded({ extended: true }));
 app.use(cors());
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'))); // Serve Uploaded Files Statically
+app.use("/uploads", express.static(path.join(__dirname, "../uploads"))); // Serve Uploaded Files Statically
 
 // Base Route
 app.get("/", (req, res) => {

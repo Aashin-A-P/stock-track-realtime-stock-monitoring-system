@@ -15,6 +15,7 @@ import { UIThemeProvider } from "./context/ThemeContext";
 
 import "react-toastify/dist/ReactToastify.css";
 import UserDetailsPage from "./pages/UserDetailsPage";
+import CreateUserPage from "./pages/CreateUserPage";
 
 const App = () => {
   return (
@@ -45,6 +46,7 @@ const App = () => {
               <Route path="/users" element={<UsersListPage />} />
               <Route path="/users/:id" element={<UserDetailsPage />} />
               <Route path="/reportgeneration" element={<ReportGeneration />} />
+              <Route path="/users/create" element={<CreateUserPage />} />
               {/* Default Route */}
               <Route path="*" element={<Navigate to="/login" />} />
             </Routes>

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-toastify";
+import { confirmAlert } from "react-confirm-alert";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -69,24 +70,37 @@ const UserDetailsPage = () => {
   }, [id, token, navigate]);
 
   const handleDeleteUser = async () => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        const response = await fetch(`${baseUrl}/usermanagement/${id}`, {
-          method: "DELETE",
-          headers: { Authorization: token || "" },
-        });
+    confirmAlert({
+      title: "Confirm to delete",
+      message: "Are you sure you want to delete this User?",
+      buttons: [
+        {
+          label: "Yes",
+          onClick: async () => {
+            try {
+              const response = await fetch(`${baseUrl}/usermanagement/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: token || "" },
+              });
 
-        if (response.status === 204) {
-          toast.success("User deleted successfully.");
-          navigate("/users");
-        } else {
-          throw new Error("Failed to delete user.");
-        }
-      } catch (error) {
-        console.error("Error deleting user:", error);
-        toast.error("Failed to delete user.");
-      }
-    }
+              if (response.status === 204) {
+                toast.success("User deleted successfully.");
+                navigate("/users");
+              } else {
+                throw new Error("Failed to delete user.");
+              }
+            } catch (error) {
+              console.error("Error deleting user:", error);
+              toast.error("Failed to delete user.");
+            }
+          },
+        },
+        {
+          label: "No",
+          onClick: () => {},
+        },
+      ],
+    });
   };
 
   const handleUpdateUser = async () => {

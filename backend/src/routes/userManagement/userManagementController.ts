@@ -108,8 +108,9 @@ export const deleteUser = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = Number(req.cleanBody.userId);
-
+    // console.log("REq", req.params);
+    const userId = Number(req.params.userId);
+    // console.log("userId", userId);
     // Validate user ID
     if (!userId) {
       res.status(400).json({ message: "Invalid user ID" });
@@ -124,6 +125,8 @@ export const deleteUser = async (
       res.status(404).json({ message: "User not found" });
     }
 
+    // console.log("User to delete", JSON.stringify(userToDelete, null, 2));
+
     // Delete the user and their related data (user-privileges, etc.)
     await db
       .delete(userPrivilegeTable)
@@ -131,6 +134,7 @@ export const deleteUser = async (
     await db.delete(usersTable).where(eq(usersTable.userId, userId)).execute();
 
     req.logMessages = [`User with id ${userId} deleted.`];
+    // console.log("User deleted successfully");
     res.status(204).send();
   } catch (error: Error | any) {
     console.error("Error deleting user:", error.message);
