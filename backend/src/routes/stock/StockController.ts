@@ -20,6 +20,7 @@ interface Product {
   remarks: string;
   price: number;
   productImage?: string;
+  productPrice: number;
 }
 
 export const addStock = async (req: Request, res: Response) => {
@@ -34,6 +35,7 @@ export const addStock = async (req: Request, res: Response) => {
       productImage,
       invoiceId,
       categoryId,
+      productPrice,
     } = req.cleanBody;
 
     if (
@@ -41,7 +43,8 @@ export const addStock = async (req: Request, res: Response) => {
       !productName ||
       !gst ||
       !categoryId ||
-      !invoiceId
+      !invoiceId ||
+      !productPrice 
     ) {
       return res.status(400).send("All fields are required");
     }
@@ -58,6 +61,7 @@ export const addStock = async (req: Request, res: Response) => {
         productImage,
         invoiceId,
         categoryId,
+        productPrice,
       })
       .returning();
       
@@ -93,6 +97,7 @@ export const searchStock = async (req: Request, res: Response) => {
       product_image: "string",
       invoice_id: "integer",
       category_id: "integer",
+      product_price: "integer",
     };
 
     const columnType = columnTypes[column as string];
@@ -163,6 +168,7 @@ export const updateStock = async (req: Request, res: Response) => {
     const { productId } = req.params;
 
     const {
+      productVolPageSerial,
       productName,
       productDescription,
       locationId,
@@ -171,20 +177,24 @@ export const updateStock = async (req: Request, res: Response) => {
       productImage,
       invoiceId,
       categoryId,
+      productPrice,
     } = req.cleanBody;
 
     if (!productId) {
       return res.status(400).send("Product ID is required");
     }
-
+  
     const oldStockData = await db
       .select()
       .from(productsTable)
       .where(sql`${productsTable.productId} = ${Number(productId)}`);
-
+      
+     
+      
     const updatedStock = await db
       .update(productsTable)
       .set({
+        productVolPageSerial,
         productName,
         productDescription,
         locationId,
@@ -193,6 +203,7 @@ export const updateStock = async (req: Request, res: Response) => {
         productImage,
         invoiceId,
         categoryId,
+        productPrice,
       })
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
       .returning();
@@ -304,6 +315,7 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
           productImage: product.productImage,
           invoiceId,
           categoryId: categoryMap[product.category].categoryId,
+          productPrice: product.productPrice, 
         }))
       );
 
@@ -461,6 +473,7 @@ export const getProductById = async (req: Request, res: Response) => {
       productDescription: product[0].ProductsTable.productDescription,
       gst: product[0].ProductsTable.gst,
       productImage: product[0].ProductsTable.productImage,
+      productPrice: product[0].ProductsTable.productPrice,  // Include productPrice
       locationName: product[0].LocationTable?.locationName,  // Location Name
       categoryName: product[0].CategoriesTable?.categoryName,  // Category Name
       remark: product[0].RemarksTable?.remark,  // Remark

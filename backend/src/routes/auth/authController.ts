@@ -49,6 +49,6 @@ export const loginUser = async (req: Request, res: Response) => {
       delete user.password;
       res.status(200).json({ token, user });
     } catch (e) {
-      res.status(500).send('Something went wrong');
+      res.status(500).json({error : 'Something went wrong'});
     }
 };

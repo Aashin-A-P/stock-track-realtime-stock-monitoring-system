@@ -17,6 +17,7 @@ export const productsTable = pgTable('ProductsTable', {
     .references(() => remarksTable.remarkId, { onDelete: 'set null', onUpdate: 'cascade' }),
   gst: decimal('GST'),
   productImage: varchar('product_image'),
+  productPrice: integer('product_price').notNull().default(0), 
   invoiceId: integer('invoice_id')
     .references(() => invoiceTable.invoiceId, { onDelete: 'cascade', onUpdate: 'cascade' }),
   categoryId: integer('category_id')
@@ -41,4 +42,5 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   remarkId: z.number().optional(),
   gst: z.number().optional(),
   productImage: z.string().optional(),
+  productPrice: z.number().min(0),
 });

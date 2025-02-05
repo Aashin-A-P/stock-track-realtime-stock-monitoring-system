@@ -902,7 +902,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
 #### 2. **Add a Stock**
 
-- **URL**: `/stock`
+- **URL**: `/stock/add`
 - **Method**: `POST`
 - **Description**: Add a new stock.
 - **Headers**:
@@ -913,28 +913,38 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 - **Request Body**:
   ```json
-  {
-    "productVolPageSerial": "1234",
-    "productName": "Sample Product",
-    "productDescription": "Sample Description",
-    "locationId": 1,
-    "remarkId": 2,
-    "gst": 18.0,
-    "productImage": "image_url",
-    "invoiceId": 101,
-    "categoryId": 3
-  }
+{
+  "productVolPageSerial": "123456",
+  "productName": "Sample Producdt",
+  "productDescription": "Sample Descridsfption",
+  "locationId": 3,
+  "remarkId": 4,
+  "gst": 18.0,
+  "productImage": "image_ursdfl",
+  "invoiceId": 4,
+  "categoryId": 4,
+  "productPrice": 5000
+}
+
   ```
 - **Response**:
   ```json
-  {
-    "message": "Stock added successfully",
-    "product": {
-      "productId": 1,
-      "productName": "Sample Product",
-      ...
-    }
+{
+  "message": "Stock added successfully",
+  "product": {
+    "productId": 25,
+    "productVolPageSerial": "123456",
+    "productName": "Sample Producdt",
+    "productDescription": "Sample Descridsfption",
+    "locationId": 3,
+    "remarkId": 4,
+    "gst": "18",
+    "productImage": "image_ursdfl",
+    "productPrice": 5000,
+    "invoiceId": 4,
+    "categoryId": 4
   }
+}
   ```
 
 #### 3. **Search Stocks**
@@ -988,7 +998,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
 #### 5. **Update a Stock**
 
-- **URL**: `/stock/:productId`
+- **URL**: `/stock/update/:productId`
 - **Method**: `PUT`
 - **Description**: Update stock details.
 - **Headers**:
@@ -1002,31 +1012,37 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Request Body**:
   ```json
   {
-    "productName": "Updated Product",
-    "productDescription": "Updated Description",
-    "locationId": 2,
-    "remarkId": 3,
-    "gst": 12.0,
-    "productImage": "new_image_url",
-    "invoiceId": 102,
-    "categoryId": 4
+    "productVolPageSerial": "123456",
+    "productName": "Sample Producdt",
+    "productDescription": "Sample Descridsfption",
+    "locationId": 3,
+    "remarkId": 4,
+    "gst": 18,
+    "productImage": "image_ursdfl",
+    "invoiceId": 4,
+    "categoryId": 4,
+    "productPrice": 5555
   }
   ```
 - **Response**:
   ```json
   {
     "message": "Stock updated successfully",
-    "stock": {
-      "productId": 1,
-      "productName": "Updated Product",
-      "productDescription": "Updated Description",
-      "locationId": 2,
-      "remarkId": 3,
-      "gst": 12.0,
-      "productImage": "new_image_url",
-      "invoiceId": 102,
-      "categoryId": 4
-    }
+    "stock": [
+      {
+        "productId": 25,
+        "productVolPageSerial": "123456",
+        "productName": "Sample Producdt",
+        "productDescription": "Sample Descridsfption",
+        "locationId": 3,
+        "remarkId": 4,
+        "gst": "18",
+        "productImage": "image_ursdfl",
+        "productPrice": 5555,
+        "invoiceId": 4,
+        "categoryId": 4
+      }
+    ]
   }
   ```
 
