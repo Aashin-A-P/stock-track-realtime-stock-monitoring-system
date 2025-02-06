@@ -6,8 +6,8 @@ import { createInvoiceSchema } from '../../db/schemas/invoicesSchema';
 import { verifyToken } from '../../middlewares/authMiddleware';
 import { createLocationSchema } from '../../db/schemas/locationsSchema';
 import { addLocation, deleteLocation, searchLocation, showLocation, showLocations, updateLocation } from './LocationController';
-import { addRemark, deleteRemark, searchRemark, showRemark, showRemarks, updateRemark } from './RemarksController';
-import { createRemarkSchema } from '../../db/schemas/remarksSchema';
+import { addStatus, deleteStatus, searchStatus, showStatus, showStatuses, updateStatus } from './statusController';
+import { createStatusSchema } from '../../db/schemas/statusSchema';
 import { createCategorySchema } from '../../db/schemas/categoriesSchema';
 import { addCategory, deleteCategory, searchCategory, showCategories, showCategory, updateCategory } from './CategoriesController';
 import { logger } from '../../middlewares/logMiddleware';
@@ -43,17 +43,17 @@ router.get('/locations', verifyToken, showLocations);
 
 // // Remarks Routes
 // @ts-ignore
-router.post('/remark/add', verifyToken, validateData(createRemarkSchema), addRemark);
+router.post('/status/add', verifyToken, validateData(createStatusSchema), addStatus);
 // @ts-ignore
-router.get('/remark/search', verifyToken, searchRemark);
+router.get('/status/search', verifyToken, searchStatus);
 // @ts-ignore
-router.get('/remark/:id', verifyToken, showRemark);
+router.get('/status/:id', verifyToken, showStatus);
 // @ts-ignore
-router.put('/remark/:id', verifyToken, validateData(createRemarkSchema), updateRemark);
+router.put('/status/:id', verifyToken, validateData(createStatusSchema), updateStatus);
 // @ts-ignore
-router.delete('/remark/:id', verifyToken, deleteRemark);
+router.delete('/status/:id', verifyToken, deleteStatus);
 // @ts-ignore
-router.get('/remark/', verifyToken, showRemarks);
+router.get('/status/', verifyToken, showStatus);
 
 // // Categories Routes
 // @ts-ignore

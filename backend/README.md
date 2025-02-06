@@ -913,38 +913,41 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 - **Request Body**:
   ```json
-{
-  "productVolPageSerial": "123456",
-  "productName": "Sample Producdt",
-  "productDescription": "Sample Descridsfption",
-  "locationId": 3,
-  "remarkId": 4,
-  "gst": 18.0,
-  "productImage": "image_ursdfl",
-  "invoiceId": 4,
-  "categoryId": 4,
-  "productPrice": 5000
-}
+  {
+    "productVolPageSerial": "12345",
+    "productName": "Sample Producdt_tl",
+    "productDescription": "Sample Descridsfption",
+    "locationId": 3,
+    "statusId": 4,
+    "gst": 18.0,
+    "productImage": "image_ursdfl",
+    "invoiceId": 4,
+    "categoryId": 4,
+    "transferLetter" : "tl_1",
+    "productPrice": 5000
+  }
 
   ```
 - **Response**:
   ```json
-{
-  "message": "Stock added successfully",
-  "product": {
-    "productId": 25,
-    "productVolPageSerial": "123456",
-    "productName": "Sample Producdt",
-    "productDescription": "Sample Descridsfption",
-    "locationId": 3,
-    "remarkId": 4,
-    "gst": "18",
-    "productImage": "image_ursdfl",
-    "productPrice": 5000,
-    "invoiceId": 4,
-    "categoryId": 4
+  {
+    "message": "Stock added successfully",
+    "product": {
+      "productId": 26,
+      "productVolPageSerial": "12345",
+      "productName": "Sample Producdt_tl",
+      "productDescription": "Sample Descridsfption",
+      "locationId": 3,
+      "statusId": 4,
+      "status": "new",
+      "gst": "18",
+      "productImage": "image_ursdfl",
+      "productPrice": 5000,
+      "invoiceId": 4,
+      "transferLetter": "tl_1",
+      "categoryId": 4
+    }
   }
-}
   ```
 
 #### 3. **Search Stocks**

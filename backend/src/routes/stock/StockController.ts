@@ -4,7 +4,7 @@ import { productsTable } from "../../db/schemas/productsSchema";
 import { sql, eq, inArray, count, ilike } from "drizzle-orm";
 import { invoiceTable } from "../../db/schemas/invoicesSchema";
 import { locationTable } from "../../db/schemas/locationsSchema";
-import { remarksTable } from "../../db/schemas/remarksSchema";
+import { statusTable } from "../../db/schemas/statusSchema";
 import { categoriesTable } from "../../db/schemas/categoriesSchema";
 
 interface Product {
@@ -17,10 +17,11 @@ interface Product {
   category: string;
   quantity: number;
   location: string;
-  remarks: string;
+  statusDescription: string;
   price: number;
   productImage?: string;
   productPrice: number;
+  transferLetter?: string;
 }
 
 export const addStock = async (req: Request, res: Response) => {
@@ -30,12 +31,13 @@ export const addStock = async (req: Request, res: Response) => {
       productName,
       productDescription,
       locationId,
-      remarkId,
+      statusId,
       gst,
       productImage,
       invoiceId,
       categoryId,
       productPrice,
+      transferLetter
     } = req.cleanBody;
 
     if (
@@ -56,12 +58,13 @@ export const addStock = async (req: Request, res: Response) => {
         productName,
         productDescription,
         locationId,
-        remarkId,
+        statusId,
         gst,
         productImage,
         invoiceId,
         categoryId,
         productPrice,
+        transferLetter,
       })
       .returning();
       
@@ -92,9 +95,10 @@ export const searchStock = async (req: Request, res: Response) => {
       product_name: "string",
       product_description: "string",
       location_id: "integer",
-      remark_id: "integer",
+      status_id: "integer",
       gst: "decimal",
       product_image: "string",
+      transfer_letter: "string",
       invoice_id: "integer",
       category_id: "integer",
       product_price: "integer",
@@ -172,12 +176,14 @@ export const updateStock = async (req: Request, res: Response) => {
       productName,
       productDescription,
       locationId,
-      remarkId,
+      statusId,
       gst,
       productImage,
+      transferLetter,
       invoiceId,
       categoryId,
       productPrice,
+      
     } = req.cleanBody;
 
     if (!productId) {
@@ -198,11 +204,12 @@ export const updateStock = async (req: Request, res: Response) => {
         productName,
         productDescription,
         locationId,
-        remarkId,
+        statusId,
         gst,
         productImage,
         invoiceId,
         categoryId,
+        transferLetter,
         productPrice,
       })
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
@@ -271,17 +278,17 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
 
       // Batch fetch metadata
       const uniqueLocations = [...new Set(products.map((p) => p.location))];
-      const uniqueRemarks = [...new Set(products.map((p) => p.remarks))];
+      const uniqueStatus = [...new Set(products.map((p) => p.statusDescription))];
       const uniqueCategories = [...new Set(products.map((p) => p.category))];
 
       const locations = await transaction
         .select()
         .from(locationTable)
         .where(inArray(locationTable.locationName, uniqueLocations));
-      const remarks = await transaction
+      const status = await transaction
         .select()
-        .from(remarksTable)
-        .where(inArray(remarksTable.remark, uniqueRemarks));
+        .from(statusTable)
+        .where(inArray(statusTable.statusDescription, uniqueStatus));
       const categories = await transaction
         .select()
         .from(categoriesTable)
@@ -289,18 +296,18 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
 
       // Create mapping for metadata
       const locationMap = Object.fromEntries(locations.map((l) => [l.locationName, l]));
-      const remarkMap = Object.fromEntries(remarks.map((r) => [r.remark, r]));
+      const statusMap = Object.fromEntries(status.map((s) => [s.statusDescription, s]));
       const categoryMap = Object.fromEntries(categories.map((c) => [c.categoryName, c]));
 
       // Validate metadata
       const invalidMetadata = products.find(
         (p) =>
           !locationMap[p.location] ||
-          !remarkMap[p.remarks] ||
+          !statusMap[p.statusDescription] ||
           !categoryMap[p.category]
       );
       if (invalidMetadata) {
-        throw new Error("Invalid location, remark, or category");
+        throw new Error("Invalid location, status, or category");
       }
 
       // Prepare product data for batch insert
@@ -310,9 +317,10 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
           productName: product.productName,
           productDescription: product.productDescription,
           locationId: locationMap[product.location].locationId,
-          remarkId: remarkMap[product.remarks].remarkId,
+          statusId: statusMap[product.statusDescription].statusId,
           gst: invoiceDetails.gstAmount,
           productImage: product.productImage,
+          transferLetter: product.transferLetter,
           invoiceId,
           categoryId: categoryMap[product.category].categoryId,
           productPrice: product.productPrice, 
@@ -355,8 +363,8 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       product_description: "string",
       location_id: "integer",
       location_name: "string",
-      remark_id: "integer",
-      remark: "string",
+      status_id: "integer",
+      status_description: "string",
       gst: "decimal",
       product_image: "string",
       invoice_id: "integer",
@@ -397,7 +405,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       .select({ count: count() })
       .from(productsTable)
       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
-      .leftJoin(remarksTable, eq(productsTable.remarkId, remarksTable.remarkId))
+      .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
       .where(whereClause);
@@ -412,7 +420,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         productDescription: productsTable.productDescription,
         productImage: productsTable.productImage,
         locationName: locationTable.locationName,
-        remark: remarksTable.remark,
+        statusDescription: statusTable.statusDescription,
         categoryName: categoriesTable.categoryName,
         fromAddress: invoiceTable.fromAddress,
         toAddress: invoiceTable.toAddress,
@@ -422,7 +430,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       })
       .from(productsTable)
       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
-      .leftJoin(remarksTable, eq(productsTable.remarkId, remarksTable.remarkId))
+      .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
       .where(whereClause)
@@ -453,7 +461,7 @@ export const getProductById = async (req: Request, res: Response) => {
       .select()
       .from(productsTable)
       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
-      .leftJoin(remarksTable, eq(productsTable.remarkId, remarksTable.remarkId))
+      .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
       .where(sql`${productsTable.productId} = ${Number(productId)}`);
@@ -473,10 +481,12 @@ export const getProductById = async (req: Request, res: Response) => {
       productDescription: product[0].ProductsTable.productDescription,
       gst: product[0].ProductsTable.gst,
       productImage: product[0].ProductsTable.productImage,
+      transferLetter:product[0].ProductsTable.transferLetter,
       productPrice: product[0].ProductsTable.productPrice,  // Include productPrice
       locationName: product[0].LocationTable?.locationName,  // Location Name
       categoryName: product[0].CategoriesTable?.categoryName,  // Category Name
-      remark: product[0].RemarksTable?.remark,  // Remark
+      status: product[0].StatusTable?.statusDescription,  
+
     };
 
     const invoiceData = {
