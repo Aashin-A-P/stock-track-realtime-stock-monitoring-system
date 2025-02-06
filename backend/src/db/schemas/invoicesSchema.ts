@@ -3,6 +3,7 @@ import { createInsertSchema } from 'drizzle-zod';
 
 export const invoiceTable = pgTable('InvoiceTable', {
   invoiceId: integer('invoice_id').primaryKey().generatedAlwaysAsIdentity(),
+  invoiceNo:varchar('invoice_no').notNull().default("ABCDEFGH12345"), 
   fromAddress: varchar('from_address').notNull(),
   toAddress: varchar('to_address').notNull(),
   actualAmount: decimal('actual_amount').notNull(),
@@ -14,4 +15,4 @@ export const invoiceTable = pgTable('InvoiceTable', {
 
 export const createInvoiceSchema = createInsertSchema(invoiceTable)
   .omit({ invoiceId: true })
-  .pick({ fromAddress: true, toAddress: true, actualAmount: true, gstAmount: true, invoiceDate: true, invoiceImage: true });
+  .pick({ invoiceNo: true,fromAddress: true, toAddress: true, actualAmount: true, gstAmount: true, invoiceDate: true, invoiceImage: true });

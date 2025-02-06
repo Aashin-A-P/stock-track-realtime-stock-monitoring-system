@@ -913,8 +913,8 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 - **Request Body**:
   ```json
-  {
-    "productVolPageSerial": "12345",
+    {
+    "productVolPageSerial": "1234",
     "productName": "Sample Producdt_tl",
     "productDescription": "Sample Descridsfption",
     "locationId": 3,
@@ -923,8 +923,11 @@ SECRET_KEY=your_secret_key        # JWT secret key
     "productImage": "image_ursdfl",
     "invoiceId": 4,
     "categoryId": 4,
-    "transferLetter" : "tl_1",
-    "productPrice": 5000
+    "transferLetter" : "tl_2",
+    "productPrice": 5000,
+    "invoice_no": "123-DAB",
+    "remarks" : "Working good"
+    
   }
 
   ```
@@ -933,8 +936,8 @@ SECRET_KEY=your_secret_key        # JWT secret key
   {
     "message": "Stock added successfully",
     "product": {
-      "productId": 26,
-      "productVolPageSerial": "12345",
+      "productId": 27,
+      "productVolPageSerial": "1234",
       "productName": "Sample Producdt_tl",
       "productDescription": "Sample Descridsfption",
       "locationId": 3,
@@ -944,7 +947,8 @@ SECRET_KEY=your_secret_key        # JWT secret key
       "productImage": "image_ursdfl",
       "productPrice": 5000,
       "invoiceId": 4,
-      "transferLetter": "tl_1",
+      "transferLetter": "tl_2",
+      "remarks": "Working good",
       "categoryId": 4
     }
   }

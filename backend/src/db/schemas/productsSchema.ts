@@ -22,7 +22,7 @@ export const productsTable = pgTable('ProductsTable', {
   invoiceId: integer('invoice_id')
     .references(() => invoiceTable.invoiceId, { onDelete: 'cascade', onUpdate: 'cascade' }),
   transferLetter: varchar('transfer_letter'),
-
+  remarks:varchar('remarks'),
   categoryId: integer('category_id')
     .references(() => categoriesTable.categoryId, { onDelete: 'cascade', onUpdate: 'cascade' }),
 });
@@ -35,6 +35,7 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   productDescription: true,
   locationId: true, 
   statusId: true,
+  remarks: true,
   // statusDescription:true,
   productImage: true, 
   transferLetter: true,
@@ -50,4 +51,5 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   productImage: z.string().optional(),
   transferLetter: z.string().optional(), 
   productPrice: z.number().min(0),
+  remarks: z.string().optional(),
 });

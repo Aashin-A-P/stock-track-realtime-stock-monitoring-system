@@ -6,6 +6,7 @@ import { invoiceTable } from "../../db/schemas/invoicesSchema";
 export const addInvoice = async (req: Request, res: Response) => {
   try {
     const {
+      invoiceNo,
       fromAddress,
       toAddress,
       actualAmount,
@@ -17,6 +18,7 @@ export const addInvoice = async (req: Request, res: Response) => {
     console.log("Invoice Data : ", req.cleanBody);
 
     if (
+      !invoiceNo ||
       !fromAddress ||
       !toAddress ||
       !actualAmount ||
@@ -31,6 +33,7 @@ export const addInvoice = async (req: Request, res: Response) => {
     const [newInvoice] = await db
       .insert(invoiceTable)
       .values({
+        invoiceNo,
         fromAddress,
         toAddress,
         actualAmount,
@@ -85,6 +88,7 @@ export const updateInvoice = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
+      invoiceNo,
       fromAddress,
       toAddress,
       actualAmount,
@@ -96,6 +100,7 @@ export const updateInvoice = async (req: Request, res: Response) => {
     const [updatedInvoice] = await db
       .update(invoiceTable)
       .set({
+        invoiceNo,
         fromAddress,
         toAddress,
         actualAmount,

@@ -22,6 +22,7 @@ interface Product {
   productImage?: string;
   productPrice: number;
   transferLetter?: string;
+  remarks: string;
 }
 
 export const addStock = async (req: Request, res: Response) => {
@@ -37,7 +38,8 @@ export const addStock = async (req: Request, res: Response) => {
       invoiceId,
       categoryId,
       productPrice,
-      transferLetter
+      transferLetter,
+      remarks,
     } = req.cleanBody;
 
     if (
@@ -65,6 +67,7 @@ export const addStock = async (req: Request, res: Response) => {
         categoryId,
         productPrice,
         transferLetter,
+        remarks,
       })
       .returning();
       
@@ -102,6 +105,7 @@ export const searchStock = async (req: Request, res: Response) => {
       invoice_id: "integer",
       category_id: "integer",
       product_price: "integer",
+      remarks: "string",
     };
 
     const columnType = columnTypes[column as string];
@@ -183,6 +187,7 @@ export const updateStock = async (req: Request, res: Response) => {
       invoiceId,
       categoryId,
       productPrice,
+      remarks,
       
     } = req.cleanBody;
 
@@ -211,6 +216,7 @@ export const updateStock = async (req: Request, res: Response) => {
         categoryId,
         transferLetter,
         productPrice,
+        remarks,
       })
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
       .returning();
@@ -368,8 +374,10 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       gst: "decimal",
       product_image: "string",
       invoice_id: "integer",
+      invoice_no:"string" ,
       category_id: "integer",
       category_name: "string",
+      remarks: "string",
     };
 
     const columnType = columnTypes[column as string];
@@ -427,6 +435,8 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         actualAmount: invoiceTable.actualAmount,
         gstAmount: invoiceTable.gstAmount,
         invoiceDate: invoiceTable.invoiceDate,
+        invoiceNo: invoiceTable.invoiceNo,
+        remarks: productsTable.remarks,
       })
       .from(productsTable)
       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
@@ -486,11 +496,12 @@ export const getProductById = async (req: Request, res: Response) => {
       locationName: product[0].LocationTable?.locationName,  // Location Name
       categoryName: product[0].CategoriesTable?.categoryName,  // Category Name
       status: product[0].StatusTable?.statusDescription,  
-
+      remarks: product[0].ProductsTable.remarks,
     };
 
     const invoiceData = {
       invoiceId: product[0].InvoiceTable?.invoiceId,
+      invoiceNo: product[0].InvoiceTable?.invoiceNo,
       fromAddress: product[0].InvoiceTable?.fromAddress,
       toAddress: product[0].InvoiceTable?.toAddress,
       actualAmount: product[0].InvoiceTable?.actualAmount,
