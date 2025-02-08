@@ -12,6 +12,7 @@ type Product = {
   locationName: string;
   categoryName: string;
   remark: string;
+  productPrice: string;
 };
 
 type Invoice = {
@@ -113,7 +114,10 @@ const StockDetails = () => {
       </div>
     );
   }
-
+  /*Invoice total amount*/
+  const InvoicetotalAmount = parseFloat(invoice.actualAmount) + parseFloat(invoice.gstAmount);
+  /*Product total amount*/ 
+  const ProducttotalAmount = parseFloat(product.productPrice)+parseFloat(product.gst);
   return (
     <>
       <Navbar />
@@ -144,8 +148,16 @@ const StockDetails = () => {
               {product.productDescription}
             </div>
             <div>
-              <strong>GST: </strong>
+              <strong>Base Amount: </strong>
+              {product.productPrice}
+            </div>
+            <div>
+              <strong>GST Amount: </strong>
               {product.gst}
+            </div>
+            <div>
+              <strong>Total Amount: </strong>
+              {ProducttotalAmount}
             </div>
             <div>
               <strong>Location: </strong>
@@ -236,12 +248,16 @@ const StockDetails = () => {
               {invoice.toAddress}
             </div>
             <div>
-              <strong>Actual Amount: </strong>
+              <strong>Base Amount: </strong>
               {invoice.actualAmount}
             </div>
             <div>
               <strong>GST Amount: </strong>
               {invoice.gstAmount}
+            </div>
+            <div>
+              <strong>Total Amount: </strong>
+              {InvoicetotalAmount}
             </div>
             <div>
               <strong>Invoice Date: </strong>
