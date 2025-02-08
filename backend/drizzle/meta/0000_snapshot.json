@@ -1,5 +1,5 @@
 {
-  "id": "b1cf2ae3-fdd2-484f-9a1e-451a5ae0cefd",
+  "id": "fbaa2865-4579-4348-8490-fd5776b8b391",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -100,25 +100,43 @@
           "name": "category_wise_budget_id",
           "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "CategoryWiseBudgetsTable_category_wise_budget_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "budget_id": {
           "name": "budget_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "category_id": {
           "name": "category_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "amount": {
           "name": "amount",
           "type": "numeric",
           "primaryKey": false,
           "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -133,8 +151,8 @@
           "columnsTo": [
             "budget_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         },
         "CategoryWiseBudgetsTable_category_id_CategoriesTable_category_id_fk": {
           "name": "CategoryWiseBudgetsTable_category_id_CategoriesTable_category_id_fk",
@@ -146,8 +164,8 @@
           "columnsTo": [
             "category_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -175,6 +193,13 @@
             "cycle": false
           }
         },
+        "invoice_no": {
+          "name": "invoice_no",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ABCDEFGH12345'"
+        },
         "from_address": {
           "name": "from_address",
           "type": "varchar",
@@ -187,14 +212,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "actual_amount": {
-          "name": "actual_amount",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gst_amount": {
-          "name": "gst_amount",
+        "total_amount": {
+          "name": "total_amount",
           "type": "numeric",
           "primaryKey": false,
           "notNull": true
@@ -210,6 +229,13 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
+        },
+        "po_date": {
+          "name": "po_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'2025-02-06'"
         }
       },
       "indexes": {},
@@ -388,14 +414,21 @@
           "primaryKey": false,
           "notNull": false
         },
-        "remark_id": {
-          "name": "remark_id",
+        "status_id": {
+          "name": "status_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "GST": {
-          "name": "GST",
+        "status_description": {
+          "name": "status_description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'new'"
+        },
+        "GST_amount": {
+          "name": "GST_amount",
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
@@ -406,9 +439,28 @@
           "primaryKey": false,
           "notNull": false
         },
+        "product_price": {
+          "name": "product_price",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "invoice_id": {
           "name": "invoice_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transfer_letter": {
+          "name": "transfer_letter",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "remarks": {
+          "name": "remarks",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -431,21 +483,21 @@
           "columnsTo": [
             "location_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         },
-        "ProductsTable_remark_id_RemarksTable_remark_id_fk": {
-          "name": "ProductsTable_remark_id_RemarksTable_remark_id_fk",
+        "ProductsTable_status_id_StatusTable_status_id_fk": {
+          "name": "ProductsTable_status_id_StatusTable_status_id_fk",
           "tableFrom": "ProductsTable",
-          "tableTo": "RemarksTable",
+          "tableTo": "StatusTable",
           "columnsFrom": [
-            "remark_id"
+            "status_id"
           ],
           "columnsTo": [
-            "remark_id"
+            "status_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "set null",
+          "onUpdate": "cascade"
         },
         "ProductsTable_invoice_id_InvoiceTable_invoice_id_fk": {
           "name": "ProductsTable_invoice_id_InvoiceTable_invoice_id_fk",
@@ -457,8 +509,8 @@
           "columnsTo": [
             "invoice_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         },
         "ProductsTable_category_id_CategoriesTable_category_id_fk": {
           "name": "ProductsTable_category_id_CategoriesTable_category_id_fk",
@@ -470,26 +522,26 @@
           "columnsTo": [
             "category_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "public.RemarksTable": {
-      "name": "RemarksTable",
+    "public.StatusTable": {
+      "name": "StatusTable",
       "schema": "",
       "columns": {
-        "remark_id": {
-          "name": "remark_id",
+        "status_id": {
+          "name": "status_id",
           "type": "integer",
           "primaryKey": true,
           "notNull": true,
           "identity": {
             "type": "always",
-            "name": "RemarksTable_remark_id_seq",
+            "name": "StatusTable_status_id_seq",
             "schema": "public",
             "increment": "1",
             "startWith": "1",
@@ -499,8 +551,8 @@
             "cycle": false
           }
         },
-        "remark": {
-          "name": "remark",
+        "status_description": {
+          "name": "status_description",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -520,19 +572,30 @@
           "name": "user_privilege_id",
           "type": "integer",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "UserPrivilegeTable_user_privilege_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
         },
         "user_id": {
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "privilege_id": {
           "name": "privilege_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         }
       },
       "indexes": {},
@@ -547,8 +610,8 @@
           "columnsTo": [
             "user_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         },
         "UserPrivilegeTable_privilege_id_PrivilegesTable_privilege_id_fk": {
           "name": "UserPrivilegeTable_privilege_id_PrivilegesTable_privilege_id_fk",
@@ -560,8 +623,8 @@
           "columnsTo": [
             "privilege_id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {},
