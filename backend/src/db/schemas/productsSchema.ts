@@ -16,7 +16,7 @@ export const productsTable = pgTable('ProductsTable', {
   statusId: integer('status_id')
     .references(() => statusTable.statusId, { onDelete: 'set null', onUpdate: 'cascade' }),
   status: varchar('status_description').default('new'),
-    gst: decimal('GST'),
+  gstAmount: decimal('GST_amount'),
   productImage: varchar('product_image'),
   productPrice: integer('product_price').notNull().default(0), 
   invoiceId: integer('invoice_id')
@@ -39,7 +39,7 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   // statusDescription:true,
   productImage: true, 
   transferLetter: true,
-  gst: true, 
+  gstAmount: true, 
 
 }).extend({
   invoiceId: z.number(),
@@ -47,7 +47,7 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   productDescription: z.string().optional(),
   locationId: z.number().optional(),
   statusId: z.number().optional(),
-  gst: z.number().optional(),
+  gstAmount: z.number().optional(),
   productImage: z.string().optional(),
   transferLetter: z.string().optional(), 
   productPrice: z.number().min(0),

@@ -9,9 +9,9 @@ export const addInvoice = async (req: Request, res: Response) => {
       invoiceNo,
       fromAddress,
       toAddress,
-      actualAmount,
-      gstAmount,
+      totalAmount,
       invoiceDate,
+      PODate,
       invoiceImage,
     } = req.cleanBody;
 
@@ -21,9 +21,9 @@ export const addInvoice = async (req: Request, res: Response) => {
       !invoiceNo ||
       !fromAddress ||
       !toAddress ||
-      !actualAmount ||
-      !gstAmount ||
-      !invoiceDate
+      !totalAmount ||
+      !invoiceDate||
+      !PODate
     ) {
       return res
         .status(400)
@@ -36,8 +36,8 @@ export const addInvoice = async (req: Request, res: Response) => {
         invoiceNo,
         fromAddress,
         toAddress,
-        actualAmount,
-        gstAmount,
+        totalAmount,
+        PODate,
         invoiceDate,
         invoiceImage,
       })
@@ -91,8 +91,8 @@ export const updateInvoice = async (req: Request, res: Response) => {
       invoiceNo,
       fromAddress,
       toAddress,
-      actualAmount,
-      gstAmount,
+      totalAmount,
+      PODate,
       invoiceDate,
       invoiceImage,
     } = req.cleanBody;
@@ -103,8 +103,8 @@ export const updateInvoice = async (req: Request, res: Response) => {
         invoiceNo,
         fromAddress,
         toAddress,
-        actualAmount,
-        gstAmount,
+        totalAmount,
+        
         invoiceDate,
         invoiceImage,
       })

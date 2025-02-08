@@ -33,7 +33,7 @@ export const addStock = async (req: Request, res: Response) => {
       productDescription,
       locationId,
       statusId,
-      gst,
+      gstAmount,
       productImage,
       invoiceId,
       categoryId,
@@ -45,7 +45,7 @@ export const addStock = async (req: Request, res: Response) => {
     if (
       !productVolPageSerial ||
       !productName ||
-      !gst ||
+      !gstAmount ||
       !categoryId ||
       !invoiceId ||
       !productPrice 
@@ -61,7 +61,7 @@ export const addStock = async (req: Request, res: Response) => {
         productDescription,
         locationId,
         statusId,
-        gst,
+        gstAmount,
         productImage,
         invoiceId,
         categoryId,
@@ -99,7 +99,7 @@ export const searchStock = async (req: Request, res: Response) => {
       product_description: "string",
       location_id: "integer",
       status_id: "integer",
-      gst: "decimal",
+      GST_amount: "decimal",
       product_image: "string",
       transfer_letter: "string",
       invoice_id: "integer",
@@ -181,7 +181,7 @@ export const updateStock = async (req: Request, res: Response) => {
       productDescription,
       locationId,
       statusId,
-      gst,
+      gstAmount,
       productImage,
       transferLetter,
       invoiceId,
@@ -210,7 +210,7 @@ export const updateStock = async (req: Request, res: Response) => {
         productDescription,
         locationId,
         statusId,
-        gst,
+        gstAmount,
         productImage,
         invoiceId,
         categoryId,
@@ -256,13 +256,13 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
       const {
         fromAddress,
         toAddress,
-        actualAmount,
-        gstAmount,
+        totalAmount,
+        PODate,
         invoiceDate,
         invoiceImage,
       } = invoiceDetails;
 
-      if (!fromAddress || !toAddress || !actualAmount || !gstAmount || !invoiceDate) {
+      if (!fromAddress || !toAddress || !totalAmount || !PODate || !invoiceDate) {
         return res
           .status(400)
           .send("All invoice fields except invoiceImage are required");
@@ -274,8 +274,8 @@ export const handleInvoiceWithProducts = async (req: Request, res: Response) => 
         .values({
           fromAddress,
           toAddress,
-          actualAmount,
-          gstAmount,
+          totalAmount,
+          PODate,
           invoiceDate,
           invoiceImage,
         })
@@ -432,8 +432,8 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         categoryName: categoriesTable.categoryName,
         fromAddress: invoiceTable.fromAddress,
         toAddress: invoiceTable.toAddress,
-        actualAmount: invoiceTable.actualAmount,
-        gstAmount: invoiceTable.gstAmount,
+        TotalAmount: invoiceTable.totalAmount,
+        PODate:invoiceTable.PODate,
         invoiceDate: invoiceTable.invoiceDate,
         invoiceNo: invoiceTable.invoiceNo,
         remarks: productsTable.remarks,
@@ -489,7 +489,6 @@ export const getProductById = async (req: Request, res: Response) => {
       productVolPageSerial: product[0].ProductsTable.productVolPageSerial,
       productName: product[0].ProductsTable.productName,
       productDescription: product[0].ProductsTable.productDescription,
-      gst: product[0].ProductsTable.gst,
       productImage: product[0].ProductsTable.productImage,
       transferLetter:product[0].ProductsTable.transferLetter,
       productPrice: product[0].ProductsTable.productPrice,  // Include productPrice
@@ -504,8 +503,8 @@ export const getProductById = async (req: Request, res: Response) => {
       invoiceNo: product[0].InvoiceTable?.invoiceNo,
       fromAddress: product[0].InvoiceTable?.fromAddress,
       toAddress: product[0].InvoiceTable?.toAddress,
-      actualAmount: product[0].InvoiceTable?.actualAmount,
-      gstAmount: product[0].InvoiceTable?.gstAmount,
+      totalAmount: product[0].InvoiceTable?.totalAmount,
+      PODate: product[0].InvoiceTable?.PODate,
       invoiceDate: product[0].InvoiceTable?.invoiceDate,
       invoiceImage: product[0].InvoiceTable?.invoiceImage,
     };
