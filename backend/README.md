@@ -872,7 +872,163 @@ SECRET_KEY=your_secret_key        # JWT secret key
     "message": "Remark deleted successfully"
   }
   ```
+  
+### Invoice Routes Documentation
+#### 1. **Get Invoice**
 
+- **URL**: `/stock/invoice/`
+- **Method**: `GET`
+- **Description**: Retrieve all invoice.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+  "invoices": [   {
+      "invoiceId": 16,
+      "invoiceNo": "19345",
+      "fromAddress": "321 Main St",
+      "toAddress": "654 Elm St",
+      "totalAmount": "730.00",
+      "invoiceDate": "2025-02-06",
+      "invoiceImage": "invoice12345.jpg",
+      "PODate": "2024-08-31"
+    }
+  ]
+  }
+  ```
+#### 2. **Add Invoice**
+
+- **URL**: `/stock/invoice/add`
+- **Method**: `POST`
+- **Description**: Add an invoice.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Request Body**:
+  ```json
+    {
+    "fromAddress": "321 Main St",
+    "toAddress": "654 Elm St",
+    "totalAmount": "5000.00",
+    "invoiceDate": "2025-02-06",
+    "invoiceImage": "invoice12345.jpg",
+    "invoiceNo": "19345",
+    "PODate": "2024-08-31"
+  }
+  ```
+
+- **Response**:
+  ```json
+  {
+    "message": "Invoice added successfully",
+    "invoice": {
+      "invoiceId": 16,
+      "invoiceNo": "19345",
+      "fromAddress": "321 Main St",
+      "toAddress": "654 Elm St",
+      "totalAmount": "5000.00",
+      "invoiceDate": "2025-02-06",
+      "invoiceImage": "invoice12345.jpg",
+      "PODate": "2024-08-31"
+    }
+  }
+  ```
+#### 3. **Delete a invoice**
+
+- **URL**: `/stock/invoice/:productId`
+- **Method**: `DELETE`
+- **Description**: Delete a invoice by invoice ID.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Path Parameter**:
+  - `productId`: The ID of the product to delete.
+- **Response**:
+  ```json
+  {
+    "message": "Invoice deleted successfully"
+  }
+#### 4. **Get Invoice by id**
+
+- **URL**: `/stock/invoice/:productId`
+- **Method**: `GET`
+- **Description**: Retrieve an invoice.
+- **Path Parameter**:
+  - `productId`: The ID of the product to delete.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Response**:
+  ```json
+    {
+    "invoice": {
+      "invoiceId": 4,
+      "invoiceNo": "ABCDEFGH12345",
+      "fromAddress": "fsdfd",
+      "toAddress": "sfdsfsf",
+      "totalAmount": "34534255",
+      "invoiceDate": "2024-12-01",
+      "invoiceImage": "/uploads/e63c9636-8996-4152-8fef-e9cc8775ca0f.jpeg",
+      "PODate": "2025-02-06"
+    }
+  }
+  ```
+
+#### 5. **Update invoice **
+
+- **URL**: `/stock/invoice/:productId`
+- **Method**: `PUT`
+- **Description**: Retrieve all invoice.
+- **Path Parameter**:
+  - `productId`: The ID of the product to delete.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+  - **Request Body**:
+  ```json
+    {
+    "invoiceNo": "ABCDEFGH12398",
+    "fromAddress": "fsdfd",
+    "toAddress": "sfdsfsf",
+    "totalAmount": "34534255",
+    "invoiceDate": "2024-12-01",
+    "invoiceImage": "/uploads/e63c9636-8996-4152-8fef-e9cc8775ca0f.jpeg",
+    "PODate": "2025-02-06"
+  }
+
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Invoice updated successfully",
+    "invoice": {
+      "invoiceId": 4,
+      "invoiceNo": "ABCDEFGH12398",
+      "fromAddress": "fsdfd",
+      "toAddress": "sfdsfsf",
+      "totalAmount": "34534255",
+      "invoiceDate": "2024-12-01",
+      "invoiceImage": "/uploads/e63c9636-8996-4152-8fef-e9cc8775ca0f.jpeg",
+      "PODate": "2025-02-06"
+    }
+  }
 ### Stock Routes Documentation
 
 #### 1. **Get All Stocks**
@@ -888,13 +1044,23 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 - **Response**:
   ```json
-  {
-    "stocks": [
+    `{
+      "stocks": [
       {
-        "productId": 1,
-        "productName": "Sample Product",
-        "gst": 18.0,
-        ...
+        "productId": 29,
+        "productVolPageSerial": "12367",
+        "productName": "Sample Producdt_tl4",
+        "productDescription": "Sample Descridsfption",
+        "locationId": 3,
+        "statusId": 4,
+        "status": "new",
+        "gstAmount": "18",
+        "productImage": "image_ursdfl",
+        "productPrice": 5555,
+        "invoiceId": 4,
+        "transferLetter": "tl_4",
+        "remarks": "Working well",
+        "categoryId": 4
       }
     ]
   }
@@ -902,7 +1068,7 @@ SECRET_KEY=your_secret_key        # JWT secret key
 
 #### 2. **Add a Stock**
 
-- **URL**: `/stock`
+- **URL**: `/stock/add`
 - **Method**: `POST`
 - **Description**: Add a new stock.
 - **Headers**:
@@ -913,33 +1079,50 @@ SECRET_KEY=your_secret_key        # JWT secret key
   ```
 - **Request Body**:
   ```json
-  {
-    "productVolPageSerial": "1234",
-    "productName": "Sample Product",
-    "productDescription": "Sample Description",
-    "locationId": 1,
-    "remarkId": 2,
-    "gst": 18.0,
-    "productImage": "image_url",
-    "invoiceId": 101,
-    "categoryId": 3
+    {
+    "productVolPageSerial": "12367",
+    "productName": "Sample Producdt_tl1",
+    "productDescription": "Sample Descridsfption",
+    "locationId": 3,
+    "statusId": 4,
+    "gstAmount": 18.0,
+    "productImage": "image_ursdfl",
+    "invoiceId": 4,
+    "categoryId": 4,
+    "transferLetter": "tl_4",
+    "productPrice": 5555,
+    "invoice_no": "123-DAC",
+    "PODate": "2025-02-08",
+    "remarks": "Working well"
   }
+
   ```
 - **Response**:
   ```json
   {
     "message": "Stock added successfully",
     "product": {
-      "productId": 1,
-      "productName": "Sample Product",
-      ...
+      "productId": 29,
+      "productVolPageSerial": "12367",
+      "productName": "Sample Producdt_tl1",
+      "productDescription": "Sample Descridsfption",
+      "locationId": 3,
+      "statusId": 4,
+      "status": "new",
+      "gstAmount": "18",
+      "productImage": "image_ursdfl",
+      "productPrice": 5555,
+      "invoiceId": 4,
+      "transferLetter": "tl_4",
+      "remarks": "Working well",
+      "categoryId": 4
     }
   }
   ```
 
 #### 3. **Search Stocks**
 
-- **URL**: `/stock/search`
+- **URL**: `/stock/details`
 - **Method**: `GET`
 - **Description**: Search stocks by column and query.
 - **Headers**:
@@ -953,17 +1136,31 @@ SECRET_KEY=your_secret_key        # JWT secret key
   - `column`: The column to search in (e.g., "product_name").
 - **Example**:
   ```
-  /stock/search?query=Sample&column=product_name
+  stock/details?page=1&pageSize=10&column=product_id&query=14
   ```
 - **Response**:
   ```json
-  [
-    {
-      "productId": 1,
-      "productName": "Sample Product",
-      ...
-    }
-  ]
+  {
+    "products": [
+      {
+        "productId": 14,
+        "productName": "234f",
+        "productDescription": "kfkjsdkfjksdkn\nkfsdjkfj",
+        "productImage": "",
+        "locationName": "OFFICE",
+        "statusDescription": "TO-SELL",
+        "categoryName": "Projectors",
+        "fromAddress": "lksjkdjkf",
+        "toAddress": "sdffpsodjlfkjads",
+        "TotalAmount": "24132",
+        "PODate": "2025-02-06",
+        "invoiceDate": "2024-12-02",
+        "invoiceNo": "ABCDEFGH12345",
+        "remarks": null
+      }
+    ],
+    "totalRecords": 1
+  }
   ```
 
 #### 4. **Delete a Stock**
@@ -1002,30 +1199,86 @@ SECRET_KEY=your_secret_key        # JWT secret key
 - **Request Body**:
   ```json
   {
-    "productName": "Updated Product",
-    "productDescription": "Updated Description",
-    "locationId": 2,
-    "remarkId": 3,
-    "gst": 12.0,
-    "productImage": "new_image_url",
-    "invoiceId": 102,
-    "categoryId": 4
+    "productVolPageSerial": "12367",
+    "productName": "Sample Producdt_tl1_update",
+    "productDescription": "Sample Descridsfption",
+    "locationId": 3,
+    "statusId": 4,
+    "gstAmount": 18.0,
+    "productImage": "image_ursdfl",
+    "invoiceId": 4,
+    "categoryId": 4,
+    "transferLetter": "tl_4",
+    "productPrice": 5555,
+    "invoice_no": "123-DAC",
+    "PODate": "2025-02-08",
+    "remarks": "Working well"
   }
   ```
 - **Response**:
   ```json
-  {
+    {
     "message": "Stock updated successfully",
-    "stock": {
-      "productId": 1,
-      "productName": "Updated Product",
-      "productDescription": "Updated Description",
-      "locationId": 2,
-      "remarkId": 3,
-      "gst": 12.0,
-      "productImage": "new_image_url",
-      "invoiceId": 102,
-      "categoryId": 4
+    "stock": [
+      {
+        "productId": 14,
+        "productVolPageSerial": "12367",
+        "productName": "Sample Producdt_tl1_update",
+        "productDescription": "Sample Descridsfption",
+        "locationId": 3,
+        "statusId": 4,
+        "status": "new",
+        "gstAmount": "18",
+        "productImage": "image_ursdfl",
+        "productPrice": 5555,
+        "invoiceId": 4,
+        "transferLetter": "tl_4",
+        "remarks": "Working well",
+        "categoryId": 4
+      }
+    ]
+  }
+  ```
+
+  #### 6. **Get a Stock**
+
+- **URL**: `/stock/:productId`
+- **Method**: `GET`
+- **Description**: Get a stock by Id.
+- **Headers**:
+  ```json
+  {
+    "Authorization": "<token>"
+  }
+  ```
+- **Path Parameter**:
+  - `productId`: The ID of the product to update.
+
+- **Response**:
+  ```json
+      {
+    "product": {
+      "productId": 14,
+      "productVolPageSerial": "12367",
+      "productName": "Sample Producdt_tl1_update",
+      "productDescription": "Sample Descridsfption",
+      "productImage": "image_ursdfl",
+      "transferLetter": "tl_4",
+      "productPrice": 5555,
+      "locationName": "PR-LAB2",
+      "categoryName": "Systems",
+      "status": "WORKING",
+      "remarks": "Working well"
+    },
+    "invoice": {
+      "invoiceId": 4,
+      "invoiceNo": "ABCDEFGH12345",
+      "fromAddress": "fsdfd",
+      "toAddress": "sfdsfsf",
+      "totalAmount": "34534255",
+      "PODate": "2025-02-06",
+      "invoiceDate": "2024-12-01",
+      "invoiceImage": "/uploads/e63c9636-8996-4152-8fef-e9cc8775ca0f.jpeg"
     }
   }
   ```

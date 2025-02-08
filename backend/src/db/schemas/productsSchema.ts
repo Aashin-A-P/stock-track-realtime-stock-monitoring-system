@@ -1,6 +1,6 @@
 import { pgTable, integer, varchar, text, decimal } from 'drizzle-orm/pg-core';
 import { locationTable } from './locationsSchema';
-import { remarksTable } from './remarksSchema';
+import { statusTable } from './statusSchema';
 import { invoiceTable } from './invoicesSchema';
 import { categoriesTable } from './categoriesSchema';
 import { createInsertSchema } from 'drizzle-zod';
@@ -13,12 +13,16 @@ export const productsTable = pgTable('ProductsTable', {
   productDescription: text('product_description'),
   locationId: integer('location_id')
     .references(() => locationTable.locationId, { onDelete: 'set null', onUpdate: 'cascade' }),
-  remarkId: integer('remark_id')
-    .references(() => remarksTable.remarkId, { onDelete: 'set null', onUpdate: 'cascade' }),
-  gst: decimal('GST'),
+  statusId: integer('status_id')
+    .references(() => statusTable.statusId, { onDelete: 'set null', onUpdate: 'cascade' }),
+  status: varchar('status_description').default('new'),
+  gstAmount: decimal('GST_amount'),
   productImage: varchar('product_image'),
+  productPrice: integer('product_price').notNull().default(0), 
   invoiceId: integer('invoice_id')
     .references(() => invoiceTable.invoiceId, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  transferLetter: varchar('transfer_letter'),
+  remarks:varchar('remarks'),
   categoryId: integer('category_id')
     .references(() => categoriesTable.categoryId, { onDelete: 'cascade', onUpdate: 'cascade' }),
 });
@@ -30,15 +34,22 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   categoryId: true,
   productDescription: true,
   locationId: true, 
-  remarkId: true,
+  statusId: true,
+  remarks: true,
+  // statusDescription:true,
   productImage: true, 
-  gst: true, 
+  transferLetter: true,
+  gstAmount: true, 
+
 }).extend({
   invoiceId: z.number(),
   categoryId: z.number(),
   productDescription: z.string().optional(),
   locationId: z.number().optional(),
-  remarkId: z.number().optional(),
-  gst: z.number().optional(),
+  statusId: z.number().optional(),
+  gstAmount: z.number().optional(),
   productImage: z.string().optional(),
+  transferLetter: z.string().optional(), 
+  productPrice: z.number().min(0),
+  remarks: z.string().optional(),
 });

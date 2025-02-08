@@ -1,35 +1,44 @@
-import { Request, Response } from 'express';
-import { usersTable } from '../../db/schemas/usersSchema';
-import bcrypt from 'bcryptjs';
-import { db } from '../../db/index.js';
-import { eq, inArray } from 'drizzle-orm';
-import { userPrivilegeTable } from '../../db/schemas/UserPrivilegesschema';
-import { privilegesTable } from '../../db/schemas/privilegesSchema';
-import { generateUserToken } from '../../../utils';
+import { Request, Response } from "express";
+import { usersTable } from "../../db/schemas/usersSchema";
+import bcrypt from "bcryptjs";
+import { db } from "../../db/index.js";
+import { eq, inArray, sql } from "drizzle-orm";
+import { userPrivilegeTable } from "../../db/schemas/UserPrivilegesschema";
+import { privilegesTable } from "../../db/schemas/privilegesSchema";
+import { generateUserToken } from "../../../utils";
 
 // Helper function to check if a user already exists
 const userExists = async (userName: string) => {
-  const result = await db.select().from(usersTable).where(eq(usersTable.userName, userName));
+  const result = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.userName, userName));
   return result.length > 0;
 };
 
 // Helper function to get privilege IDs for a list of privileges
 const getPrivilegeIds = async (privileges: string[]) => {
-  const allPrivileges = await db.select()
+  const allPrivileges = await db
+    .select()
     .from(privilegesTable)
     .where(inArray(privilegesTable.privilege, privileges));
 
-  return allPrivileges.map(p => p.privilegeId);
+  return allPrivileges.map((p) => p.privilegeId);
 };
 
 // Main user registration handler
-export const registerUser = async (req: Request, res: Response): Promise<void> => {
-  try { 
+export const registerUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
     const { userName, password, privileges, role } = req.cleanBody;
 
     // Validate required fields
     if (!userName || !password || !Array.isArray(privileges)) {
-      res.status(400).json({ message: "Username, password, and privileges are required" });
+      res
+        .status(400)
+        .json({ message: "Username, password, and privileges are required" });
       return;
     }
 
@@ -43,7 +52,8 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create the user
-    const [user] = await db.insert(usersTable)
+    const [user] = await db
+      .insert(usersTable)
       .values({
         userName,
         password: hashedPassword,
@@ -51,8 +61,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       })
       .returning();
 
-      req.logMessages = [`User with id ${user.userId} created.`];
-
+    req.logMessages = [`User with id ${user.userId} created.`];
 
     if (!user) {
       res.status(500).json({ message: "Failed to create user" });
@@ -63,7 +72,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     const privilegeIds = await getPrivilegeIds(privileges);
 
     // Map privileges to UserPrivilegeTable entries
-    const userPrivilegesData = privilegeIds.map(privilegeId => ({
+    const userPrivilegesData = privilegeIds.map((privilegeId) => ({
       userId: user.userId,
       privilegeId,
     }));
@@ -75,7 +84,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
 
     // Remove sensitive data (password)
     // @ts-ignore
-      delete user.password;
+    delete user.password;
 
     // Generate token with user privileges
     const token = generateUserToken({
@@ -87,43 +96,63 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
     return;
   } catch (error: Error | any) {
     console.error("Error registering user:", error.message);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
 // Main user deletion handler
-export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+export const deleteUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const userId = Number(req.cleanBody.userId);
-
+    // console.log("REq", req.params);
+    const userId = Number(req.params.userId);
+    // console.log("userId", userId);
     // Validate user ID
     if (!userId) {
       res.status(400).json({ message: "Invalid user ID" });
     }
 
     // Check if user exists before attempting to delete
-    const userToDelete = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+    const userToDelete = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId));
     if (userToDelete.length === 0) {
       res.status(404).json({ message: "User not found" });
     }
 
+    // console.log("User to delete", JSON.stringify(userToDelete, null, 2));
+
     // Delete the user and their related data (user-privileges, etc.)
-    await db.delete(userPrivilegeTable).where(eq(userPrivilegeTable.userId, userId));
+    await db
+      .delete(userPrivilegeTable)
+      .where(eq(userPrivilegeTable.userId, userId));
     await db.delete(usersTable).where(eq(usersTable.userId, userId)).execute();
 
     req.logMessages = [`User with id ${userId} deleted.`];
+    // console.log("User deleted successfully");
     res.status(204).send();
-  } catch (error : Error | any) {
+  } catch (error: Error | any) {
     console.error("Error deleting user:", error.message);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
 // update user
-export const updateUser = async (req: Request, res: Response): Promise<void> => {
+export const updateUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const userId = Number(req.params.userId);
     const { userName, privileges } = req.cleanBody;
+    console.log("Update User", req.cleanBody);
 
     // Validate user ID
     if (!userId) {
@@ -131,15 +160,19 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Check if user exists before attempting to update
-    const userToUpdate = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+    const userToUpdate = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId));
     if (userToUpdate.length === 0) {
       res.status(404).json({ message: "User not found" });
     }
 
     // Update the user
-    await db.update(usersTable)
+    await db
+      .update(usersTable)
       .set({
-        userName
+        userName,
       })
       .where(eq(usersTable.userId, userId))
       .execute();
@@ -148,10 +181,12 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     const privilegeIds = await getPrivilegeIds(privileges);
 
     // Delete existing user-privilege relationships
-    await db.delete(userPrivilegeTable).where(eq(userPrivilegeTable.userId, userId));
+    await db
+      .delete(userPrivilegeTable)
+      .where(eq(userPrivilegeTable.userId, userId));
 
     // Map privileges to UserPrivilegeTable entries
-    const userPrivilegesData = privilegeIds.map(privilegeId => ({
+    const userPrivilegesData = privilegeIds.map((privilegeId) => ({
       userId,
       privilegeId,
     }));
@@ -161,53 +196,122 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
     req.logMessages = [`User with ID ${userId} updated.`];
     res.status(204).send();
-  } catch (error : Error | any) {
+  } catch (error: Error | any) {
     console.error("Error updating user:", error.message);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
-}
+};
 
-// get user 
+// get user
 export const getUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = Number(req.params.userId);
 
     // Validate user ID
-    if (!userId) {
+    if (isNaN(userId) || userId <= 0) {
       res.status(400).json({ message: "Invalid user ID" });
+      return;
     }
 
-    // Check if user exists before attempting to retrieve
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+    // Fetch user data
+    const [user] = await db
+      .select({ userName: usersTable.userName })
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId));
+
     if (!user) {
       res.status(404).json({ message: "User not found" });
+      return;
     }
 
-    // Get user privileges
-    const userPrivileges = await db.select()
+    // Fetch user privileges
+    const privileges = await db
+      .select({ privilegeName: privilegesTable.privilege })
       .from(userPrivilegeTable)
-      .innerJoin(privilegesTable, eq(userPrivilegeTable.privilegeId, privilegesTable.privilegeId))
+      .innerJoin(
+        privilegesTable,
+        eq(userPrivilegeTable.privilegeId, privilegesTable.privilegeId)
+      )
       .where(eq(userPrivilegeTable.userId, userId));
 
-    // Remove sensitive data (password)
-    // @ts-ignore
-    delete user.password;
+    // Extract privilege names into an array
+    const privilegeArray = privileges.map(
+      (privilege) => privilege.privilegeName
+    );
 
-    res.status(200).json({ user, privileges: userPrivileges });
-  } catch (error : Error | any) {
+    // Return the username and privileges array
+    res.status(200).json({
+      userName: user.userName,
+      privileges: privilegeArray,
+    });
+  } catch (error: Error | any) {
     console.error("Error getting user:", error.message);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
-}
+};
 
 // getAllUsers
-export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+export const getAllUsers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const users = await db.select().from(usersTable);
+    const { page = 1, pageSize = 10, search = "" } = req.query;
 
-    res.status(200).json(users);
-  } catch (error : Error | any) {
-    console.error("Error getting all users:", error.message);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    const parsedPage = parseInt(page as string, 10);
+    const parsedPageSize = parseInt(pageSize as string, 10);
+
+    if (isNaN(parsedPage) || isNaN(parsedPageSize)) {
+      res
+        .status(400)
+        .json({ message: "Page and pageSize must be valid integers." });
+      return;
+    }
+
+    const offset = (parsedPage - 1) * parsedPageSize;
+
+    // Construct where clause for search
+    const whereClause = search
+      ? sql`${usersTable.userName} ILIKE ${"%" + search + "%"}`
+      : sql`true`;
+
+    // Get total user count
+    const totalRecordsQuery = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(usersTable)
+      .where(whereClause);
+
+    const totalRecords = totalRecordsQuery[0]?.count || 0;
+
+    // Fetch paginated users
+    const users = await db
+      .select({
+        id: usersTable.userId,
+        name: usersTable.userName,
+        role: usersTable.role,
+      })
+      .from(usersTable)
+      .where(whereClause)
+      .orderBy(usersTable.userName) // Optional: Add ordering logic here
+      .limit(parsedPageSize)
+      .offset(offset);
+
+    // Return response
+    res.status(200).json({
+      users,
+      totalRecords,
+      page: parsedPage,
+      pageSize: parsedPageSize,
+    });
+  } catch (error: Error | any) {
+    console.error("Error getting users:", error.message);
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
-}
+};

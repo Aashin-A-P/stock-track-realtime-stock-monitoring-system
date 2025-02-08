@@ -515,18 +515,19 @@ const AddProduct: React.FC = () => {
                   onClick={() =>
                     // confirmation
                     confirmAlert({
-                      title: 'Confirm to delete',
-                      message: 'Are you sure you want to delete this product?',
+                      title: "Confirm to delete",
+                      message: "Are you sure you want to delete this product?",
                       buttons: [
                         {
-                          label: 'Yes',
-                          onClick: () => setProducts(products.filter((_, i) => i !== index))
+                          label: "Yes",
+                          onClick: () =>
+                            setProducts(products.filter((_, i) => i !== index)),
                         },
                         {
-                          label: 'No',
-                          onClick: () => {}
-                        }
-                      ]
+                          label: "No",
+                          onClick: () => {},
+                        },
+                      ],
                     })
                   }
                 >
