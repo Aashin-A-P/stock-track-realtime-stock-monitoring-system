@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
-
-import { confirmAlert } from "react-confirm-alert";
-import "react-confirm-alert/src/react-confirm-alert.css";
+import { confirmAlert } from 'react-confirm-alert';
+import 'react-confirm-alert/src/react-confirm-alert.css';
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -16,8 +15,10 @@ interface Product {
   productDescription: string;
   category: string;
   quantity: number;
+  gstAmount: number;
   location: string;
-  remarks: string;
+  Status: string;
+  remark: string;
   price: number;
   productImage?: string;
 }
@@ -31,6 +32,7 @@ const AddProduct: React.FC = () => {
       navigate("/login");
     }
   }, [token, navigate]);
+
   const defaultProduct: Product = {
     pageNo: "",
     volNo: "",
@@ -40,8 +42,10 @@ const AddProduct: React.FC = () => {
     productDescription: "",
     category: "",
     quantity: 0,
+    gstAmount: 0,
     location: "",
-    remarks: "",
+    Status: "",
+    remark: "",
     price: 0,
     productImage: "",
   };
@@ -49,12 +53,11 @@ const AddProduct: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [remarks, setRemarks] = useState<string[]>([]);
+  const [Statuses, setStatuses] = useState<string[]>([]);
   const [invoiceDetails, setInvoiceDetails] = useState({
-    // invoiceNumber: "",
+    invoiceNumber: "",
     invoiceDate: "",
-    // vendorName: "",
-    gstAmount: 0,
+    PODate: "",
     actualAmount: 0,
     fromAddress: "",
     toAddress: "",
@@ -62,7 +65,7 @@ const AddProduct: React.FC = () => {
   });
 
   const [newLocation, setNewLocation] = useState("");
-  const [newRemark, setNewRemark] = useState("");
+  const [newStatus, setNewStatus] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -72,11 +75,22 @@ const AddProduct: React.FC = () => {
       ...updatedProducts[index],
       [field]: value,
     };
-    if (["pageNo", "volNo", "serialNo"].includes(field)) {
-      updatedProducts[
-        index
-      ].productVolPageSerial = `${updatedProducts[index].volNo}-${updatedProducts[index].pageNo}-${updatedProducts[index].serialNo}`;
+    
+    // Auto-calculate total price when any related field changes
+    if (["price", "gstAmount", "quantity"].includes(field)) {
+      const price = parseFloat(updatedProducts[index].price.toString()) || 0;
+      const gst = parseFloat(updatedProducts[index].gstAmount.toString()) || 0;
+      const qty = parseInt(updatedProducts[index].quantity.toString(), 10) || 0;
+      updatedProducts[index].price = price;
+      updatedProducts[index].gstAmount = gst;
+      updatedProducts[index].quantity = qty;
     }
+
+    if (["pageNo", "volNo", "serialNo"].includes(field)) {
+      updatedProducts[index].productVolPageSerial = 
+        `${updatedProducts[index].volNo}-${updatedProducts[index].pageNo}-${updatedProducts[index].serialNo}`;
+    }
+    
     setProducts(updatedProducts);
   };
 
@@ -112,29 +126,29 @@ const AddProduct: React.FC = () => {
     }
   };
 
-  const addNewRemark = async () => {
+  const addNewStatus = async () => {
     try {
-      const res = await fetch(baseUrl + "/stock/remark/add", {
+      const res = await fetch(baseUrl + "/stock/status/add", {
         method: "POST",
         headers: fetchedHeaders,
-        body: JSON.stringify({ remark: newRemark }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) {
-        throw new Error(`Error adding remark: ${res.statusText}`);
+        throw new Error(`Error adding status: ${res.statusText}`);
       }
-      setRemarks([...remarks, newRemark]);
-      toast.success("Remark added successfully!");
+      setStatuses([...Statuses, newStatus]);
+      toast.success("Status added successfully!");
       setProducts(
         products.map((product) =>
-          product.remarks === "other"
-            ? { ...product, remarks: newRemark }
+          product.Status === "other"
+            ? { ...product, Statuses: newStatus }
             : product
         )
       );
-      setNewRemark("");
+      setNewStatus("");
     } catch (error) {
-      toast.error("Failed to add remark");
-      console.error("Failed to add remark:", error);
+      toast.error("Failed to add status");
+      console.error("Failed to add status:", error);
     }
   };
 
@@ -184,18 +198,18 @@ const AddProduct: React.FC = () => {
         );
         setLocations(parsedLocations);
 
-        // Fetch remarks data
-        const remarkRes = await fetch(baseUrl + "/stock/remark", {
+        // Fetch Statuses data
+        const statusRes = await fetch(baseUrl + "/stock/status", {
           headers: fetchedHeaders,
         });
         // Check if the response is OK (status 200)
-        if (!remarkRes.ok) {
-          throw new Error(`Error fetching remarks: ${remarkRes.statusText}`);
+        if (!statusRes.ok) {
+          throw new Error(`Error fetching Statuses: ${statusRes.statusText}`);
         }
         // Parse the response as JSON
-        const remarkData = await remarkRes.json();
-        const parsedRemarks = remarkData.remarks.map((rem: any) => rem.remark);
-        setRemarks(parsedRemarks);
+        const statusData = await statusRes.json();
+        const parsedStatuss = statusData.Statuses.map((rem: any) => rem.status);
+        setStatuses(parsedStatuss);
 
         // Fetch category data
         const categoryRes = await fetch(baseUrl + "/stock/category", {
@@ -262,9 +276,38 @@ const AddProduct: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    // Validate invoice number
+    if (!invoiceDetails.invoiceNumber.trim()) {
+      toast.error("Invoice Number is required");
+      setLoading(false);
+      return;
+    }
+
+    // Validate date order
+    if (invoiceDetails.PODate && invoiceDetails.invoiceDate) {
+      const poDate = new Date(invoiceDetails.PODate);
+      const invDate = new Date(invoiceDetails.invoiceDate);
+      if (poDate > invDate) {
+        toast.error("Purchase Order Date must be before Invoice Date");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Validate total amount calculation
+    const calculatedTotal = products.reduce((acc, product) => {
+      return acc + (product.price + product.gstAmount) * product.quantity;
+    }, 0);
+
+    if (Math.abs(calculatedTotal - invoiceDetails.actualAmount) > 0.01) {
+      toast.error("Invoice amount doesn't match product totals");
+      setLoading(false);
+      return;
+    }
+
     const parsedInvoiceData = {
       ...invoiceDetails,
-      gstAmount: invoiceDetails.gstAmount.toString(),
       actualAmount: invoiceDetails.actualAmount.toString(),
     };
 
@@ -287,7 +330,7 @@ const AddProduct: React.FC = () => {
       const invoiceId = invoice.invoiceId;
       console.log("Invoice added successfully, ID:", invoiceId);
 
-      // Fetch data for locations, remarks, and categories in parallel
+      // Fetch data for locations, Statuses, and categories in parallel
       const fetchMetadata = async (endpoint: string, key: string) =>
         await fetch(`${baseUrl}/${endpoint}?query=${key}`, {
           headers: { Authorization: localStorage.getItem("token") as string },
@@ -299,9 +342,9 @@ const AddProduct: React.FC = () => {
 
       // Process all products
       for (const product of products) {
-        const [locationData, remarkData, categoryData] = await Promise.all([
+        const [locationData, statusData, categoryData] = await Promise.all([
           fetchMetadata("stock/location/search", product.location),
-          fetchMetadata("stock/remark/search", product.remarks),
+          fetchMetadata("stock/status/search", product.Status),
           fetchMetadata("stock/category/search", product.category),
         ]);
 
@@ -310,8 +353,7 @@ const AddProduct: React.FC = () => {
           productName: product.productName,
           productDescription: product.productDescription,
           locationId: locationData.locationId,
-          remarkId: remarkData.remarkId,
-          gst: invoiceDetails.gstAmount,
+          statusId: statusData.statusId,
           productImage: product.productImage,
           invoiceId,
           categoryId: categoryData.categoryId,
@@ -343,8 +385,9 @@ const AddProduct: React.FC = () => {
 
       // Reset invoice and products state
       setInvoiceDetails({
+        invoiceNumber: "",
         invoiceDate: "",
-        gstAmount: 0,
+        PODate: "",
         actualAmount: 0,
         fromAddress: "",
         toAddress: "",
@@ -372,24 +415,24 @@ const AddProduct: React.FC = () => {
               Invoice Details
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              {/* <input
+              <input
                 type="text"
                 placeholder="Invoice Number"
+                title="Unique identifier for the invoice (required)"
                 value={invoiceDetails.invoiceNumber}
-                onChange={(e) =>
-                  handleInvoiceChange("invoiceNumber", e.target.value)
-                }
+                onChange={(e) => handleInvoiceChange("invoiceNumber", e.target.value)}
                 className="p-2 border rounded"
-              /> */}
-              {/* <input
-                type="text"
-                placeholder="Vendor Name"
-                value={invoiceDetails.vendorName}
-                onChange={(e) =>
-                  handleInvoiceChange("vendorName", e.target.value)
-                }
-                className="p-2 border rounded col-span-2"
-              /> */}
+                required
+              />
+              <input
+                type="date"
+                placeholder="Purchase Order Date"
+                title="Date of the purchase order (must be before invoice date)"
+                value={invoiceDetails.PODate}
+                max={invoiceDetails.invoiceDate}
+                onChange={(e) => handleInvoiceChange("PODate", e.target.value)}
+                className="p-2 border rounded"
+              />
               <textarea
                 placeholder="From Address"
                 value={invoiceDetails.fromAddress}
@@ -405,15 +448,6 @@ const AddProduct: React.FC = () => {
                   handleInvoiceChange("toAddress", e.target.value)
                 }
                 className="p-2 border rounded col-span-2"
-              />
-              <input
-                type="number"
-                placeholder="Tax Amount"
-                value={invoiceDetails.gstAmount || ""}
-                onChange={(e) =>
-                  handleInvoiceChange("gstAmount", parseFloat(e.target.value))
-                }
-                className="p-2 border rounded"
               />
               <input
                 type="number"
@@ -442,11 +476,24 @@ const AddProduct: React.FC = () => {
                 className="hidden" // hide file input (default style)
                 id="invoiceImageInput"
               />
+              <input
+                type="date"
+                placeholder="Invoice Date"
+                title="Date of the invoice (must be after purchase order date)"
+                value={invoiceDetails.invoiceDate}
+                min={invoiceDetails.PODate}
+                onChange={(e) => handleInvoiceChange("invoiceDate", e.target.value)}
+                className="p-2 border rounded"
+              />
 
+              {/* Tax calculation display */}
+              <div className="col-span-2 p-2 bg-yellow-100 rounded">
+                Total Calculated Amount: ₹{invoiceDetails.actualAmount.toFixed(2)}
+              </div>
               <label
                 htmlFor="invoiceImageInput"
                 className={
-                  `p-2 border rounded bg-blue-600 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
+                  `p-2 border rounded bg-blue-600 col-span-2 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
                   (invoiceDetails.invoiceImage ? " bg-green-500" : "")
                 }
               >
@@ -455,15 +502,6 @@ const AddProduct: React.FC = () => {
                   : "Choose Invoice Image"}{" "}
               </label>
 
-              <input
-                type="date"
-                placeholder="Invoice Date"
-                value={invoiceDetails.invoiceDate}
-                onChange={(e) =>
-                  handleInvoiceChange("invoiceDate", e.target.value)
-                }
-                className="p-2 border rounded"
-              />
             </div>
           </div>
 
@@ -625,116 +663,101 @@ const AddProduct: React.FC = () => {
                   </div>
                 )}
                 <select
-                  aria-label="Remarks"
-                  value={product.remarks}
+                  aria-label="Statuss"
+                  value={product.Status}
                   onChange={(e) =>
-                    handleProductChange(index, "remarks", e.target.value)
+                    handleProductChange(index, "Statuses", e.target.value)
                   }
                   className={
                     `p-2 border rounded` +
-                    (product.remarks == "other" ? " col-span-1" : " col-span-2")
+                    (product.Status == "other" ? " col-span-1" : " col-span-2")
                   }
                 >
-                  <option value="">Select Remarks</option>
-                  {remarks.map((rem, remIndex) => (
+                  <option value="">Select Statuss</option>
+                  {Statuses.map((rem, remIndex) => (
                     <option key={remIndex} value={rem}>
                       {rem}
                     </option>
                   ))}
                   <option value="other">Other</option>
                 </select>
-                {product.remarks === "other" && (
+                {product.Status === "other" && (
                   <div className="flex gap-1">
                     <input
                       type="text"
-                      placeholder="New Remark"
-                      value={newRemark}
-                      onChange={(e) => setNewRemark(e.target.value)}
+                      placeholder="New Status"
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
                       className="p-2 border rounded flex-1"
                     />
                     <button
                       type="button"
-                      onClick={addNewRemark}
+                      onClick={addNewStatus}
                       className="bg-blue-700 text-white px-4 py-2 rounded shadow ml-2"
                     >
-                      Add Remark
+                      Add Status
                     </button>
                   </div>
                 )}
                 <input
-                  type="number"
-                  placeholder="Quantity"
-                  value={product.quantity || ""}
-                  onChange={(e) =>
-                    handleProductChange(
-                      index,
-                      "quantity",
-                      parseInt(e.target.value, 10)
-                    )
-                  }
-                  className="p-2 border rounded"
-                />
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={product.price || ""}
-                  onChange={(e) =>
-                    handleProductChange(
-                      index,
-                      "price",
-                      parseFloat(e.target.value)
-                    )
-                  }
-                  className="p-2 border rounded"
-                />
-                <input
-                  placeholder="Product Image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      uploadImageAndGetURL(file, e).then((url) => {
-                        handleProductChange(index, "productImage", url);
-                      });
-                    }
-                  }}
-                  className="hidden" // hide file input (default style)
-                  id="productImageInput"
-                />
+                type="number"
+                placeholder="Price"
+                title="Price per unit before tax"
+                value={product.price || ""}
+                onChange={(e) => handleProductChange(index, "price", parseFloat(e.target.value))}
+                className="p-2 border rounded"
+              />
+              
+              <input
+                type="number"
+                placeholder="GST Amount"
+                title="GST amount per unit"
+                value={product.gstAmount || ""}
+                onChange={(e) => handleProductChange(index, "gstAmount", parseFloat(e.target.value))}
+                className="p-2 border rounded"
+              />
 
-                <label
-                  htmlFor="productImageInput"
-                  className={
-                    `p-2 border rounded bg-blue-600 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
-                    (products[index].productImage ? " bg-green-500" : "")
-                  }
-                >
-                  {products[index].productImage
-                    ? "Product Image Uploaded"
-                    : "Choose Product Image"}{" "}
-                </label>
-              </div>
+              <input
+                type="number"
+                placeholder="Quantity"
+                title="Number of units"
+                value={product.quantity || ""}
+                onChange={(e) => handleProductChange(index, "quantity", parseInt(e.target.value, 10))}
+                className="p-2 border rounded"
+              />
+
+              <input
+                type="number"
+                placeholder="Total Price"
+                title="Calculated total (Price + GST) × Quantity"
+                value={(product.quantity * (product.price + product.gstAmount)) || ""}
+                className="p-2 border rounded bg-gray-100"
+                readOnly
+              />
             </div>
-          ))}
+          </div>))}
 
-          <div className="flex justify-between items-center">
+          {/* Submit Section */}
+          <div className="flex justify-between items-center mt-6">
             <button
               type="button"
               onClick={() => setProducts([...products, defaultProduct])}
               className="bg-gray-700 text-white px-4 py-2 rounded shadow hover:bg-black transition-all duration-200"
+              title="Add another product to this invoice"
             >
               Add Product
             </button>
+            
             <button
-              type="button"
-              className={`cursor-pointer text-white p-2 rounded-md bg-blue-600 transition-all duration-200 disabled:opacity-50 ${
-                loading ? "" : "hover:bg-blue-700"
+              type="submit"
+              className={`bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 transition-all duration-200 ${
+                loading ? "opacity-50 cursor-not-allowed" : ""
               }`}
               onClick={handleSubmit}
+              title="Submit the entire invoice with all products"
               disabled={loading}
             >
-              Submit Invoice
+              {loading ? "Processing..." : "Submit Invoice"}
             </button>
           </div>
         </div>
