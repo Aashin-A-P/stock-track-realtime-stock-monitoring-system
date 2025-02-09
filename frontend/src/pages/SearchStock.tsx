@@ -12,8 +12,9 @@ type Product = {
   productDescription: string;
   categoryName: string;
   locationName: string;
-  remark: string;
-  actualAmount: string;
+  remarks: string;
+  status: string;
+  productPrice: string;
   gstAmount: string;
   invoiceDate: string;
 };
@@ -156,7 +157,7 @@ const SearchStock: React.FC = () => {
                   <th className="p-4">Description</th>
                   <th className="p-4">Category</th>
                   <th className="p-4">Location</th>
-                  <th className="p-4">Remark</th>
+                  <th className="p-4">Status</th>
                   <th className="p-4">Amount</th>
                   <th className="p-4">GST</th>
                   <th className="p-4">Invoice Date</th>
@@ -177,8 +178,8 @@ const SearchStock: React.FC = () => {
                       <td className="p-4">{product.productDescription}</td>
                       <td className="p-4">{product.categoryName}</td>
                       <td className="p-4">{product.locationName}</td>
-                      <td className="p-4">{product.remark}</td>
-                      <td className="p-4">{product.actualAmount}</td>
+                      <td className="p-4">{product.status}</td>
+                      <td className="p-4">{product.productPrice}</td>
                       <td className="p-4">{product.gstAmount}</td>
                       <td className="p-4">{product.invoiceDate}</td>
                     </tr>

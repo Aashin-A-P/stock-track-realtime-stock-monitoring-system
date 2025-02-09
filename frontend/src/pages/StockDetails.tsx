@@ -1,26 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { Link } from "react-router-dom";
 
 type Product = {
   productId: number;
   productVolPageSerial: string;
   productName: string;
   productDescription: string;
-  gst: string;
+  gstAmount: string;
   productImage: string;
   locationName: string;
   categoryName: string;
-  remark: string;
-  productPrice: string;
+  remarks: string;
+  status: string;
+  productPrice: number;
 };
 
 type Invoice = {
   invoiceId: number;
   fromAddress: string;
   toAddress: string;
-  actualAmount: string;
-  gstAmount: string;
+  totalAmount: number;
   invoiceDate: string;
   invoiceImage: string;
 };
@@ -61,7 +62,7 @@ const StockDetails = () => {
       }
     };
     fetchData();
-  }, [stockId]);
+  }, [stockId,baseURL]);
 
   const handleBack = () => {
     navigate("/stocks");
@@ -114,10 +115,8 @@ const StockDetails = () => {
       </div>
     );
   }
-  /*Invoice total amount*/
-  const InvoicetotalAmount = parseFloat(invoice.actualAmount) + parseFloat(invoice.gstAmount);
   /*Product total amount*/ 
-  const ProducttotalAmount = parseFloat(product.productPrice)+parseFloat(product.gst);
+  const ProducttotalAmount = product.productPrice+parseFloat(product.gstAmount);
   return (
     <>
       <Navbar />
@@ -153,7 +152,7 @@ const StockDetails = () => {
             </div>
             <div>
               <strong>GST Amount: </strong>
-              {product.gst}
+              {product.gstAmount}
             </div>
             <div>
               <strong>Total Amount: </strong>
@@ -188,26 +187,44 @@ const StockDetails = () => {
               )}
             </div>
             <div>
+              <strong>Status: </strong>
+              {isEditing ? (
+                <input
+                  placeholder="Enter status"
+                  type="text"
+                  value={updatedProduct?.status}
+                  onChange={(e) => handleChange(e, "status")}
+                  className="border p-2 rounded"
+                />
+              ) : (
+                product.status
+              )}
+            </div>
+            <div>
               <strong>Remark: </strong>
               {isEditing ? (
                 <textarea
                   placeholder="Enter remark"
-                  value={updatedProduct?.remark}
-                  onChange={(e) => handleChange(e, "remark")}
+                  value={updatedProduct?.remarks}
+                  onChange={(e) => handleChange(e, "remarks")}
                   className="border p-2 rounded"
                 />
               ) : (
-                product.remark
+                product.remarks || "-"
               )}
             </div>
             <div>
               <strong>Product Image: </strong>
-              <button
-                onClick={() => handleImageClick(product.productImage)}
-                className="text-blue-600 underline"
-              >
-                View Image
-              </button>
+              {product.productImage ? (
+                <button
+                  onClick={() => handleImageClick(product.productImage)}
+                  className="text-blue-600 underline"
+                >
+                  View Image
+                </button>
+              ) : (
+                <span className="text-gray-500">🔍 No Image to Display</span>
+              )}
             </div>
           </div>
 
@@ -248,16 +265,8 @@ const StockDetails = () => {
               {invoice.toAddress}
             </div>
             <div>
-              <strong>Base Amount: </strong>
-              {invoice.actualAmount}
-            </div>
-            <div>
-              <strong>GST Amount: </strong>
-              {invoice.gstAmount}
-            </div>
-            <div>
               <strong>Total Amount: </strong>
-              {InvoicetotalAmount}
+              {invoice.totalAmount}
             </div>
             <div>
               <strong>Invoice Date: </strong>
@@ -265,12 +274,25 @@ const StockDetails = () => {
             </div>
             <div>
               <strong>Invoice Image: </strong>
-              <button
-                onClick={() => handleImageClick(invoice.invoiceImage)}
-                className="text-blue-600 underline"
+              {invoice.invoiceImage ? (
+                <button
+                  onClick={() => handleImageClick(invoice.invoiceImage)}
+                  className="text-blue-600 underline"
+                >
+                  View Image
+                </button>
+              ) : (
+                <span className="text-gray-500">🚀 Oops! No Image Uploaded</span>
+              )}
+            </div>
+            <br />
+            <div className="mt-4">
+              <Link
+                to={`/stock/invoice/${invoice.invoiceId}`}
+                className="text-white bg-blue-600 px-4 py-2 rounded shadow hover:bg-blue-700 inline-block"
               >
-                View Image
-              </button>
+                View Invoice Details
+              </Link>
             </div>
           </div>
         </div>
