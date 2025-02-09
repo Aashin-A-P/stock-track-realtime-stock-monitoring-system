@@ -74,9 +74,29 @@ const StockDetails = () => {
   };
 
   const handleImageClick = (imageUrl: string) => {
-    console.log("Opening image:", imageUrl);
-    window.open(baseURL + imageUrl, "_blank");
+    if (!imageUrl || imageUrl.trim() === "") {
+      console.warn("No valid image URL found.");
+      return;
+    }
+  
+    let fullUrl = imageUrl;
+  
+    // If the image URL is relative, prepend the base URL
+    if (!imageUrl.startsWith("http")) {
+      fullUrl = `${baseURL}${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
+    }
+  
+    try {
+      const newWindow = window.open(fullUrl, "_blank");
+      if (!newWindow) {
+        console.warn("Popup blocked or failed to open the image.");
+      }
+    } catch (error) {
+      console.error("Error opening image:", error);
+    }
   };
+  
+  
 
   const handleEditClick = () => {
     setIsEditing(true);
