@@ -26,6 +26,11 @@ type Invoice = {
   invoiceImage: string;
 };
 
+const formatAmount = (amount: number) => (
+  <span className="text-blue-600 font-semibold">₹ {amount.toFixed(2)}</span>
+);
+
+
 const StockDetails = () => {
   const navigate = useNavigate();
   const stockId = useParams().stockId;
@@ -148,15 +153,15 @@ const StockDetails = () => {
             </div>
             <div>
               <strong>Base Amount: </strong>
-              {product.productPrice}
+              {formatAmount(product.productPrice)}
             </div>
             <div>
               <strong>GST Amount: </strong>
-              {product.gstAmount}
+              {formatAmount(parseFloat(product.gstAmount))}
             </div>
             <div>
               <strong>Total Amount: </strong>
-              {ProducttotalAmount}
+              {formatAmount(ProducttotalAmount)}
             </div>
             <div>
               <strong>Location: </strong>
@@ -266,7 +271,7 @@ const StockDetails = () => {
             </div>
             <div>
               <strong>Total Amount: </strong>
-              {invoice.totalAmount}
+              {formatAmount(Number(invoice.totalAmount))}
             </div>
             <div>
               <strong>Invoice Date: </strong>
