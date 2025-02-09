@@ -15,8 +15,6 @@ export const addInvoice = async (req: Request, res: Response) => {
       invoiceImage,
     } = req.cleanBody;
 
-    console.log("Invoice Data : ", req.cleanBody);
-
     if (
       !invoiceNo ||
       !fromAddress ||
@@ -29,7 +27,7 @@ export const addInvoice = async (req: Request, res: Response) => {
         .status(400)
         .send("All fields except invoiceImage are required");
     }
-
+    console.log("Adding Invoice");
     const [newInvoice] = await db
       .insert(invoiceTable)
       .values({
@@ -42,7 +40,7 @@ export const addInvoice = async (req: Request, res: Response) => {
         invoiceImage,
       })
       .returning();
-
+      console.log("Invoice addedSuccessfully");
     res
       .status(201)
       .json({ message: "Invoice added successfully", invoice: newInvoice });

@@ -18,6 +18,7 @@ interface Product {
   gstAmount: number;
   location: string;
   Status: string;
+  transferLetter?: string;
   remark: string;
   price: number;
   productImage?: string;
@@ -40,6 +41,7 @@ const AddProduct: React.FC = () => {
     productVolPageSerial: "",
     productName: "",
     productDescription: "",
+    transferLetter: "",
     category: "",
     quantity: 0,
     gstAmount: 0,
@@ -55,10 +57,10 @@ const AddProduct: React.FC = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [Statuses, setStatuses] = useState<string[]>([]);
   const [invoiceDetails, setInvoiceDetails] = useState({
-    invoiceNumber: "",
+    invoiceNo: "",
     invoiceDate: "",
     PODate: "",
-    actualAmount: 0,
+    totalAmount: 0,
     fromAddress: "",
     toAddress: "",
     invoiceImage: "",
@@ -68,6 +70,10 @@ const AddProduct: React.FC = () => {
   const [newStatus, setNewStatus] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(false);
+  // create two ref for checking the equality of the invoice total price and product total price
+  const invoiceTotalPrice = invoiceDetails.totalAmount;
+  const productTotalPrice = products.reduce((acc, product) => acc + (product.price + product.gstAmount) * product.quantity, 0);
+  const isEquals = invoiceTotalPrice === productTotalPrice;
 
   const handleProductChange = (index: number, field: string, value: any) => {
     const updatedProducts = [...products];
@@ -75,7 +81,7 @@ const AddProduct: React.FC = () => {
       ...updatedProducts[index],
       [field]: value,
     };
-    
+
     // Auto-calculate total price when any related field changes
     if (["price", "gstAmount", "quantity"].includes(field)) {
       const price = parseFloat(updatedProducts[index].price.toString()) || 0;
@@ -87,10 +93,10 @@ const AddProduct: React.FC = () => {
     }
 
     if (["pageNo", "volNo", "serialNo"].includes(field)) {
-      updatedProducts[index].productVolPageSerial = 
+      updatedProducts[index].productVolPageSerial =
         `${updatedProducts[index].volNo}-${updatedProducts[index].pageNo}-${updatedProducts[index].serialNo}`;
     }
-    
+
     setProducts(updatedProducts);
   };
 
@@ -128,10 +134,11 @@ const AddProduct: React.FC = () => {
 
   const addNewStatus = async () => {
     try {
+      console.log("Adding new status:", newStatus);
       const res = await fetch(baseUrl + "/stock/status/add", {
         method: "POST",
         headers: fetchedHeaders,
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ statusDescription: newStatus }),
       });
       if (!res.ok) {
         throw new Error(`Error adding status: ${res.statusText}`);
@@ -141,7 +148,7 @@ const AddProduct: React.FC = () => {
       setProducts(
         products.map((product) =>
           product.Status === "other"
-            ? { ...product, Statuses: newStatus }
+            ? { ...product, Status: newStatus }
             : product
         )
       );
@@ -207,8 +214,8 @@ const AddProduct: React.FC = () => {
           throw new Error(`Error fetching Statuses: ${statusRes.statusText}`);
         }
         // Parse the response as JSON
-        const statusData = await statusRes.json();
-        const parsedStatuss = statusData.Statuses.map((rem: any) => rem.status);
+        const statusData: { statuses: { statusId: number, statusDescription: string }[] } = await statusRes.json();
+        const parsedStatuss = statusData.statuses.map((rem) => rem.statusDescription);
         setStatuses(parsedStatuss);
 
         // Fetch category data
@@ -220,9 +227,9 @@ const AddProduct: React.FC = () => {
           throw new Error(`Error fetching category: ${categoryRes.statusText}`);
         }
         // Parse the response as JSON
-        const categoryData = await categoryRes.json();
+        const categoryData: { categories: { categoryId: number, categoryName: string }[] } = await categoryRes.json();
         const parsedCategories = categoryData.categories.map(
-          (catg: any) => catg.categoryName
+          (cat) => cat.categoryName
         );
         setCategories(parsedCategories);
       } catch (error) {
@@ -245,26 +252,25 @@ const AddProduct: React.FC = () => {
     event.preventDefault();
     const formData = new FormData();
     formData.append("image", file); // Append the file to FormData
-
+    console.log("Form Data : ", formData);
     try {
       const res = await fetch(baseUrl + "/upload", {
         method: "POST",
-        headers: { Authorization: localStorage.getItem("token") as string },
+        headers: { Authorization: localStorage.getItem("token") as string, multipart: "form-data" },
         body: formData, // Pass FormData as body
       });
 
       // If the response is not ok, throw an error
       if (!res.ok) {
         const errorData = await res.json();
-        console.log("Error uploading image:", errorData);
         throw new Error(errorData.error || "Error uploading image");
       }
 
       // Parse response JSON
       const details = await res.json();
-      console.log("Image uploaded successfully:", details);
+      // console.log("Image uploaded successfully:", details);
       const imageUrl = details.imageUrl;
-      console.log("Image URL:", imageUrl);
+      // console.log("Image URL:", imageUrl);
 
       return imageUrl;
     } catch (error) {
@@ -278,12 +284,11 @@ const AddProduct: React.FC = () => {
     setLoading(true);
 
     // Validate invoice number
-    if (!invoiceDetails.invoiceNumber.trim()) {
+    if (!invoiceDetails.invoiceNo.trim()) {
       toast.error("Invoice Number is required");
       setLoading(false);
       return;
     }
-
     // Validate date order
     if (invoiceDetails.PODate && invoiceDetails.invoiceDate) {
       const poDate = new Date(invoiceDetails.PODate);
@@ -300,7 +305,7 @@ const AddProduct: React.FC = () => {
       return acc + (product.price + product.gstAmount) * product.quantity;
     }, 0);
 
-    if (Math.abs(calculatedTotal - invoiceDetails.actualAmount) > 0.01) {
+    if (Math.abs(calculatedTotal - invoiceDetails.totalAmount) > 0.01) {
       toast.error("Invoice amount doesn't match product totals");
       setLoading(false);
       return;
@@ -308,7 +313,7 @@ const AddProduct: React.FC = () => {
 
     const parsedInvoiceData = {
       ...invoiceDetails,
-      actualAmount: invoiceDetails.actualAmount.toString(),
+      totalAmount: invoiceDetails.totalAmount.toString(),
     };
 
     try {
@@ -357,6 +362,12 @@ const AddProduct: React.FC = () => {
           productImage: product.productImage,
           invoiceId,
           categoryId: categoryData.categoryId,
+          productPrice: product.price,
+          gstAmount: product.gstAmount,
+          remarks: product.remark,
+          PODate: invoiceDetails.PODate,
+          invoice_no: invoiceDetails.invoiceNo,
+          transferLetter: product.transferLetter,
         };
 
         // Add products based on their quantity
@@ -385,10 +396,10 @@ const AddProduct: React.FC = () => {
 
       // Reset invoice and products state
       setInvoiceDetails({
-        invoiceNumber: "",
+        invoiceNo: "",
         invoiceDate: "",
         PODate: "",
-        actualAmount: 0,
+        totalAmount: 0,
         fromAddress: "",
         toAddress: "",
         invoiceImage: "",
@@ -419,8 +430,8 @@ const AddProduct: React.FC = () => {
                 type="text"
                 placeholder="Invoice Number"
                 title="Unique identifier for the invoice (required)"
-                value={invoiceDetails.invoiceNumber}
-                onChange={(e) => handleInvoiceChange("invoiceNumber", e.target.value)}
+                value={invoiceDetails.invoiceNo}
+                onChange={(e) => handleInvoiceChange("invoiceNo", e.target.value)}
                 className="p-2 border rounded"
                 required
               />
@@ -452,10 +463,10 @@ const AddProduct: React.FC = () => {
               <input
                 type="number"
                 placeholder="Total Amount"
-                value={invoiceDetails.actualAmount || ""}
+                value={invoiceDetails.totalAmount || ""}
                 onChange={(e) =>
                   handleInvoiceChange(
-                    "actualAmount",
+                    "totalAmount",
                     parseFloat(e.target.value)
                   )
                 }
@@ -485,16 +496,11 @@ const AddProduct: React.FC = () => {
                 onChange={(e) => handleInvoiceChange("invoiceDate", e.target.value)}
                 className="p-2 border rounded"
               />
-
-              {/* Tax calculation display */}
-              <div className="col-span-2 p-2 bg-yellow-100 rounded">
-                Total Calculated Amount: ₹{invoiceDetails.actualAmount.toFixed(2)}
-              </div>
               <label
                 htmlFor="invoiceImageInput"
                 className={
                   `p-2 border rounded bg-blue-600 col-span-2 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
-                  (invoiceDetails.invoiceImage ? " bg-green-500" : "")
+                  (invoiceDetails.invoiceImage ? " bg-green-500 hover:bg-green-700" : "")
                 }
               >
                 {invoiceDetails.invoiceImage
@@ -525,7 +531,7 @@ const AddProduct: React.FC = () => {
                         },
                         {
                           label: "No",
-                          onClick: () => {},
+                          onClick: () => { },
                         },
                       ],
                     })
@@ -663,17 +669,17 @@ const AddProduct: React.FC = () => {
                   </div>
                 )}
                 <select
-                  aria-label="Statuss"
+                  aria-label="Status"
                   value={product.Status}
                   onChange={(e) =>
-                    handleProductChange(index, "Statuses", e.target.value)
+                    handleProductChange(index, "Status", e.target.value)
                   }
                   className={
                     `p-2 border rounded` +
                     (product.Status == "other" ? " col-span-1" : " col-span-2")
                   }
                 >
-                  <option value="">Select Statuss</option>
+                  <option value="">Select Status</option>
                   {Statuses.map((rem, remIndex) => (
                     <option key={remIndex} value={rem}>
                       {rem}
@@ -700,42 +706,94 @@ const AddProduct: React.FC = () => {
                   </div>
                 )}
                 <input
-                type="number"
-                placeholder="Price"
-                title="Price per unit before tax"
-                value={product.price || ""}
-                onChange={(e) => handleProductChange(index, "price", parseFloat(e.target.value))}
-                className="p-2 border rounded"
-              />
-              
-              <input
-                type="number"
-                placeholder="GST Amount"
-                title="GST amount per unit"
-                value={product.gstAmount || ""}
-                onChange={(e) => handleProductChange(index, "gstAmount", parseFloat(e.target.value))}
-                className="p-2 border rounded"
-              />
+                  type="number"
+                  placeholder="Price"
+                  title="Price per unit before tax"
+                  value={product.price || ""}
+                  onChange={(e) => handleProductChange(index, "price", parseFloat(e.target.value))}
+                  className="p-2 border rounded"
+                />
 
-              <input
-                type="number"
-                placeholder="Quantity"
-                title="Number of units"
-                value={product.quantity || ""}
-                onChange={(e) => handleProductChange(index, "quantity", parseInt(e.target.value, 10))}
-                className="p-2 border rounded"
-              />
+                <input
+                  type="number"
+                  placeholder="GST Amount"
+                  title="GST amount per unit"
+                  value={product.gstAmount || ""}
+                  onChange={(e) => handleProductChange(index, "gstAmount", parseFloat(e.target.value))}
+                  className="p-2 border rounded"
+                />
 
-              <input
-                type="number"
-                placeholder="Total Price"
-                title="Calculated total (Price + GST) × Quantity"
-                value={(product.quantity * (product.price + product.gstAmount)) || ""}
-                className="p-2 border rounded bg-gray-100"
-                readOnly
-              />
-            </div>
-          </div>))}
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  title="Number of units"
+                  value={product.quantity || ""}
+                  onChange={(e) => handleProductChange(index, "quantity", parseInt(e.target.value, 10))}
+                  className="p-2 border rounded"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Total Price"
+                  title="Calculated total (Price + GST) × Quantity"
+                  value={(product.quantity * (product.price + product.gstAmount)) || ""}
+                  className="p-2 border rounded bg-gray-100"
+                  readOnly
+                />
+                <input
+                  placeholder="Product Image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      uploadImageAndGetURL(file, e).then((url) => {
+                        handleProductChange(index, "productImage", url);
+                      });
+                    }
+                  }}
+                  className="hidden" // hide file input (default style)
+                  id="productImageInput"
+                />
+                <label
+                  htmlFor="productImageInput"
+                  className={
+                    `p-2 border rounded col-span-2 bg-blue-600 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
+                    (products[index].productImage ? " bg-green-500 hover:bg-green-700" : "")
+                  }
+                >
+                  {products[index].productImage
+                    ? "Product Image Uploaded"
+                    : "Choose Product Image"}{" "}
+                </label>
+                <input
+                  placeholder="Transfer Letter"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      uploadImageAndGetURL(file, e).then((url) => {
+                        handleProductChange(index, "transferLetter", url);
+                      });
+                    }
+                  }}
+                  className="hidden" // hide file input (default style)
+                  id="transferLetterInput"
+                />
+                <label
+                  htmlFor="transferLetterInput"
+                  className={
+                    `p-2 border rounded col-span-2 bg-blue-600 text-white cursor-pointer inline-block text-center hover:bg-blue-700 transition-all duration-200` +
+                    (products[index].transferLetter ? " bg-green-500 hover:bg-green-700" : "")
+                  }
+                >
+                  {products[index].transferLetter
+                    ? "Transfer Letter Uploaded"
+                    : "Choose Transfer Letter"}{" "}
+                </label>
+              </div>
+            </div>))}
 
           {/* Submit Section */}
           <div className="flex justify-between items-center mt-6">
@@ -747,12 +805,19 @@ const AddProduct: React.FC = () => {
             >
               Add Product
             </button>
-            
+
+            <div className="p-2 rounded-lg shadow-md text-gray-800 font-semibold">
+              Invoice Total Amount: ₹{invoiceTotalPrice.toFixed(2)}
+            </div>
+            <div className={`p-2 rounded-lg shadow-md text-white font-semibold ${isEquals ? " bg-green-700" : " bg-red-700"}`} >
+              Total Products Price: ₹
+              {productTotalPrice.toFixed(2)} {isEquals ? " ✅" : " ❌"}
+            </div>
+
             <button
               type="submit"
-              className={`bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 transition-all duration-200 ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 transition-all duration-200 ${loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               onClick={handleSubmit}
               title="Submit the entire invoice with all products"
               disabled={loading}
