@@ -72,5 +72,7 @@ const upload = multer({
 
 // Utility function for single file upload
 export const uploadSingleImage = (fieldName: string) => {
-  return upload.single(fieldName);
+  const uploadedRes = upload.single(fieldName);
+  console.log("Uploaded Res", uploadedRes);
+  return uploadedRes;
 };

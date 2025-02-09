@@ -53,7 +53,7 @@ router.put('/status/:id', verifyToken, validateData(createStatusSchema), updateS
 // @ts-ignore
 router.delete('/status/:id', verifyToken, deleteStatus);
 // @ts-ignore
-router.get('/status/', verifyToken, showStatus);
+router.get('/status/', verifyToken, showStatuses);
 
 // // Categories Routes
 // @ts-ignore
