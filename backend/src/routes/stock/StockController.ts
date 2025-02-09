@@ -433,6 +433,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         fromAddress: invoiceTable.fromAddress,
         toAddress: invoiceTable.toAddress,
         TotalAmount: invoiceTable.totalAmount,
+        gstAmount: productsTable.gstAmount,
         PODate:invoiceTable.PODate,
         invoiceDate: invoiceTable.invoiceDate,
         invoiceNo: invoiceTable.invoiceNo,
@@ -492,6 +493,7 @@ export const getProductById = async (req: Request, res: Response) => {
       productImage: product[0].ProductsTable.productImage,
       transferLetter:product[0].ProductsTable.transferLetter,
       productPrice: product[0].ProductsTable.productPrice,  // Include productPrice
+      gstAmount: product[0].ProductsTable.gstAmount,  // Include GST Amount
       locationName: product[0].LocationTable?.locationName,  // Location Name
       categoryName: product[0].CategoriesTable?.categoryName,  // Category Name
       status: product[0].StatusTable?.statusDescription,  
