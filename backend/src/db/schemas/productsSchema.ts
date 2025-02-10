@@ -5,6 +5,7 @@ import { invoiceTable } from './invoicesSchema';
 import { categoriesTable } from './categoriesSchema';
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
+import { budgetsTable } from './budgetsSchema';
 
 export const productsTable = pgTable('ProductsTable', {
   productId: integer('product_id').primaryKey().generatedAlwaysAsIdentity(),
@@ -23,6 +24,8 @@ export const productsTable = pgTable('ProductsTable', {
     .references(() => invoiceTable.invoiceId, { onDelete: 'cascade', onUpdate: 'cascade' }),
   transferLetter: varchar('transfer_letter'),
   remarks:varchar('remarks'),
+  budgetId: integer('budget_id')
+    .references(() => budgetsTable.budgetId, { onDelete: 'set null', onUpdate: 'cascade' }),
   categoryId: integer('category_id')
     .references(() => categoriesTable.categoryId, { onDelete: 'cascade', onUpdate: 'cascade' }),
 });
