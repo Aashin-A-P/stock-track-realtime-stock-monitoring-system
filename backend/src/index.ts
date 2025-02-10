@@ -11,6 +11,7 @@ import privilegeRouter from "./routes/privileges";
 import stockRouter from "./routes/stock";
 import uploadRouter from "./routes/uploads";
 import logsRouter from "./routes/logs";
+import fundRouter from "./routes/funds";
 // Resolve __dirname in ES Module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,7 @@ app.use("/privileges", privilegeRouter);
 app.use("/stock", stockRouter);
 app.use("/upload", uploadRouter);
 app.use("/logs", logsRouter);
+app.use("/funds", fundRouter);
 
 // Start Server
 app.listen(port, () => {

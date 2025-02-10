@@ -354,6 +354,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
   try {
     const { page, pageSize, query, column } = req.query;
 
+    // Validate required query parameters
     if (!page || !pageSize) {
       return res.status(400).send("Page and pageSize are required");
     }
@@ -361,54 +362,91 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       return res.status(400).send("Column is required");
     }
 
-    // column name -> schema types
+    // Mapping of column names to their expected data types
     const columnTypes: Record<string, string> = {
       product_id: "integer",
       product_vol_page_serial: "string",
       product_name: "string",
       product_description: "string",
+      category_id: "integer",
+      category_name: "string",
       location_id: "integer",
       location_name: "string",
       status_id: "integer",
       status_description: "string",
-      gst: "decimal",
-      product_image: "string",
+      product_price: "decimal",
+      GST_amount: "decimal",
+      invoice_date: "string",
       invoice_id: "integer",
-      invoice_no:"string" ,
-      category_id: "integer",
-      category_name: "string",
+      invoice_no: "string",
+      po_date: "string",
+      from_address: "string",
+      to_address: "string",
       remarks: "string",
     };
 
     const columnType = columnTypes[column as string];
-
     if (!columnType) {
       return res.status(400).send("Invalid column name");
     }
-    
+
+    // Convert the query value to the correct type based on the column
     let typedQuery: any = query;
     if (columnType === "integer") {
       typedQuery = parseInt(query as string, 10);
       if (isNaN(typedQuery)) {
-        return res.status(400).send("Query must be a valid integer for this column");
+        return res
+          .status(400)
+          .send("Query must be a valid integer for this column");
       }
     } else if (columnType === "decimal") {
       typedQuery = parseFloat(query as string);
       if (isNaN(typedQuery)) {
-        return res.status(400).send("Query must be a valid decimal for this column");
+        return res
+          .status(400)
+          .send("Query must be a valid decimal for this column");
       }
     }
 
-    const offset = (parseInt(page as string, 10) - 1) * parseInt(pageSize as string, 10);
+    // Calculate the offset for pagination
+    const offset =
+      (parseInt(page as string, 10) - 1) * parseInt(pageSize as string, 10);
 
-    let whereClause = sql`true`;
+    // Map search keys to fully qualified table columns.
+    // This helps avoid ambiguity when the same column name exists in multiple tables.
+    const columnMapping: Record<string, any> = {
+      product_id: productsTable.productId,
+      product_vol_page_serial: productsTable.productVolPageSerial,
+      product_name: productsTable.productName,
+      product_description: productsTable.productDescription,
+      category_name: categoriesTable.categoryName,
+      location_name: locationTable.locationName,
+      status_description: statusTable.statusDescription,
+      product_price: productsTable.productPrice,
+      GST_amount: productsTable.gstAmount,
+      invoice_date: invoiceTable.invoiceDate,
+      invoice_no: invoiceTable.invoiceNo,
+      po_date: invoiceTable.PODate,
+      from_address: invoiceTable.fromAddress,
+      to_address: invoiceTable.toAddress,
+      remarks: productsTable.remarks,
+    };
 
-    if (query && query !== "") {
-      whereClause = columnType === "string"
-        ? sql`${sql.identifier(column as string)} ILIKE ${"%" + typedQuery + "%"}`
-        : sql`${sql.identifier(column as string)} = ${typedQuery}`;
+    const columnRef = columnMapping[column as string];
+    if (!columnRef) {
+      return res.status(400).send("Invalid column name");
     }
 
+    // Build the WHERE clause for filtering
+    let whereClause = sql`true`;
+    if (query && query !== "") {
+      whereClause =
+        columnType === "string"
+          ? sql`${columnRef} ILIKE ${"%" + typedQuery + "%"}`
+          : sql`${columnRef} = ${typedQuery}`;
+    }
+
+    // Get the total number of records matching the filter
     const totalRecordsQuery = await db
       .select({ count: count() })
       .from(productsTable)
@@ -420,10 +458,11 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
 
     const totalRecords = totalRecordsQuery[0].count;
 
-    // Get paginated products with filtering applied
+    // Retrieve the paginated products with the necessary joins and filtering applied
     const products = await db
       .select({
         productId: productsTable.productId,
+        productVolPageSerial: productsTable.productVolPageSerial,
         productName: productsTable.productName,
         productDescription: productsTable.productDescription,
         productImage: productsTable.productImage,
@@ -434,7 +473,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         toAddress: invoiceTable.toAddress,
         TotalAmount: invoiceTable.totalAmount,
         gstAmount: productsTable.gstAmount,
-        PODate:invoiceTable.PODate,
+        PODate: invoiceTable.PODate,
         invoiceDate: invoiceTable.invoiceDate,
         invoiceNo: invoiceTable.invoiceNo,
         remarks: productsTable.remarks,
@@ -448,7 +487,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       .limit(parseInt(pageSize as string, 10))
       .offset(offset);
 
-    // Return products and pagination data
+    // Return the products and the total record count as JSON
     res.status(200).json({
       products,
       totalRecords,
@@ -458,10 +497,11 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     res.status(500).send("Failed to fetch products");
   }
 };
+
 export const getProductById = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
-    console.log("productId", productId);
+    // console.log("productId", productId);
 
     if (!productId) {
       return res.status(400).send("Product ID is required");
@@ -481,7 +521,7 @@ export const getProductById = async (req: Request, res: Response) => {
       return res.status(404).send("Product not found");
     }
 
-    console.log("Product", JSON.stringify(product, null, 2));
+    // console.log("Product", JSON.stringify(product, null, 2));
     
 
     // Separate the product data and invoice data into two objects
