@@ -5,6 +5,7 @@ import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { fetchMetadata } from "../utils";
 
 interface Product {
   pageNo: string;
@@ -64,8 +65,10 @@ const AddProduct: React.FC = () => {
     fromAddress: "",
     toAddress: "",
     invoiceImage: "",
+    budgetName: "",
   });
 
+  const [budgets, setBudgets] = useState<string[]>([]);
   const [newLocation, setNewLocation] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [newCategory, setNewCategory] = useState("");
@@ -188,6 +191,23 @@ const AddProduct: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch Budget data
+        const budgetRes = await fetch(baseUrl + "/funds", {
+          headers: fetchedHeaders,
+        });
+
+        // Check if the response is OK (status 200)
+        if (!budgetRes.ok) {
+          throw new Error(`Error fetching Budgets: ${budgetRes.statusText}`);
+        }
+        // Parse the response as JSON
+        const budgetData = await budgetRes.json();
+        const parsedBudgets = budgetData.budgets.map(
+          (budget: any) => budget.budgetName
+        );
+        setBudgets(parsedBudgets);
+
+
         // Fetch location data
         const locationRes = await fetch(baseUrl + "/stock/locations", {
           headers: fetchedHeaders,
@@ -311,9 +331,23 @@ const AddProduct: React.FC = () => {
       return;
     }
 
+    if(invoiceDetails.budgetName === ""){
+      toast.error("Budget Name is required");
+      setLoading(false);
+      return;
+    }
+
+    const budgetData = await fetchMetadata(baseUrl, "funds/search", invoiceDetails.budgetName);
+    if (!budgetData) {
+      toast.error("Budget not found");
+      setLoading(false);
+      return;
+    }
+
     const parsedInvoiceData = {
       ...invoiceDetails,
       totalAmount: invoiceDetails.totalAmount.toString(),
+      budgetId: budgetData.budgets[0].budgetId,
     };
 
     try {
@@ -335,22 +369,12 @@ const AddProduct: React.FC = () => {
       const invoiceId = invoice.invoiceId;
       console.log("Invoice added successfully, ID:", invoiceId);
 
-      // Fetch data for locations, Statuses, and categories in parallel
-      const fetchMetadata = async (endpoint: string, key: string) =>
-        await fetch(`${baseUrl}/${endpoint}?query=${key}`, {
-          headers: { Authorization: localStorage.getItem("token") as string },
-        }).then((res) =>
-          res.ok
-            ? res.json()
-            : Promise.reject(`Error fetching ${endpoint}: ${key}`)
-        );
-
       // Process all products
       for (const product of products) {
         const [locationData, statusData, categoryData] = await Promise.all([
-          fetchMetadata("stock/location/search", product.location),
-          fetchMetadata("stock/status/search", product.Status),
-          fetchMetadata("stock/category/search", product.category),
+          fetchMetadata(baseUrl, "stock/location/search", product.location),
+          fetchMetadata(baseUrl, "stock/status/search", product.Status),
+          fetchMetadata(baseUrl, "stock/category/search", product.category),
         ]);
 
         const productData = {
@@ -403,6 +427,7 @@ const AddProduct: React.FC = () => {
         fromAddress: "",
         toAddress: "",
         invoiceImage: "",
+        budgetName: "",
       });
 
       setProducts([]);
@@ -426,6 +451,19 @@ const AddProduct: React.FC = () => {
               Invoice Details
             </h3>
             <div className="grid grid-cols-2 gap-4">
+              <select
+                aria-label="Budget"
+                value={invoiceDetails.budgetName}
+                onChange={(e) => handleInvoiceChange("budgetName", e.target.value)}
+                className="p-2 border rounded col-span-2"
+              >
+                <option value="">Select Budget</option>
+                {budgets.map((budget, budgetIndex) => (
+                  <option key={budgetIndex} value={budget}>
+                    {budget}
+                  </option>
+                ))}
+              </select>
               <input
                 type="text"
                 placeholder="Invoice Number"
