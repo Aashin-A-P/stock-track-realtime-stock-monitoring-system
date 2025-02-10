@@ -13,6 +13,7 @@ export const addInvoice = async (req: Request, res: Response) => {
       invoiceDate,
       PODate,
       invoiceImage,
+      budgetId,
     } = req.cleanBody;
 
     if (
@@ -21,7 +22,8 @@ export const addInvoice = async (req: Request, res: Response) => {
       !toAddress ||
       !totalAmount ||
       !invoiceDate||
-      !PODate
+      !PODate ||
+      !budgetId
     ) {
       return res
         .status(400)
@@ -38,6 +40,7 @@ export const addInvoice = async (req: Request, res: Response) => {
         PODate,
         invoiceDate,
         invoiceImage,
+        budgetId,
       })
       .returning();
       console.log("Invoice addedSuccessfully");
@@ -93,6 +96,7 @@ export const updateInvoice = async (req: Request, res: Response) => {
       PODate,
       invoiceDate,
       invoiceImage,
+      budgetId,
     } = req.cleanBody;
 
     const [updatedInvoice] = await db
@@ -102,9 +106,10 @@ export const updateInvoice = async (req: Request, res: Response) => {
         fromAddress,
         toAddress,
         totalAmount,
-        
+        PODate,
         invoiceDate,
         invoiceImage,
+        budgetId,
       })
       .where(eq(invoiceTable.invoiceId, Number(id)))
       .returning();
