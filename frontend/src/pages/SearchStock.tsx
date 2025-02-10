@@ -1,33 +1,40 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
-import { set } from "lodash";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 type Product = {
-  productId: number;
-  productName: string;
-  productDescription: string;
+  PODate: string;
+  productVolPageSerial: string;
+  TotalAmount: string;
   categoryName: string;
-  locationName: string;
-  remarks: string;
-  status: string;
-  productPrice: string;
+  fromAddress: string;
   gstAmount: string;
   invoiceDate: string;
+  invoiceNo: string;
+  locationName: string;
+  productDescription: string;
+  productId: number;
+  productImage: string;
+  productName: string;
+  remarks: string;
+  statusDescription: string;
+  toAddress: string;
 };
 
 const SearchStock: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (!token) {
       navigate("/login");
     }
   }, [token, navigate]);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -44,6 +51,7 @@ const SearchStock: React.FC = () => {
     Authorization: localStorage.getItem("token") || "",
   };
 
+  // Fetch products based on current page, pageSize, search query, and selected attribute
   const fetchProducts = async (
     page: number,
     pageSize: number,
@@ -52,11 +60,15 @@ const SearchStock: React.FC = () => {
   ) => {
     setLoading(true);
     try {
+      const url = `${baseURL}/stock/details?page=${page}&pageSize=${pageSize}&column=${attribute}&query=${query}`;
+      // console.log(url);
       const response = await fetch(
-        `${baseURL}/stock/details?page=${page}&pageSize=${pageSize}&column=${attribute}&query=${query}`,
+        url,
         { headers: fetchHeaders }
       );
+      // console.log(response);
       const data = await response.json();
+      // console.log(data.products);
       setProducts(data.products);
       setPagination({ page, pageSize, totalRecords: data.totalRecords });
     } catch (error) {
@@ -66,30 +78,27 @@ const SearchStock: React.FC = () => {
     }
   };
 
+  // Adjusted pagination: directly pass the desired page number.
   const handlePageChange = (newPage: number) => {
-    fetchProducts(
-      newPage + 1,
-      pagination.pageSize,
-      searchQuery,
-      selectedAttribute
-    );
+    fetchProducts(newPage, pagination.pageSize, searchQuery, selectedAttribute);
   };
 
-  // const handlePageSizeChange = (newSize: number) => {
-  //   fetchProducts(1, newSize, searchQuery, selectedAttribute);
-  // };
-
+  // Handle changes to the search bar
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
     setSearchQuery(query);
+    // Reset to page 1 when doing a new search
     fetchProducts(1, pagination.pageSize, query, selectedAttribute);
   };
 
+  // Update the search attribute and reset the search query
   const handleAttributeChange = (value: string) => {
     setSelectedAttribute(value);
-    fetchProducts(1, pagination.pageSize, "", "product_name");
+    setSearchQuery("");
+    fetchProducts(1, pagination.pageSize, "", value);
   };
 
+  // Fetch initial products on mount
   useEffect(() => {
     fetchProducts(
       pagination.page,
@@ -97,7 +106,10 @@ const SearchStock: React.FC = () => {
       searchQuery,
       selectedAttribute
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const totalPages = Math.ceil(pagination.totalRecords / pagination.pageSize);
 
   return (
     <>
@@ -105,29 +117,32 @@ const SearchStock: React.FC = () => {
       <div className="p-6 max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-blue-700 mb-4">Search Stock</h2>
 
-        {/* Dropdown */}
+        {/* Dropdown for selecting search attribute */}
         <div className="mb-4">
-          <label
-            htmlFor="attribute-dropdown"
-            className="block text-gray-700 mb-2"
-          >
+          <label htmlFor="attribute-dropdown" className="block text-gray-700 mb-2">
             Search Attribute
           </label>
           <select
             id="attribute-dropdown"
             value={selectedAttribute}
-            onChange={(e) => {
-              setSearchQuery("");
-              handleAttributeChange(e.target.value);
-            }}
+            onChange={(e) => handleAttributeChange(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="product_name">Product Name</option>
+            <option value="product_id">Product ID</option>
+            <option value="product_vol_page_serial">Vol Page Serial</option>
+            <option value="product_name">Name</option>
+            <option value="product_description">Description</option>
             <option value="category_name">Category</option>
             <option value="location_name">Location</option>
-            <option value="product_description">Description</option>
-            <option value="remark">Remark</option>
-            
+            <option value="status_description">Status</option>
+            <option value="product_price">Actual Amount</option>
+            <option value="GST_amount">GST Amount</option>
+            <option value="invoice_date">Invoice Date</option>
+            <option value="invoice_no">Invoice No</option>
+            <option value="po_date">PO Date</option>
+            <option value="from_address">From Address</option>
+            <option value="to_address">To Address</option>
+            <option value="remarks">Remarks</option>
           </select>
         </div>
 
@@ -153,14 +168,20 @@ const SearchStock: React.FC = () => {
               <thead className="bg-blue-600 text-white">
                 <tr>
                   <th className="p-4">Product ID</th>
+                  <th className="p-4">Vol Page Serial</th>
                   <th className="p-4">Name</th>
                   <th className="p-4">Description</th>
                   <th className="p-4">Category</th>
                   <th className="p-4">Location</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4">Amount</th>
-                  <th className="p-4">GST</th>
+                  <th className="p-4">Actual Amount</th>
+                  <th className="p-4">GST Amount</th>
                   <th className="p-4">Invoice Date</th>
+                  <th className="p-4">Invoice No</th>
+                  <th className="p-4">PO Date</th>
+                  <th className="p-4">From Address</th>
+                  <th className="p-4">To Address</th>
+                  <th className="p-4">Remarks</th>
                 </tr>
               </thead>
               <tbody>
@@ -169,24 +190,29 @@ const SearchStock: React.FC = () => {
                     <tr
                       key={product.productId}
                       className="border-b last:border-none hover:bg-blue-50 cursor-pointer"
-                      onClick={() =>
-                        (window.location.href = `/stocks/${product.productId}`)
-                      }
+                      onClick={() => navigate(`/stocks/${product.productId}`)}
                     >
                       <td className="p-4">{product.productId}</td>
+                      <td className="p-4">{product.productVolPageSerial}</td>
                       <td className="p-4">{product.productName}</td>
                       <td className="p-4">{product.productDescription}</td>
                       <td className="p-4">{product.categoryName}</td>
                       <td className="p-4">{product.locationName}</td>
-                      <td className="p-4">{product.status}</td>
-                      <td className="p-4">{product.productPrice}</td>
+                      <td className="p-4">{product.statusDescription}</td>
+                      <td className="p-4">{(Number(product.TotalAmount) - Number(product.gstAmount))}</td>
                       <td className="p-4">{product.gstAmount}</td>
                       <td className="p-4">{product.invoiceDate}</td>
+                      <td className="p-4">{product.invoiceNo}</td>
+                      <td className="p-4">{product.PODate}</td>
+                      <td className="p-4">{product.fromAddress}</td>
+                      <td className="p-4">{product.toAddress}</td>
+                      <td className="p-4">{product.remarks}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="p-4 text-center text-gray-500">
+                    {/* Updated colSpan to match the number of columns (14) */}
+                    <td colSpan={14} className="p-4 text-center text-gray-500">
                       No products found.
                     </td>
                   </tr>
@@ -199,35 +225,28 @@ const SearchStock: React.FC = () => {
         {/* Pagination */}
         <div className="flex justify-between items-center mt-4">
           <button
-            className={
-              "px-4 py-2 " +
-              (pagination.page !== 1
-                ? ` bg-blue-500 text-white rounded`
-                : ` bg-gray-300 text-gray-500 rounded`)
-            }
+            className={`px-4 py-2 ${
+              pagination.page > 1
+                ? "bg-blue-500 text-white rounded"
+                : "bg-gray-300 text-gray-500 rounded"
+            }`}
             disabled={pagination.page === 1}
-            onClick={() => handlePageChange(pagination.page - 2)}
+            onClick={() => handlePageChange(pagination.page - 1)}
           >
             Previous
           </button>
           <span>
-            Page {pagination.page} of{" "}
-            {Math.ceil(pagination.totalRecords / pagination.pageSize)}
+            Page {pagination.page} of {totalPages}
           </span>
           <button
             type="button"
-            className={
-              "px-4 py-2 " +
-              (pagination.page >=
-              Math.ceil(pagination.totalRecords / pagination.pageSize)
-                ? ` bg-gray-300 text-gray-500 rounded`
-                : ` bg-blue-500 text-white rounded`)
-            }
-            disabled={
-              pagination.page >=
-              Math.ceil(pagination.totalRecords / pagination.pageSize)
-            }
-            onClick={() => handlePageChange(pagination.page)}
+            className={`px-4 py-2 ${
+              pagination.page < totalPages
+                ? "bg-blue-500 text-white rounded"
+                : "bg-gray-300 text-gray-500 rounded"
+            }`}
+            disabled={pagination.page >= totalPages}
+            onClick={() => handlePageChange(pagination.page + 1)}
           >
             Next
           </button>
