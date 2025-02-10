@@ -6,22 +6,22 @@ import { useNavigate } from "react-router-dom";
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 type Product = {
-  PODate: string;
-  productVolPageSerial: string;
-  TotalAmount: string;
-  categoryName: string;
-  fromAddress: string;
-  gstAmount: string;
-  invoiceDate: string;
-  invoiceNo: string;
-  locationName: string;
-  productDescription: string;
   productId: number;
-  productImage: string;
+  productVolPageSerial: string;
   productName: string;
-  remarks: string;
+  productDescription: string;
+  productImage: string;
+  locationName: string;
+  categoryName: string;
   statusDescription: string;
+  TotalAmount: string;
+  gstAmount: string;
+  PODate: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  fromAddress: string;
   toAddress: string;
+  remarks: string;
 };
 
 const SearchStock: React.FC = () => {
