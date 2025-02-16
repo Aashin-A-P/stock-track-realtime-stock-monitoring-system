@@ -3,10 +3,16 @@ import Navbar from "../components/Navbar";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { CategoryScale } from "chart.js";
 
 const ReportGeneration: React.FC = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>({
+    budgetName: true,
+    categoryName: true,
+    invoiceNo: true,
+    fromAddress: true,
+    toAddress: true,
     serialNo: true,
     stockRegister: true,
     stockName: true,
@@ -15,10 +21,17 @@ const ReportGeneration: React.FC = () => {
     location: true,
     quantity: true,
     price: true,
+    status: true,
     remarks: true,
+    staff: true,
   });
 
   const [columnAliases, setColumnAliases] = useState<ColumnAliases>({
+    budgetName: "Budget Name",
+    categoryName: "Category",
+    invoiceNo: "Invoice No",
+    fromAddress: "From Address",
+    toAddress: "To Address",
     serialNo: "Serial No",
     stockRegister: "Stock Register",
     stockName: "Stock Name",
@@ -27,7 +40,9 @@ const ReportGeneration: React.FC = () => {
     location: "Location",
     quantity: "Quantity",
     price: "Price",
+    status: "Status",
     remarks: "Remarks",
+    staff: "Staff Incharge",
   });
 
   const [yearFilter, setYearFilter] = useState<string>("2024");
@@ -35,6 +50,11 @@ const ReportGeneration: React.FC = () => {
   useEffect(() => {
     const generateDummyData = (): Stock[] =>
       Array.from({ length: 25 }, (_, index) => ({
+        budgetName: "Budget Name",
+        categoryName: "Category",
+        invoiceNo: "Invoice No",
+        fromAddress: "From Address",
+        toAddress: "To Address",
         serialNo: index + 1,
         volNo: `Vol-${Math.floor(Math.random() * 100)}`,
         pageNo: `Page-${Math.floor(Math.random() * 100)}`,
@@ -44,11 +64,16 @@ const ReportGeneration: React.FC = () => {
         location: `Location ${Math.floor(Math.random() * 10)}`,
         quantity: Math.floor(Math.random() * 100),
         price: parseFloat((Math.random() * 1000).toFixed(2)),
+        status: "Status",
         remarks: `Remark ${index + 1}`,
+        staff: "Staff Incharge",
       }));
 
     setStocks(generateDummyData());
   }, []);
+
+  const [pdfPageSize, setPdfPageSize] = useState<"a4" | "a3" | "letter" | "legal" | "a2">("a4");
+const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleColumnSelection = (column: keyof SelectedColumns) => {
     setSelectedColumns((prevState) => ({
@@ -65,85 +90,136 @@ const ReportGeneration: React.FC = () => {
   };
 
   const exportToExcel = () => {
-    const tableData = stocks.map((stock) => ({
-      "Serial No": stock.serialNo,
-      "Stock Register": `${stock.volNo}, ${stock.pageNo}, ${stock.serialNo}`,
-      "Stock Name": stock.stockName,
-      "Stock Description": stock.stockDescription,
-      "Stock ID": stock.stockId,
-      Location: stock.location,
-      Quantity: stock.quantity,
-      Price: stock.price,
-      Remarks: stock.remarks,
+    const tableData = stocks.map((stock) => {
+        const row: Record<string, any> = {};
+        Object.entries(selectedColumns).forEach(([key, isSelected]) => {
+            if (isSelected) {
+                row[columnAliases[key as keyof ColumnAliases]] =
+                    key === "stockRegister"
+                        ? `${stock.volNo}, ${stock.pageNo}, ${stock.serialNo}`
+                        : stock[key as keyof Stock];
+            }
+        });
+        return row;
+    });
+
+    // Convert JSON to Sheet
+    const ws = XLSX.utils.json_to_sheet(tableData);
+
+    // Determine column widths dynamically
+    const columnWidths = Object.keys(tableData[0] || {}).map((key) => ({
+        wch: Math.max(
+            key.length,  // Minimum width based on header name
+            ...tableData.map(row => row[key]?.toString().length || 10) // Max content length
+        ) + 2 // Extra padding
     }));
 
-    const ws = XLSX.utils.json_to_sheet(tableData);
+    ws['!cols'] = columnWidths; // Apply column widths
+
+    // Apply borders to all cells
+    const range = XLSX.utils.decode_range(ws['!ref']!); // Get worksheet range
+    for (let row = range.s.r; row <= range.e.r; row++) {
+        for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+            if (!ws[cellRef]) continue; // Skip empty cells
+
+            ws[cellRef].s = {
+                border: {
+                    top: { style: "thin", color: { rgb: "000000" } },
+                    bottom: { style: "thin", color: { rgb: "000000" } },
+                    left: { style: "thin", color: { rgb: "000000" } },
+                    right: { style: "thin", color: { rgb: "000000" } },
+                }
+            };
+        }
+    }
+
+    // Create workbook and export
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
     XLSX.writeFile(wb, "Stock_Report.xlsx");
+};
+
+  
+  // Define dimensions for different page sizes (landscape mode)
+  const PAGE_SIZES: Record<string, [number, number]> = {
+      a4: [297, 210],    // A4 Landscape: 297mm x 210mm
+      letter: [279, 216], // Letter Landscape: 279mm x 216mm
+      legal: [356, 216],  // Legal Landscape: 356mm x 216mm
+      a2: [594, 420],   
+      a3: [420, 297],
   };
-
-  const exportToPDF = () => {
-    const doc = new jsPDF({ orientation: "landscape" });
-
-    // Prepare table data
-    const tableData = stocks.map((stock) => [
-      stock.serialNo,
-      `${stock.volNo}, ${stock.pageNo}, ${stock.serialNo}`,
-      stock.stockName,
-      stock.stockDescription,
-      stock.stockId,
-      stock.location,
-      stock.quantity,
-      stock.price,
-      stock.remarks,
-    ]);
-
-    // Table columns
-    const tableColumns = [
-      columnAliases.serialNo,
-      columnAliases.stockRegister,
-      columnAliases.stockName,
-      columnAliases.stockDescription,
-      columnAliases.stockId,
-      columnAliases.location,
-      columnAliases.quantity,
-      columnAliases.price,
-      columnAliases.remarks,
-    ];
-
-    // Add table
-    // @ts-expect-error - Property 'autoTable' exist on type 'jsPDF' with jspdf-autotable extention.
-    doc.autoTable({
-      head: [tableColumns],
-      body: tableData,
-      styles: { lineWidth: 0.1, lineColor: "#000" }, // Thin black outline
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: "#000",
-        fontStyle: "bold",
-      }, // Bold headers, no color
-      bodyStyles: { textColor: "#000" }, // Normal text
-      startY: 20,
-      margin: { left: 10, right: 10 },
+  
+  const exportToPDF = (pageSize: "a4" | "letter" | "legal" | "a3" | "a2" = "a4") => {
+      const [width, height] = PAGE_SIZES[pageSize] || PAGE_SIZES["a4"]; // Default to A4 if invalid
+  
+      // Create jsPDF instance with correct dimensions
+      const doc = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: [width, height], // Explicitly set page size
+      });
+  
+      const tableData = stocks.map((stock) => {
+          const row: Record<string, any> = {};
+          Object.entries(selectedColumns).forEach(([key, isSelected]) => {
+              if (isSelected) {
+                  row[columnAliases[key as keyof ColumnAliases]] =
+                      key === "stockRegister"
+                          ? `${stock.volNo}, ${stock.pageNo}, ${stock.serialNo}`
+                          : stock[key as keyof Stock];
+              }
+          });
+          return row;
+      });
+  
+      // Table columns (Filtered based on selectedColumns)
+      const tableColumns = Object.keys(selectedColumns)
+          .filter((key) => selectedColumns[key]) // Include only selected columns
+          .map((key) => columnAliases[key as keyof ColumnAliases]);
+  
+      // Check if there is data to export
+      if (tableData.length === 0) {
+          console.warn("No data available to export.");
+          return;
+      }
+  
+      // Generate the table
+      (doc as any).autoTable({
+        head: [tableColumns],
+        body: tableData.map((row) => tableColumns.map((col) => row[col] || "")), // Ensure correct column order
+        styles: { lineWidth: 0.1, lineColor: "#000" }, // Thin black outline
+        headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: "#000",
+            fontStyle: "bold",
+        }, // Bold headers, no color
+        bodyStyles: { textColor: "#000" }, // Normal text
+        startY: 20,
+        margin: { left: 10, right: 10 },
     });
-
-    // Footer with signature placeholders
-    // @ts-expect-error - Property 'internal' exist on type 'jsPDF' with jspdf-autotable extention.
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(10);
-      doc.text("Signature (Left)", 20, doc.internal.pageSize.height - 10); // Left footer
-      doc.text(
-        "Signature (Right)",
-        doc.internal.pageSize.width - 50,
-        doc.internal.pageSize.height - 10
-      ); // Right footer
+    
+    // Get total pages after the table is fully drawn
+    const totalPages = doc.getNumberOfPages();
+    
+    // Loop through each page and add the footer
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i); // Move to the specific page
+        doc.setFontSize(10);
+        doc.text(
+            `Page ${i} of ${totalPages}`,
+            doc.internal.pageSize.width / 2,
+            doc.internal.pageSize.height - 10,
+            { align: "center" }
+        );
     }
-
-    doc.save("Stock_Report.pdf");
+            
+    
+      // Save the PDF
+      doc.save(`Stock_Report_${pageSize.toUpperCase()}.pdf`);
   };
+  
+  
 
   return (
     <>
@@ -186,7 +262,7 @@ const ReportGeneration: React.FC = () => {
                   }
                   className="mr-2"
                 />
-                <span>{columnAliases[column as keyof ColumnAliases]}</span>
+                <span>{column as keyof ColumnAliases}</span>
               </label>
             ))}
           </div>
@@ -200,7 +276,7 @@ const ReportGeneration: React.FC = () => {
               selectedColumns[column as keyof SelectedColumns] ? (
                 <div key={column} className="flex items-center">
                   <label className="w-1/3 font-medium text-gray-700">
-                    {columnAliases[column as keyof ColumnAliases]}:
+                    {column as keyof ColumnAliases}:
                   </label>
                   <input
                     placeholder="Enter alias"
@@ -254,21 +330,45 @@ const ReportGeneration: React.FC = () => {
           </table>
         </div>
 
-        {/* Download Buttons */}
         <div className="mt-6 flex justify-between">
+  {/* Export to Excel Button */}
+  <button
+    onClick={exportToExcel}
+    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+  >
+    Export to Excel
+  </button>
+
+  {/* Export to PDF with Drop-Up Menu */}
+  <div className="relative">
+    <button
+      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
+    >
+      Export to PDF
+      <span className="ml-2">&#9652;</span> {/* Upward Arrow for Drop-Up */}
+    </button>
+
+    {/* Drop-Up Menu */}
+    {isDropdownOpen && (
+      <div className="absolute right-0 bottom-full mb-2 w-40 bg-white border border-gray-300 shadow-lg rounded">
+        {["a4", "a3","a2", "letter", "legal"].map((size) => (
           <button
-            onClick={exportToExcel}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            key={size}
+            onClick={() => {
+              setPdfPageSize(size as "a4" | "a3" | "letter" | "legal" | "a2");
+              setIsDropdownOpen(false); // Close dropdown after selection
+              exportToPDF(size as "a4" | "a3" | "letter" | "legal" | "a2");
+            }}
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
           >
-            Export to Excel
+            {size.toUpperCase()}
           </button>
-          <button
-            onClick={exportToPDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Export to PDF
-          </button>
-        </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
       </div>
     </>
   );
@@ -288,6 +388,7 @@ interface Stock {
   quantity: number;
   price: number;
   remarks: string;
+  budgetName: string,
 }
 
 interface SelectedColumns {
