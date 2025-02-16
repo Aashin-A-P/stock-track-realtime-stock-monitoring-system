@@ -3,7 +3,6 @@ import Navbar from "../components/Navbar";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import { CategoryScale } from "chart.js";
 
 const ReportGeneration: React.FC = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -68,11 +67,9 @@ const ReportGeneration: React.FC = () => {
         remarks: `Remark ${index + 1}`,
         staff: "Staff Incharge",
       }));
-
     setStocks(generateDummyData());
   }, []);
 
-  const [pdfPageSize, setPdfPageSize] = useState<"a4" | "a3" | "letter" | "legal" | "a2">("a4");
 const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleColumnSelection = (column: keyof SelectedColumns) => {
@@ -213,13 +210,9 @@ const [isDropdownOpen, setIsDropdownOpen] = useState(false);
             { align: "center" }
         );
     }
-            
-    
       // Save the PDF
       doc.save(`Stock_Report_${pageSize.toUpperCase()}.pdf`);
   };
-  
-  
 
   return (
     <>
@@ -356,7 +349,6 @@ const [isDropdownOpen, setIsDropdownOpen] = useState(false);
           <button
             key={size}
             onClick={() => {
-              setPdfPageSize(size as "a4" | "a3" | "letter" | "legal" | "a2");
               setIsDropdownOpen(false); // Close dropdown after selection
               exportToPDF(size as "a4" | "a3" | "letter" | "legal" | "a2");
             }}
