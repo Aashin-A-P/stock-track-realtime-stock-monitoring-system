@@ -5,7 +5,7 @@ import { locationTable } from "../../db/schemas/locationsSchema";
 
 export const addLocation = async (req: Request, res: Response) => {
   try {
-    const { locationName } = req.cleanBody;
+    const { locationName, staffIncharge } = req.cleanBody;
 
     if (!locationName) {
       return res.status(400).send("Location name is required");
@@ -13,7 +13,7 @@ export const addLocation = async (req: Request, res: Response) => {
 
     const [newLocation] = await db
       .insert(locationTable)
-      .values({ locationName })
+      .values({ locationName, staffIncharge })
       .returning();
 
     res
@@ -60,11 +60,11 @@ export const showLocations = async (_req: Request, res: Response) => {
 export const updateLocation = async (req: Request, res: Response) => {
   try {
     const { locationId } = req.params;
-    const { locationName } = req.cleanBody;
+    const { locationName, staffIncharge } = req.cleanBody;
 
     const [updatedLocation] = await db
       .update(locationTable)
-      .set({ locationName })
+      .set({ locationName, staffIncharge })
       .where(eq(locationTable.locationId, Number(locationId)))
       .returning();
 

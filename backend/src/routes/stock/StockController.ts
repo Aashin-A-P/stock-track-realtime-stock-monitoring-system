@@ -6,6 +6,7 @@ import { invoiceTable } from "../../db/schemas/invoicesSchema";
 import { locationTable } from "../../db/schemas/locationsSchema";
 import { statusTable } from "../../db/schemas/statusSchema";
 import { categoriesTable } from "../../db/schemas/categoriesSchema";
+import { budgetsTable } from "../../db/schemas/budgetsSchema";
 
 interface Product {
   pageNo: string;
@@ -515,6 +516,7 @@ export const getProductById = async (req: Request, res: Response) => {
       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
       .where(sql`${productsTable.productId} = ${Number(productId)}`);
 
     if (!product.length) {
@@ -549,6 +551,7 @@ export const getProductById = async (req: Request, res: Response) => {
       PODate: product[0].InvoiceTable?.PODate,
       invoiceDate: product[0].InvoiceTable?.invoiceDate,
       invoiceImage: product[0].InvoiceTable?.invoiceImage,
+      budgetName: product[0].BudgetsTable?.budgetName,
     };
 
     // Return both the product and invoice data
