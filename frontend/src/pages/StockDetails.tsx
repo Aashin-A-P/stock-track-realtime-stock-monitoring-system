@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { uploadImageAndGetURL } from "../utils";
 
 // Data types as returned by your backend
 type Product = {
@@ -124,7 +125,7 @@ const StockDetails = () => {
         const response = await fetch(`${baseURL}/stock/${stockId}`, { headers: fetchHeaders });
         const data = await response.json();
         if (response.ok) {
-          console.log("Stock Details:", JSON.stringify(data));
+          // console.log("Stock Details:", JSON.stringify(data, null, 2));
           setProduct(data.product);
           setInvoice({
             ...data.invoice,
@@ -163,34 +164,6 @@ const StockDetails = () => {
       }
     } catch (error) {
       console.error("Error opening image:", error);
-    }
-  };
-
-  // Upload image and return URL
-  const uploadImageAndGetURL = async (
-    file: File,
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    event.preventDefault();
-    const formData = new FormData();
-    formData.append("image", file);
-    try {
-      const res = await fetch(`${baseURL}/upload`, {
-        method: "POST",
-        headers: {
-          Authorization: localStorage.getItem("token") || "",
-        },
-        body: formData,
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Error uploading image");
-      }
-      const details = await res.json();
-      return details.imageUrl;
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      throw error;
     }
   };
 
