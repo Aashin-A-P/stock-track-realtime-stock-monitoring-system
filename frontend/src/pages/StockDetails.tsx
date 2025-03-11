@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { uploadImageAndGetURL } from "../utils";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 // Data types as returned by your backend
 type Product = {
@@ -53,18 +54,6 @@ type EditProduct = {
   productPrice: string; // will convert on save
 };
 
-type EditInvoice = {
-  invoiceId: number;
-  invoiceNo: string;
-  fromAddress: string;
-  toAddress: string;
-  totalAmount: string; // will convert on save
-  PODate?: string;
-  invoiceDate: string;
-  invoiceImage: string;
-  budgetId: number;
-};
-
 const formatAmount = (amount: number) => (
   <span className="text-blue-600 font-semibold">₹ {amount.toFixed(2)}</span>
 );
@@ -77,7 +66,6 @@ const StockDetails = () => {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [updatedProduct, setUpdatedProduct] = useState<EditProduct | null>(null);
-  const [updatedInvoice, setUpdatedInvoice] = useState<EditInvoice | null>(null);
 
   // Dropdown option states
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -129,7 +117,7 @@ const StockDetails = () => {
           setProduct(data.product);
           setInvoice({
             ...data.invoice,
-            totalAmount: Number(data.invoice.totalAmount),
+            totalAmount: Number(data.invoice.totalAmount).toString(),
             budgetName: data.invoice.budgetName || "",
           });
         } else {
@@ -167,10 +155,9 @@ const StockDetails = () => {
     }
   };
 
-  // When entering edit mode, prepopulate editing state (make sure dropdown options are loaded)
+  // When entering edit mode for the product, prepopulate editing state.
   const handleEditClick = () => {
-    if (!product || !invoice) return;
-    // Ensure dropdown options are available; if not, you may want to disable editing until they load.
+    if (!product) return;
     setIsEditing(true);
     setUpdatedProduct({
       productId: product.productId,
@@ -187,17 +174,6 @@ const StockDetails = () => {
       remarks: product.remarks,
       productPrice: product.productPrice.toString(),
     });
-    setUpdatedInvoice({
-      invoiceId: invoice.invoiceId,
-      invoiceNo: invoice.invoiceNo,
-      fromAddress: invoice.fromAddress,
-      toAddress: invoice.toAddress,
-      totalAmount: invoice.totalAmount.toString(),
-      PODate: invoice.PODate,
-      invoiceDate: invoice.invoiceDate,
-      invoiceImage: invoice.invoiceImage,
-      budgetId: budgets.find((b) => b.budgetName === invoice.budgetName)?.budgetId ?? 0,
-    });
   };
 
   // Update editing state for product fields
@@ -208,17 +184,6 @@ const StockDetails = () => {
     if (updatedProduct) {
       const value = e.target.value;
       setUpdatedProduct({ ...updatedProduct, [field]: value });
-    }
-  };
-
-  // Update editing state for invoice fields
-  const handleInvoiceChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    field: keyof EditInvoice
-  ) => {
-    if (updatedInvoice) {
-      const value = e.target.value;
-      setUpdatedInvoice({ ...updatedInvoice, [field]: value });
     }
   };
 
@@ -235,18 +200,6 @@ const StockDetails = () => {
     }
   };
 
-  const handleInvoiceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && updatedInvoice) {
-      try {
-        const imageUrl = await uploadImageAndGetURL(file, e);
-        setUpdatedInvoice({ ...updatedInvoice, invoiceImage: imageUrl });
-      } catch (error) {
-        console.error("Error uploading invoice image:", error);
-      }
-    }
-  };
-
   const handleTransferLetterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && updatedProduct) {
@@ -259,9 +212,9 @@ const StockDetails = () => {
     }
   };
 
-  // Save changes: convert numeric strings to numbers and merge IDs back to names
+  // Save product changes: convert numeric strings to numbers and merge IDs back to names
   const handleSaveChanges = async () => {
-    if (!updatedProduct || !updatedInvoice) return;
+    if (!updatedProduct) return;
     setLoading(true);
     try {
       // Convert string values to numbers using Number(…)
@@ -269,14 +222,8 @@ const StockDetails = () => {
         ...updatedProduct,
         productPrice: Number(updatedProduct.productPrice),
         gstAmount: Number(updatedProduct.gstAmount),
-        invoiceId: updatedInvoice.invoiceId,
-      };
-      const invoiceToSave = {
-        ...updatedInvoice,
-        totalAmount: updatedInvoice.totalAmount,
       };
 
-      console.log("Invoice : ", JSON.stringify(invoiceToSave, null, 2));
       // Send product update
       const prodRes = await fetch(`${baseURL}/stock/${productToSave.productId}`, {
         method: "PUT",
@@ -286,17 +233,6 @@ const StockDetails = () => {
       const prodData = await prodRes.json();
       if (!prodRes.ok) {
         throw new Error(prodData.message || "Failed to update product");
-      }
-
-      // Send invoice update
-      const invoiceRes = await fetch(`${baseURL}/stock/invoice/${invoiceToSave.invoiceId}`, {
-        method: "PUT",
-        headers: fetchHeaders,
-        body: JSON.stringify(invoiceToSave),
-      });
-      const invData = await invoiceRes.json();
-      if (!invoiceRes.ok) {
-        throw new Error(invData.message || "Failed to update invoice");
       }
 
       // Merge back to full Product shape using our dropdown options
@@ -324,23 +260,7 @@ const StockDetails = () => {
         productPrice: productToSave.productPrice,
       };
 
-      const updatedInvoiceFinal: Invoice = {
-        invoiceId: invoiceToSave.invoiceId,
-        invoiceNo: invoiceToSave.invoiceNo,
-        fromAddress: invoiceToSave.fromAddress,
-        toAddress: invoiceToSave.toAddress,
-        totalAmount: invoiceToSave.totalAmount,
-        PODate: invoiceToSave.PODate,
-        invoiceDate: invoiceToSave.invoiceDate,
-        invoiceImage: invoiceToSave.invoiceImage,
-        budgetName:
-          budgets.find((b) => b.budgetId === invoiceToSave.budgetId)?.budgetName ||
-          invoice?.budgetName ||
-          "",
-      };
-
       setProduct(updatedProductFinal);
-      setInvoice(updatedInvoiceFinal);
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating stock details:", error);
@@ -349,7 +269,10 @@ const StockDetails = () => {
     }
   };
 
-  if (loading) return <div className="text-center">Loading...</div>;
+  if (loading) return <div className=" text-center text-blue-700">
+    <LoadingSpinner />
+    Loading Stocks...
+  </div>;
   if (!product || !invoice) {
     return (
       <div className="text-center text-red-500">
@@ -358,39 +281,25 @@ const StockDetails = () => {
     );
   }
 
-  // When not editing, use fetched values; when editing, use editing state.
+  // For display purposes, use the inline product editing state if available.
   const productData: EditProduct =
     isEditing && updatedProduct
       ? updatedProduct
       : {
-          // For display only; dropdown IDs will be determined when editing starts.
-          productId: product.productId,
-          productVolPageSerial: product.productVolPageSerial,
-          productName: product.productName,
-          productDescription: product.productDescription,
-          transferLetter: product.transferLetter,
-          gstAmount: product.gstAmount,
-          productImage: product.productImage,
-          locationId: 0,
-          categoryId: 0,
-          statusId: 0,
-          remarks: product.remarks,
-          productPrice: product.productPrice.toString(),
-        };
-  const invoiceData: EditInvoice =
-    isEditing && updatedInvoice
-      ? updatedInvoice
-      : {
-          invoiceId: invoice.invoiceId,
-          invoiceNo: invoice.invoiceNo,
-          fromAddress: invoice.fromAddress,
-          toAddress: invoice.toAddress,
-          totalAmount: invoice.totalAmount.toString(),
-          PODate: invoice.PODate,
-          invoiceDate: invoice.invoiceDate,
-          invoiceImage: invoice.invoiceImage,
-          budgetId: budgets.find((b) => b.budgetName === invoice.budgetName)?.budgetId ?? 0,
-        };
+        // For display only; dropdown IDs will be determined when editing starts.
+        productId: product.productId,
+        productVolPageSerial: product.productVolPageSerial,
+        productName: product.productName,
+        productDescription: product.productDescription,
+        transferLetter: product.transferLetter,
+        gstAmount: product.gstAmount,
+        productImage: product.productImage,
+        locationId: 0,
+        categoryId: 0,
+        statusId: 0,
+        remarks: product.remarks,
+        productPrice: product.productPrice.toString(),
+      };
 
   // Compute computed total amount display only if base amount is entered.
   const baseAmount = productData.productPrice === "" ? 0 : Number(productData.productPrice);
@@ -653,177 +562,81 @@ const StockDetails = () => {
               )}
             </div>
           </div>
+          {/* Product Edit/Save Button */}
+          <div className="text-center">
+            {isEditing ? (
+              <button
+                onClick={handleSaveChanges}
+                className="text-white bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700"
+              >
+                Save Changes
+              </button>
+            ) : (
+              <button
+                onClick={handleEditClick}
+                className="text-white bg-blue-600 px-6 py-2 rounded shadow hover:bg-blue-700"
+              >
+                Edit Product
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Invoice Details Section */}
+        {/* Invoice Details Section (Read-Only) */}
         <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
           <h3 className="text-xl font-medium text-gray-700 mb-4">Invoice Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-semibold">Invoice ID: </label>
-              <span>{invoiceData.invoiceId}</span>
+              <span>{invoice.invoiceId}</span>
             </div>
             <div>
               <label className="font-semibold">Invoice No: </label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={invoiceData.invoiceNo}
-                  onChange={(e) => handleInvoiceChange(e, "invoiceNo")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <span>{invoiceData.invoiceNo}</span>
-              )}
+              <span>{invoice.invoiceNo}</span>
             </div>
             <div>
               <label className="font-semibold">From Address: </label>
-              {isEditing ? (
-                <textarea
-                  value={invoiceData.fromAddress}
-                  onChange={(e) => handleInvoiceChange(e, "fromAddress")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <span>{invoiceData.fromAddress}</span>
-              )}
+              <span>{invoice.fromAddress}</span>
             </div>
             <div>
               <label className="font-semibold">To Address: </label>
-              {isEditing ? (
-                <textarea
-                  value={invoiceData.toAddress}
-                  onChange={(e) => handleInvoiceChange(e, "toAddress")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <span>{invoiceData.toAddress}</span>
-              )}
+              <span>{invoice.toAddress}</span>
             </div>
             <div>
               <label className="font-semibold">Total Amount: </label>
-              {isEditing ? (
-                <input
-                  type="number"
-                  value={invoiceData.totalAmount}
-                  onChange={(e) => handleInvoiceChange(e, "totalAmount")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                formatAmount(Number(invoiceData.totalAmount))
-              )}
+              <span>{formatAmount(Number(invoice.totalAmount))}</span>
             </div>
             <div>
               <label className="font-semibold">PO Date: </label>
-              {isEditing ? (
-                <input
-                  type="date"
-                  value={invoiceData.PODate || ""}
-                  onChange={(e) => handleInvoiceChange(e, "PODate")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <span>{invoiceData.PODate || "-"}</span>
-              )}
+              <span>{invoice.PODate || "-"}</span>
             </div>
             <div>
               <label className="font-semibold">Invoice Date: </label>
-              {isEditing ? (
-                <input
-                  type="date"
-                  value={invoiceData.invoiceDate}
-                  onChange={(e) => handleInvoiceChange(e, "invoiceDate")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                <span>{invoiceData.invoiceDate}</span>
-              )}
+              <span>{invoice.invoiceDate}</span>
             </div>
             <div>
               <label className="font-semibold">Invoice Image: </label>
-              {isEditing ? (
-                <>
-                  {invoiceData.invoiceImage && (
-                    <div className="mb-2">
-                      <img
-                        src={
-                          invoiceData.invoiceImage.startsWith("http")
-                            ? invoiceData.invoiceImage
-                            : `${baseURL}${invoiceData.invoiceImage}`
-                        }
-                        alt="Invoice"
-                        className="w-32 h-32 object-cover"
-                      />
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleInvoiceImageUpload}
-                    className="hidden"
-                    id="invoiceImageInput"
-                  />
-                  <label
-                    htmlFor="invoiceImageInput"
-                    className="cursor-pointer inline-block p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    {invoiceData.invoiceImage
-                      ? "Change Invoice Image"
-                      : "Upload Invoice Image"}
-                  </label>
-                </>
-              ) : invoiceData.invoiceImage ? (
-                <button onClick={() => handleImageClick(invoiceData.invoiceImage)} className="text-blue-600 underline">
+              {invoice.invoiceImage ? (
+                <button onClick={() => handleImageClick(invoice.invoiceImage)} className="text-blue-600 underline">
                   View Invoice Image
                 </button>
               ) : (
                 <span className="text-gray-500">No Invoice Image</span>
               )}
             </div>
-            {/* Dropdown for Fund (Budget) */}
             <div>
               <label className="font-semibold">Fund Name: </label>
-              {isEditing ? (
-                <select
-                  value={updatedInvoice ? updatedInvoice.budgetId : ""}
-                  onChange={(e) =>
-                    setUpdatedInvoice({
-                      ...updatedInvoice!,
-                      budgetId: Number(e.target.value),
-                    })
-                  }
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Fund</option>
-                  {budgets.map((b) => (
-                    <option key={b.budgetId} value={b.budgetId}>
-                      {b.budgetName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span>{invoice.budgetName || "-"}</span>
-              )}
+              <span>{invoice.budgetName || "-"}</span>
             </div>
           </div>
-        </div>
-
-        <div className="text-center">
-          {isEditing ? (
+          <div className="text-center mt-4">
             <button
-              onClick={handleSaveChanges}
-              className="text-white bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700"
-            >
-              Save Changes
-            </button>
-          ) : (
-            <button
-              onClick={handleEditClick}
+              onClick={() => navigate(`/invoice/${invoice.invoiceId}`)}
               className="text-white bg-blue-600 px-6 py-2 rounded shadow hover:bg-blue-700"
             >
-              Edit
+              Edit Invoice
             </button>
-          )}
+          </div>
         </div>
       </div>
     </>

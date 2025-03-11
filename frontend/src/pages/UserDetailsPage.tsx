@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-toastify";
 import { confirmAlert } from "react-confirm-alert";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -132,7 +133,8 @@ const UserDetailsPage = () => {
     return (
       <>
         <Navbar />
-        <div className="p-6 max-w-5xl mx-auto">
+        <div className="p-6 max-w-5xl mx-auto text-center text-blue-700">
+          <LoadingSpinner />
           <p>Loading user details...</p>
         </div>
       </>

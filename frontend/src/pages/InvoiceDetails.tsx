@@ -4,15 +4,16 @@ import { toast } from "react-toastify";
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { fetchMetadata } from "../utils";
+import { useNavigate, useParams } from "react-router-dom";
+import { convertProductData, fetchMetadata } from "../utils";
 import InvoiceCard from "../components/InvoiceCard";
 import ProductCard from "../components/ProductCard";
 import { Product } from "../types";
 
-const AddProduct: React.FC = () => {
+const invoiceDetails: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { id } = useParams();
 
   useEffect(() => {
     if (!token) {
@@ -35,7 +36,6 @@ const AddProduct: React.FC = () => {
     remark: "",
     price: 0,
     productImage: "",
-    locationRangeMappings: [],
   };
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -58,6 +58,7 @@ const AddProduct: React.FC = () => {
   const [newStatus, setNewStatus] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(false);
+  
   // create two ref for checking the equality of the invoice total price and product total price
   const invoiceTotalPrice = invoiceDetails.totalAmount;
   const productTotalPrice = products.reduce((acc, product) => acc + (product.price + product.gstAmount) * product.quantity, 0);
@@ -69,7 +70,7 @@ const AddProduct: React.FC = () => {
       ...updatedProducts[index],
       [field]: value,
     };
-  
+
     // Auto-calculate total price when any related field changes
     if (["price", "gstAmount", "quantity"].includes(field)) {
       const price = parseFloat(updatedProducts[index].price.toString()) || 0;
@@ -79,17 +80,14 @@ const AddProduct: React.FC = () => {
       updatedProducts[index].gstAmount = gst;
       updatedProducts[index].quantity = qty;
     }
-  
-    if (["pageNo", "volNo", "serialNo", "quantity"].includes(field)) {
-      // Use the product's quantity instead of the overall products array length.
-      const qty = updatedProducts[index].quantity || 1; // fallback to 1 if quantity is falsy
-      updatedProducts[index].productVolPageSerial = 
-        `${updatedProducts[index].pageNo}-${updatedProducts[index].volNo}`;
+
+    if (["pageNo", "volNo", "serialNo"].includes(field)) {
+      updatedProducts[index].productVolPageSerial =
+        `${updatedProducts[index].volNo}-${updatedProducts[index].pageNo}-${updatedProducts[index].serialNo}`;
     }
-    console.log("Updated : ",updatedProducts);
+
     setProducts(updatedProducts);
   };
-  
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
   const fetchedHeaders = {
@@ -172,6 +170,33 @@ const AddProduct: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch Invoice Details and product data
+        const invoiceRes = await fetch(baseUrl + `/stock/invoice/${id}`, {
+          headers: fetchedHeaders,
+        });
+        // Check if the response is OK (status 200)
+        if (!invoiceRes.ok) {
+          throw new Error(`Error fetching Invoice: ${invoiceRes.statusText}`);
+        }
+        // Parse the response as JSON
+        const invoiceData = await invoiceRes.json();
+        console.log("Invoice Data:", invoiceData);
+        setInvoiceDetails(invoiceData.invoice);
+
+        // Fetch Product data
+        const url = `${baseUrl}/stock/details?page=1&pageSize=-1&column=invoice_id&query=${id}`;
+        const productRes = await fetch(url, {
+          headers: fetchedHeaders,
+        });
+        // Check if the response is OK (status 200)
+        if (!productRes.ok) {
+          throw new Error(`Error fetching Products: ${productRes.statusText}`);
+        }
+        // Parse the response as JSON
+        const productData = await productRes.json();
+        console.log("Product Data:", JSON.stringify(productData,null,2));
+        setProducts(convertProductData(productData));
+
         // Fetch Budget data
         const budgetRes = await fetch(baseUrl + "/funds", {
           headers: fetchedHeaders,
@@ -368,7 +393,7 @@ const AddProduct: React.FC = () => {
   
           // Prepare common product data for insertion
           const productData = {
-            productVolPageSerial: `${product.productVolPageSerial}-[${index + 1}/${products}]`,
+            productVolPageSerial: product.productVolPageSerial,
             productName: product.productName,
             productDescription: product.productDescription,
             locationId: locationData.locationId,
@@ -490,7 +515,7 @@ const AddProduct: React.FC = () => {
             </button>
 
             <div className="p-2 rounded-lg shadow-md text-gray-800 font-semibold">
-              Invoice Total Amount: ₹{invoiceTotalPrice.toFixed(2)}
+              Invoice Total Amount: ₹{Number(invoiceTotalPrice).toFixed(2)}
             </div>
             <div className={`p-2 rounded-lg shadow-md text-white font-semibold ${isEquals ? " bg-green-700" : " bg-red-700"}`} >
               Total Products Price: ₹
@@ -514,4 +539,4 @@ const AddProduct: React.FC = () => {
   );
 };
 
-export default AddProduct;
+export default invoiceDetails;

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 
 interface Log {
@@ -70,7 +71,8 @@ const Logs: React.FC = () => {
     return (
       <>
         <Navbar />
-        <div className="flex justify-center items-center h-screen text-blue-600">
+        <div className="justify-center text-center items-center h-screen text-blue-600">
+          <LoadingSpinner />
           Loading...
         </div>
       </>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
@@ -159,7 +160,8 @@ const SearchStock: React.FC = () => {
 
         {/* Table */}
         {loading ? (
-          <div className="flex justify-center items-center h-screen text-blue-600">
+          <div className="text-center justify-center items-center text-blue-600">
+            <LoadingSpinner />
             Loading...
           </div>
         ) : (
@@ -223,13 +225,12 @@ const SearchStock: React.FC = () => {
         )}
 
         {/* Pagination */}
-        <div className="flex justify-between items-center mt-4">
+        {!loading && <div className="flex justify-between items-center mt-4">
           <button
-            className={`px-4 py-2 ${
-              pagination.page > 1
+            className={`px-4 py-2 ${pagination.page > 1
                 ? "bg-blue-500 text-white rounded"
                 : "bg-gray-300 text-gray-500 rounded"
-            }`}
+              }`}
             disabled={pagination.page === 1}
             onClick={() => handlePageChange(pagination.page - 1)}
           >
@@ -240,17 +241,16 @@ const SearchStock: React.FC = () => {
           </span>
           <button
             type="button"
-            className={`px-4 py-2 ${
-              pagination.page < totalPages
+            className={`px-4 py-2 ${pagination.page < totalPages
                 ? "bg-blue-500 text-white rounded"
                 : "bg-gray-300 text-gray-500 rounded"
-            }`}
+              }`}
             disabled={pagination.page >= totalPages}
             onClick={() => handlePageChange(pagination.page + 1)}
           >
             Next
           </button>
-        </div>
+        </div>}
       </div>
     </>
   );

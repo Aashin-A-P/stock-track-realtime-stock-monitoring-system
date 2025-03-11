@@ -359,6 +359,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     if (!page || !pageSize) {
       return res.status(400).send("Page and pageSize are required");
     }
+
     if (!column) {
       return res.status(400).send("Column is required");
     }
@@ -427,6 +428,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       GST_amount: productsTable.gstAmount,
       invoice_date: invoiceTable.invoiceDate,
       invoice_no: invoiceTable.invoiceNo,
+      invoice_id: productsTable.invoiceId,
       po_date: invoiceTable.PODate,
       from_address: invoiceTable.fromAddress,
       to_address: invoiceTable.toAddress,
@@ -485,7 +487,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
       .where(whereClause)
-      .limit(parseInt(pageSize as string, 10))
+      .limit( pageSize == '-1' ? parseInt(pageSize as string, 10) : totalRecords)
       .offset(offset);
 
     // Return the products and the total record count as JSON
@@ -562,5 +564,58 @@ export const getProductById = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).send("Failed to fetch product");
+  }
+};
+
+export const getReportData = async (req: Request, res: Response) => {
+  try {
+    console.log("getReportData");
+
+    const reportData = await db
+      .select({
+        budgetName: budgetsTable.budgetName,
+        categoryName: categoriesTable.categoryName,
+        invoiceNo: invoiceTable.invoiceNo,
+        fromAddress: invoiceTable.fromAddress,
+        toAddress: invoiceTable.toAddress,
+        stockName: productsTable.productName,
+        stockDescription: productsTable.productDescription,
+        location: locationTable.locationName,
+        staff: locationTable.staffIncharge,
+        stockId: productsTable.productVolPageSerial, // productsTable.productVolPageSerial,
+        productImage: productsTable.productImage,
+        transferLetter: productsTable.transferLetter,
+        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
+        status: statusTable.statusDescription,
+        remarks: productsTable.remarks,
+        quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
+      })
+      .from(productsTable)
+      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
+      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
+      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
+      .groupBy(
+        budgetsTable.budgetName,
+        categoriesTable.categoryName,
+        invoiceTable.invoiceNo,
+        invoiceTable.fromAddress,
+        invoiceTable.toAddress,
+        productsTable.productName,
+        productsTable.productDescription,
+        locationTable.locationName,
+        locationTable.staffIncharge,
+        productsTable.productImage,
+        productsTable.transferLetter,
+        statusTable.statusDescription,
+        productsTable.remarks,
+        productsTable.productVolPageSerial
+      );
+
+    res.status(200).json(reportData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to fetch report data");
   }
 };
