@@ -236,7 +236,7 @@ const StockTable: React.FC<StockTableProps> = ({
 	stockRegNameAndVolNo,
 	statementOfVerification,
 }) => {
-	const colCount = columnOrder.length - 4; // Subtracting 4 for the special columns
+	const colCount = columnOrder.length - 4;
 	return (
 		<div className="overflow-x-auto mb-6">
 			<table className="w-full text-sm text-left bg-white shadow border border-gray-300 rounded-lg">
@@ -252,7 +252,7 @@ const StockTable: React.FC<StockTableProps> = ({
 						<tr className="border border-gray-300 hover:bg-blue-50">
 							{nameOfCenter && (
 								<th
-									colSpan={nameOfCenter && stockRegNameAndVolNo ? colCount / 2 : colCount}
+									colSpan={nameOfCenter && stockRegNameAndVolNo ? (colCount / 2) - 2 : colCount}
 									className="p-4 border border-gray-300"
 								>
 									{nameOfCenter}
@@ -260,7 +260,7 @@ const StockTable: React.FC<StockTableProps> = ({
 							)}
 							{stockRegNameAndVolNo && (
 								<th
-									colSpan={nameOfCenter && stockRegNameAndVolNo ? colCount - colCount / 2 : colCount}
+									colSpan={nameOfCenter && stockRegNameAndVolNo ? colCount - (colCount / 2) + 2: colCount}
 									className="p-4 border border-gray-300"
 								>
 									{stockRegNameAndVolNo}
@@ -278,7 +278,11 @@ const StockTable: React.FC<StockTableProps> = ({
 					<tr className="border border-gray-300 hover:bg-blue-50">
 						{columnOrder.map(
 							(column) =>
-								selectedColumns[column] && column != "annexure" && column != "statementOfVerification" && column != "stockRegNameAndVolNo" && column != "nameOfCenter" && (
+								selectedColumns[column] &&
+								column !== "annexure" &&
+								column !== "statementOfVerification" &&
+								column !== "stockRegNameAndVolNo" &&
+								column !== "nameOfCenter" && (
 									<th key={column} className="p-4 border border-gray-300">
 										{columnAliases[column]}
 									</th>
@@ -291,8 +295,12 @@ const StockTable: React.FC<StockTableProps> = ({
 						<tr key={idx} className="border border-gray-300 hover:bg-blue-50">
 							{columnOrder.map(
 								(column) =>
-									selectedColumns[column] && column != "annexure" && column != "statementOfVerification" && column != "stockRegNameAndVolNo" && column != "nameOfCenter" && (
-										<td key={column} className="p-4 border border-gray-300">
+									selectedColumns[column] &&
+									column !== "annexure" &&
+									column !== "statementOfVerification" &&
+									column !== "stockRegNameAndVolNo" &&
+									column !== "nameOfCenter" && (
+										<td key={column} className="p-4 border border-gray-300 break-words">
 											{column === "stockRegister"
 												? `Vol-${stock["stockId"].split("-")[0]} Page-${stock["stockId"].split("-")[1]} Serial-${stock["stockId"].split("-")[2]}`
 												: column === "serialNo" ? idx + 1 : stock[column as keyof Stock]}

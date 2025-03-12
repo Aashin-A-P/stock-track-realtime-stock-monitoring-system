@@ -104,9 +104,9 @@ const Navbar: React.FC = () => {
 									</Link>
 								</li>
 								<li>
-									<Link to="/create-budget" className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+									<Link to="/budgetform" className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
 									>
-										Create Budget
+										Budgets
 									</Link>
 								</li>
 							</>

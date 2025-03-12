@@ -18,6 +18,8 @@ import UserDetailsPage from "./pages/UserDetailsPage";
 import CreateUserPage from "./pages/CreateUserPage";
 import InvoiceDetails from "./pages/InvoiceDetails";
 import CreateBudget from "./pages/CreateBudget";
+import EditBudget from "./pages/EditBudget";
+import BudgetList from "./pages/BudgetList";
 
 const App = () => {
   return (
@@ -44,13 +46,16 @@ const App = () => {
               <Route path="/addstock" element={<Addstock />} />
               <Route path="/stocks" element={<SearchStock />} />
               <Route path="/create-budget" element={<CreateBudget />} />
+              <Route path="/budgetform" element={<BudgetList />} />
+              <Route path="/edit-budget/:id" element={<EditBudget />} />
+              <Route path="/dashboard" element={<BudgetList />} />
               <Route path="/stocks/:stockId" element={<StockDetails />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/users" element={<UsersListPage />} />
               <Route path="/users/:id" element={<UserDetailsPage />} />
               <Route path="/reportgeneration" element={<ReportGeneration />} />
               <Route path="/users/create" element={<CreateUserPage />} />
-              <Route path="/invoice/:id" element= {<InvoiceDetails />} />
+              <Route path="/invoice/:id" element={<InvoiceDetails />} />
               {/* Default Route */}
               <Route path="*" element={<Navigate to="/login" />} />
             </Routes>
