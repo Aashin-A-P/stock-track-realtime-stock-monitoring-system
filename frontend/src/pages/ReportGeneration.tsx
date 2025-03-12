@@ -9,6 +9,7 @@ import YearDropdown from "../components/YearDropdown";
 import { useDashboard } from "../context/DashboardContext";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 // ======================
 // Interfaces & Types
@@ -369,58 +370,27 @@ const ReportGeneration: React.FC = () => {
 
 	// State declarations
 	const [stocks, setStocks] = useState<Stock[]>([]);
-	const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>({
-		annexure: true,
-		nameOfCenter: true,
-		stockRegNameAndVolNo: true,
-		statementOfVerification: true,
-		budgetName: true,
-		categoryName: true,
-		invoiceNo: true,
-		fromAddress: true,
-		toAddress: true,
-		serialNo: true,
-		stockRegister: true,
-		stockName: true,
-		stockDescription: true,
-		stockId: true,
-		location: true,
-		quantity: true,
-		price: true,
-		status: true,
-		remarks: true,
-		staff: true,
-	});
-	const [columnOrder, setColumnOrder] = useState<string[]>(Object.keys(selectedColumns));
-	const [columnAliases, setColumnAliases] = useState<ColumnAliases>({
-		annexure: "ANNEXURE : II",
-		nameOfCenter: "Department of Information Technology",
-		stockRegNameAndVolNo: "Non-Consumable Register Vol-1, Vol-2 and Vol-3",
-		statementOfVerification: "Statement of Verification of Stocks as on 31st March 2024",
-		budgetName: "Budget Name",
-		categoryName: "Category",
-		invoiceNo: "Invoice No",
-		fromAddress: "From Address",
-		toAddress: "To Address",
-		serialNo: "Serial No",
-		stockRegister: "Stock Register",
-		stockName: "Stock Name",
-		stockDescription: "Stock Description",
-		stockId: "Stock ID",
-		location: "Location",
-		quantity: "Quantity",
-		price: "Price",
-		status: "Status",
-		remarks: "Remarks",
-		staff: "Staff Incharge",
-	});
+	const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>({});
+	const [columnOrder, setColumnOrder] = useState<string[]>([]);
+	const [columnAliases, setColumnAliases] = useState<ColumnAliases>({});
 	const [yearFilter, setYearFilter] = useState<number>(2024);
 
-	// Dummy data generation for demonstration
+	// Fetch initial settings from the backend
+	useEffect(() => {
+		const fetchSettings = async () => {
+			const response = await fetch(`${API_URL}/settings`);
+			const data = await response.json();
+			setSelectedColumns(data.selectedColumns);
+			setColumnOrder(data.columnOrder);
+			setColumnAliases(data.columnAliases);
+		};
+		fetchSettings();
+	}, []);
+
 	useEffect(() => {
 		const getActualData = async () => {
 			// Fetch data from API
-			const response = await fetch("http://localhost:3000/stock/report", {
+			const response = await fetch(`${API_URL}/stock/report`, {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -431,28 +401,7 @@ const ReportGeneration: React.FC = () => {
 			setStocks(data);
 		}
 		getActualData();
-		// const generateDummyData = (): Stock[] =>
-		// 	Array.from({ length: 100 }, (_, index) => ({
-		// 		budgetName: "Budget Name",
-		// 		categoryName: "Category",
-		// 		invoiceNo: "Invoice No",
-		// 		fromAddress: "From Address",
-		// 		toAddress: "To Address",
-		// 		serialNo: index + 1,
-		// 		volNo: `Vol-${Math.floor(Math.random() * 100)}`, // already includes "Vol-"
-		// 		pageNo: `Page-${Math.floor(Math.random() * 100)}`,
-		// 		stockName: `Stock ${index + 1}`,
-		// 		stockDescription: `Description of Stock ${index + 1}`,
-		// 		stockId: `ID-${index + 1}`,
-		// 		location: `Location ${Math.floor(Math.random() * 10)}`,
-		// 		quantity: Math.floor(Math.random() * 100),
-		// 		price: parseFloat((Math.random() * 1000).toFixed(2)),
-		// 		status: "Status",
-		// 		remarks: `Remark ${index + 1}`,
-		// 		staff: "Staff Incharge",
-		// 	}));
-		// setStocks(generateDummyData());
-	}, []);
+	}, [token]);
 
 	// Handlers & Helper Functions
 	const moveColumn = (dragIndex: number, hoverIndex: number) => {
@@ -460,17 +409,32 @@ const ReportGeneration: React.FC = () => {
 		const [draggedColumn] = updatedOrder.splice(dragIndex, 1);
 		updatedOrder.splice(hoverIndex, 0, draggedColumn);
 		setColumnOrder(updatedOrder);
+		saveSettings({ selectedColumns, columnOrder: updatedOrder, columnAliases });
 	};
 
 	const handleColumnSelection = (column: keyof SelectedColumns) => {
-		setSelectedColumns((prev) => ({
-			...prev,
-			[column]: !prev[column],
-		}));
+		const updatedColumns = {
+			...selectedColumns,
+			[column]: !selectedColumns[column],
+		};
+		setSelectedColumns(updatedColumns);
+		saveSettings({ selectedColumns: updatedColumns, columnOrder, columnAliases });
 	};
 
 	const handleAliasChange = (e: React.ChangeEvent<HTMLInputElement>, column: keyof ColumnAliases) => {
-		setColumnAliases((prev) => ({ ...prev, [column]: e.target.value }));
+		const updatedAliases = { ...columnAliases, [column]: e.target.value };
+		setColumnAliases(updatedAliases);
+		saveSettings({ selectedColumns, columnOrder, columnAliases: updatedAliases });
+	};
+
+	const saveSettings = async (settings: { selectedColumns: SelectedColumns; columnOrder: string[]; columnAliases: ColumnAliases }) => {
+		await fetch("http://localhost:3000/settings", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(settings),
+		});
 	};
 
 	const exportToExcel = async () => {
@@ -695,7 +659,7 @@ const ReportGeneration: React.FC = () => {
 		  doc.rect(margin, currentY, halfWidth, titleRowHeight);
 		  doc.rect(margin + halfWidth, currentY, halfWidth, titleRowHeight);
 		  doc.setFontSize(8);
-		  doc.text(columnAliases.nameOfCenter, margin + halfWidth / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
+		  doc.text(columnAliases.nameOfCenter, margin + halfWidth / 2, currentY + titleRowHeight / 2, { align: "center" });
 		  doc.text(columnAliases.stockRegNameAndVolNo, margin + halfWidth + halfWidth / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
 		  currentY += titleRowHeight;
 	  

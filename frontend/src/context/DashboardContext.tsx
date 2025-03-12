@@ -7,12 +7,15 @@ import React, {
 } from "react";
 import { useAuth } from "./AuthContext";
 
-type AnalysisData = {
+type BudgetData = {
+  budgetName: string;
   totalBudget: number;
   totalSpent: number;
   categorySpent: { category: string; spent: number }[];
   monthlySpent: number[];
 };
+
+type AnalysisData = BudgetData[];
 
 type LogData = {
   logId: number;
@@ -109,12 +112,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
         throw new Error("Failed to fetch analysis data");
       const analysisResult = await analysisResponse.json();
 
-      // Use the provided analysis data or add a default for monthlySpent if not provided
-      setAnalysisData(
-        selectedYear && selectedYear > 0
-          ? analysisResult
-          : { ...analysisResult, monthlySpent: [] }
-      );
+      setAnalysisData(analysisResult);
     } catch (err) {
       // Ignore abort errors, otherwise set error state
       if (err instanceof DOMException && err.name === "AbortError") {

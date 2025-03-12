@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { Pie, Line } from "react-chartjs-2";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useDashboard } from "../context/DashboardContext"; 
+import { useDashboard } from "../context/DashboardContext";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -38,7 +38,7 @@ ChartJS.register(
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { token, isLoading: authLoading } = useAuth();
-  
+
   // Redirect to login if no token
   useEffect(() => {
     if (!token) {
@@ -69,25 +69,26 @@ const Dashboard: React.FC = () => {
 
   // Pie chart data for available vs. used budget
   const pieChartData1 = {
-    labels: ["Available", "Used"],
+    labels: analysisData?.map(data => data.budgetName),
     datasets: [
       {
-        data: [
-          (analysisData?.totalBudget || 0) - (analysisData?.totalSpent || 0),
-          analysisData?.totalSpent || 0,
-        ],
-        backgroundColor: ["#4B6EAF", "#2C3E50"],
+        data: analysisData?.map(data => data.totalBudget - data.totalSpent),
+        backgroundColor: generateBlueShades(analysisData?.length || 0),
+      },
+      {
+        data: analysisData?.map(data => data.totalSpent),
+        backgroundColor: generateBlueShades(analysisData?.length || 0).map(color => color.replace('60%', '40%')),
       },
     ],
   };
 
   // Pie chart data for category spending
   const pieChartData2 = {
-    labels: analysisData?.categorySpent.map((data) => data.category),
+    labels: analysisData?.flatMap(data => data.categorySpent.map(category => `${data.budgetName} - ${category.category}`)),
     datasets: [
       {
-        data: analysisData?.categorySpent.map((data) => data.spent),
-        backgroundColor: generateBlueShades(analysisData?.categorySpent.length || 0),
+        data: analysisData?.flatMap(data => data.categorySpent.map(category => category.spent)),
+        backgroundColor: generateBlueShades(analysisData?.flatMap(data => data.categorySpent).length || 0),
       },
     ],
   };
@@ -108,15 +109,15 @@ const Dashboard: React.FC = () => {
       "Nov",
       "Dec",
     ],
-    datasets: [
-      {
-        label: `Monthly Spendings for ${analysisData?.totalBudget}`,
-        data: analysisData?.monthlySpent,
-        borderColor: "#3498DB",
+    datasets: analysisData
+      ? analysisData.map(data => ({
+        label: `${data.budgetName} - Monthly Spendings`,
+        data: data.monthlySpent,
+        borderColor: generateBlueShades(analysisData.length).shift(),
         tension: 0.4,
         fill: false,
-      },
-    ],
+      }))
+      : [],
   };
 
   // Chart options
@@ -155,7 +156,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <>
                 <div className="text-3xl font-semibold text-gray-900 mb-4">
-                  ₹{analysisData.totalBudget.toLocaleString()}
+                  ₹{analysisData.reduce((acc, data) => acc + Number(data.totalBudget), 0).toFixed(2).toLocaleString()}
                 </div>
                 <Pie data={pieChartData1} />
               </>
@@ -171,7 +172,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <>
                 <div className="text-3xl font-semibold text-gray-900 mb-4">
-                  ₹{analysisData.totalSpent.toLocaleString()}
+                  ₹{analysisData.reduce((acc, data) => acc + Number(data.totalSpent), 0).toFixed(2).toLocaleString()}
                 </div>
                 <Pie data={pieChartData2} />
               </>

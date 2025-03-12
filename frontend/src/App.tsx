@@ -17,6 +17,7 @@ import "react-toastify/dist/ReactToastify.css";
 import UserDetailsPage from "./pages/UserDetailsPage";
 import CreateUserPage from "./pages/CreateUserPage";
 import InvoiceDetails from "./pages/InvoiceDetails";
+import CreateBudget from "./pages/CreateBudget";
 
 const App = () => {
   return (
@@ -42,6 +43,7 @@ const App = () => {
               <Route path="/" element={<Dashboard />} />
               <Route path="/addstock" element={<Addstock />} />
               <Route path="/stocks" element={<SearchStock />} />
+              <Route path="/create-budget" element={<CreateBudget />} />
               <Route path="/stocks/:stockId" element={<StockDetails />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/users" element={<UsersListPage />} />
