@@ -84,7 +84,7 @@ const AddProduct: React.FC = () => {
       // Use the product's quantity instead of the overall products array length.
       const qty = updatedProducts[index].quantity || 1; // fallback to 1 if quantity is falsy
       updatedProducts[index].productVolPageSerial =
-        `${updatedProducts[index].pageNo}-${updatedProducts[index].volNo}`;
+        `${updatedProducts[index].pageNo}-${updatedProducts[index].volNo}-[${index + 1}/${qty}]`;
     }
     console.log("Updated : ", updatedProducts);
     setProducts(updatedProducts);

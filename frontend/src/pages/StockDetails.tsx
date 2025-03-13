@@ -36,7 +36,6 @@ type Invoice = {
 type LocationOption = { locationId: number; locationName: string };
 type StatusOption = { statusId: number; statusDescription: string };
 type CategoryOption = { categoryId: number; categoryName: string };
-type BudgetOption = { budgetId: number; budgetName: string };
 
 // Editing types: we use strings for numeric fields so that clearing an input leaves it empty.
 type EditProduct = {
@@ -71,7 +70,6 @@ const StockDetails = () => {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [budgets, setBudgets] = useState<BudgetOption[]>([]);
 
   const baseURL = import.meta.env.VITE_API_BASE_URL;
   const fetchHeaders = {
@@ -95,9 +93,6 @@ const StockDetails = () => {
         const catData = await catRes.json();
         setCategories(catData.categories); // expecting objects with categoryId & categoryName
 
-        const budRes = await fetch(`${baseURL}/funds`, { headers: fetchHeaders });
-        const budData = await budRes.json();
-        setBudgets(budData.budgets); // expecting objects with budgetId & budgetName
       } catch (error) {
         console.error("Error fetching dropdown options", error);
       }

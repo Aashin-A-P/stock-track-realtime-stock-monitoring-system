@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { uploadImageAndGetURL } from "./../utils/index"
 import { Product, RangeMapping } from "./../types/index"
 
