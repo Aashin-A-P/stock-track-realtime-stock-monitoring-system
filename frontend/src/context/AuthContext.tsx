@@ -38,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Login function
   const login = async (username: string, password: string) => {
     setIsLoading(true);
+    console.log("auth loading started...");
     setError(null);
 
     try {
@@ -53,14 +54,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (result.token && result.user) {
-        setToken(result.token);
-        setUsername(result.user.userName);
-        setRole(result.user.role);
-
+        
         localStorage.setItem("token", result.token);
         localStorage.setItem("username", result.user.userName);
         localStorage.setItem("role", result.user.role);
-
+        
+        setUsername(result.user.userName);
+        setRole(result.user.role);
+        setToken(result.token);
       } else {
         throw new Error("Login failed. Please try again.");
       }
@@ -68,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setError(err.message || "An unknown error occurred.");
     } finally {
       setIsLoading(false);
+      console.log("auth loading ended...");
     }
   };
 

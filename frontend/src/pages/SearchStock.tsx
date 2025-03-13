@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
@@ -114,7 +115,7 @@ const SearchStock: React.FC = () => {
   return (
     <>
       <Navbar />
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6 max-w-8xl mx-auto">
         <h2 className="text-2xl font-bold text-blue-700 mb-4">Search Stock</h2>
 
         {/* Dropdown for selecting search attribute */}
@@ -128,15 +129,15 @@ const SearchStock: React.FC = () => {
             onChange={(e) => handleAttributeChange(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="product_id">Product ID</option>
+            {/* <option value="product_id">Product ID</option> */}
             <option value="product_vol_page_serial">Vol Page Serial</option>
             <option value="product_name">Name</option>
             <option value="product_description">Description</option>
             <option value="category_name">Category</option>
             <option value="location_name">Location</option>
             <option value="status_description">Status</option>
-            <option value="product_price">Actual Amount</option>
-            <option value="GST_amount">GST Amount</option>
+            {/* <option value="product_price">Actual Amount</option> */}
+            {/* <option value="GST_amount">GST Amount</option> */}
             <option value="invoice_date">Invoice Date</option>
             <option value="invoice_no">Invoice No</option>
             <option value="po_date">PO Date</option>
@@ -159,7 +160,8 @@ const SearchStock: React.FC = () => {
 
         {/* Table */}
         {loading ? (
-          <div className="flex justify-center items-center h-screen text-blue-600">
+          <div className="text-center justify-center items-center text-blue-600">
+            <LoadingSpinner />
             Loading...
           </div>
         ) : (
@@ -223,13 +225,12 @@ const SearchStock: React.FC = () => {
         )}
 
         {/* Pagination */}
-        <div className="flex justify-between items-center mt-4">
+        {!loading && <div className="flex justify-between items-center mt-4">
           <button
-            className={`px-4 py-2 ${
-              pagination.page > 1
+            className={`px-4 py-2 ${pagination.page > 1
                 ? "bg-blue-500 text-white rounded"
                 : "bg-gray-300 text-gray-500 rounded"
-            }`}
+              }`}
             disabled={pagination.page === 1}
             onClick={() => handlePageChange(pagination.page - 1)}
           >
@@ -240,17 +241,16 @@ const SearchStock: React.FC = () => {
           </span>
           <button
             type="button"
-            className={`px-4 py-2 ${
-              pagination.page < totalPages
+            className={`px-4 py-2 ${pagination.page < totalPages
                 ? "bg-blue-500 text-white rounded"
                 : "bg-gray-300 text-gray-500 rounded"
-            }`}
+              }`}
             disabled={pagination.page >= totalPages}
             onClick={() => handlePageChange(pagination.page + 1)}
           >
             Next
           </button>
-        </div>
+        </div>}
       </div>
     </>
   );

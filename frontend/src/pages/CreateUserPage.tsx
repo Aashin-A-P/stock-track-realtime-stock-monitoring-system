@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -80,7 +81,8 @@ const CreateUserPage = () => {
     return (
       <>
         <Navbar />
-        <div className="p-6 max-w-5xl mx-auto">
+        <div className="p-6 max-w-5xl mx-auto text-center text-blue-700">
+          <LoadingSpinner />
           <p>Loading privileges...</p>
         </div>
       </>

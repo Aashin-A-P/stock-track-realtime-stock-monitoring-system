@@ -4,15 +4,16 @@ import { toast } from "react-toastify";
 import { confirmAlert } from 'react-confirm-alert';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { fetchMetadata } from "../utils";
+import { useNavigate, useParams } from "react-router-dom";
+import { convertProductData, fetchMetadata } from "../utils";
 import InvoiceCard from "../components/InvoiceCard";
 import ProductCard from "../components/ProductCard";
 import { Product } from "../types";
 
-const AddProduct: React.FC = () => {
+const invoiceDetails: React.FC = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { id } = useParams();
 
   useEffect(() => {
     if (!token) {
@@ -35,7 +36,6 @@ const AddProduct: React.FC = () => {
     remark: "",
     price: 0,
     productImage: "",
-    locationRangeMappings: [],
   };
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -54,10 +54,11 @@ const AddProduct: React.FC = () => {
   });
 
   const [budgets, setBudgets] = useState<string[]>([]);
-  const [newLocation, setNewLocation] = useState({ locationName: "", staffIncharge: "" });
+  const [newLocation, setNewLocation] = useState({locationName: "", staffIncharge: ""});
   const [newStatus, setNewStatus] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(false);
+  
   // create two ref for checking the equality of the invoice total price and product total price
   const invoiceTotalPrice = invoiceDetails.totalAmount;
   const productTotalPrice = products.reduce((acc, product) => acc + (product.price + product.gstAmount) * product.quantity, 0);
@@ -80,16 +81,13 @@ const AddProduct: React.FC = () => {
       updatedProducts[index].quantity = qty;
     }
 
-    if (["pageNo", "volNo", "serialNo", "quantity"].includes(field)) {
-      // Use the product's quantity instead of the overall products array length.
-      const qty = updatedProducts[index].quantity || 1; // fallback to 1 if quantity is falsy
+    if (["pageNo", "volNo", "serialNo"].includes(field)) {
       updatedProducts[index].productVolPageSerial =
-        `${updatedProducts[index].pageNo}-${updatedProducts[index].volNo}-[${index + 1}/${qty}]`;
+        `${updatedProducts[index].volNo}-${updatedProducts[index].pageNo}-${updatedProducts[index].serialNo}`;
     }
-    console.log("Updated : ", updatedProducts);
+
     setProducts(updatedProducts);
   };
-
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
   const fetchedHeaders = {
@@ -109,7 +107,7 @@ const AddProduct: React.FC = () => {
       }
       setLocations([...locations, newLocation.locationName]);
       toast.success("Location added successfully!");
-      setNewLocation({ locationName: "", staffIncharge: "" });
+      setNewLocation({locationName: "", staffIncharge: ""});
     } catch (error) {
       toast.error("Failed to add location");
       console.error("Failed to add location:", error);
@@ -172,6 +170,33 @@ const AddProduct: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch Invoice Details and product data
+        const invoiceRes = await fetch(baseUrl + `/stock/invoice/${id}`, {
+          headers: fetchedHeaders,
+        });
+        // Check if the response is OK (status 200)
+        if (!invoiceRes.ok) {
+          throw new Error(`Error fetching Invoice: ${invoiceRes.statusText}`);
+        }
+        // Parse the response as JSON
+        const invoiceData = await invoiceRes.json();
+        console.log("Invoice Data:", invoiceData);
+        setInvoiceDetails(invoiceData.invoice);
+
+        // Fetch Product data
+        const url = `${baseUrl}/stock/details?page=1&pageSize=-1&column=invoice_id&query=${id}`;
+        const productRes = await fetch(url, {
+          headers: fetchedHeaders,
+        });
+        // Check if the response is OK (status 200)
+        if (!productRes.ok) {
+          throw new Error(`Error fetching Products: ${productRes.statusText}`);
+        }
+        // Parse the response as JSON
+        const productData = await productRes.json();
+        console.log("Product Data:", JSON.stringify(productData,null,2));
+        setProducts(convertProductData(productData));
+
         // Fetch Budget data
         const budgetRes = await fetch(baseUrl + "/funds", {
           headers: fetchedHeaders,
@@ -250,7 +275,7 @@ const AddProduct: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+  
     // Validate invoice number
     if (!invoiceDetails.invoiceNo.trim()) {
       toast.error("Invoice Number is required");
@@ -267,37 +292,37 @@ const AddProduct: React.FC = () => {
         return;
       }
     }
-
+  
     // Validate total amount calculation
     const calculatedTotal = products.reduce((acc, product) => {
       return acc + (product.price + product.gstAmount) * product.quantity;
     }, 0);
-
+  
     if (Math.abs(calculatedTotal - invoiceDetails.totalAmount) > 0.01) {
       toast.error("Invoice amount doesn't match product totals");
       setLoading(false);
       return;
     }
-
+  
     if (invoiceDetails.budgetName === "") {
       toast.error("Budget Name is required");
       setLoading(false);
       return;
     }
-
+  
     const budgetData = await fetchMetadata(baseUrl, "funds/search", invoiceDetails.budgetName);
     if (!budgetData) {
       toast.error("Budget not found");
       setLoading(false);
       return;
     }
-
+  
     const parsedInvoiceData = {
       ...invoiceDetails,
       totalAmount: invoiceDetails.totalAmount.toString(),
       budgetId: budgetData.budgets[0].budgetId,
     };
-
+  
     // Helper function to parse a range string (e.g., "1-5,7,9-10") into an array of numbers.
     const parseRange = (rangeStr: string): number[] => {
       const result: number[] = [];
@@ -317,7 +342,7 @@ const AddProduct: React.FC = () => {
       });
       return result;
     };
-
+  
     try {
       // Add invoice details to the backend
       const invoiceRes = await fetch(`${baseUrl}/stock/invoice/add`, {
@@ -325,7 +350,7 @@ const AddProduct: React.FC = () => {
         headers: fetchedHeaders,
         body: JSON.stringify(parsedInvoiceData),
       });
-
+  
       if (!invoiceRes.ok) {
         const errorData = await invoiceRes.json();
         console.error("Error adding invoice:", errorData);
@@ -333,31 +358,31 @@ const AddProduct: React.FC = () => {
         setLoading(false);
         return;
       }
-
+  
       const { invoice } = await invoiceRes.json();
       const invoiceId = invoice.invoiceId;
       console.log("Invoice added successfully, ID:", invoiceId);
-
+  
       // Process each product
-      products.forEach(async (product, index) => {
+      for (const product of products) {
         // Get common metadata for status and category
         const [statusData, categoryData] = await Promise.all([
           fetchMetadata(baseUrl, "stock/status/search", product.Status),
           fetchMetadata(baseUrl, "stock/category/search", product.category),
         ]);
-
+  
         // Ensure we have locationRangeMappings for this product
         if (!product.locationRangeMappings || product.locationRangeMappings.length === 0) {
           toast.error(`No location range mapping provided for product: ${product.productName}`);
           setLoading(false);
           return;
         }
-
+  
         // Process each location range mapping
         for (const mapping of product.locationRangeMappings) {
           // Lookup location metadata for the mapping's selected location
           const locationData = await fetchMetadata(baseUrl, "stock/location/search", mapping.location);
-
+  
           // Parse the mapping range (e.g., "1-5,7") into individual unit numbers
           const unitNumbers = parseRange(mapping.range);
           if (unitNumbers.length === 0) {
@@ -365,10 +390,10 @@ const AddProduct: React.FC = () => {
             setLoading(false);
             return;
           }
-
+  
           // Prepare common product data for insertion
           const productData = {
-            productVolPageSerial: `${product.productVolPageSerial}-[${index + 1}/${products.length}]`,
+            productVolPageSerial: product.productVolPageSerial,
             productName: product.productName,
             productDescription: product.productDescription,
             locationId: locationData.locationId,
@@ -383,7 +408,7 @@ const AddProduct: React.FC = () => {
             invoice_no: invoiceDetails.invoiceNo,
             transferLetter: product.transferLetter,
           };
-
+  
           // For each unit specified in the range, add an individual product record
           const productAddRequests = unitNumbers.map(() =>
             fetch(`${baseUrl}/stock/add`, {
@@ -394,7 +419,7 @@ const AddProduct: React.FC = () => {
               res.ok ? res.json() : Promise.reject("Failed to add product")
             )
           );
-
+  
           // Execute all insertions for this mapping and handle errors
           await Promise.all(productAddRequests).catch((err) => {
             console.error(err);
@@ -402,11 +427,11 @@ const AddProduct: React.FC = () => {
             throw err; // Stop processing further on error
           });
         }
-      });
-
+      }
+  
       // Success message
       toast.success("Products and invoice added successfully!");
-
+  
       // Reset invoice and products state
       setInvoiceDetails({
         invoiceNo: "",
@@ -418,7 +443,7 @@ const AddProduct: React.FC = () => {
         invoiceImage: "",
         budgetName: "",
       });
-
+  
       setProducts([]);
     } catch (err) {
       console.error("Transaction failed:", err);
@@ -426,25 +451,25 @@ const AddProduct: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
-  const handleClose = (index: number) => {
+  const handleClose = (index : number) => {
     confirmAlert({
-      title: "Confirm to delete",
-      message: "Are you sure you want to delete this product?",
-      buttons: [
-        {
-          label: "Yes",
-          onClick: () =>
-            setProducts(products.filter((_, i) => i !== index)),
-        },
-        {
-          label: "No",
-          onClick: () => { },
-        },
-      ],
-    })
-  }
+        title: "Confirm to delete",
+        message: "Are you sure you want to delete this product?",
+        buttons: [
+          {
+            label: "Yes",
+            onClick: () =>
+              setProducts(products.filter((_, i) => i !== index)),
+          },
+          {
+            label: "No",
+            onClick: () => { },
+          },
+        ],
+      })
+}
 
   return (
     <>
@@ -458,25 +483,25 @@ const AddProduct: React.FC = () => {
           {/* Products Section */}
           {products.map((product, index) => (
             <ProductCard
-              key={index}
-              index={index}
-              product={product}
-              categories={categories}
-              locations={locations}
-              Statuses={Statuses}
-              newCategory={newCategory}
-              newLocation={newLocation}
-              newStatus={newStatus}
-              handleProductChange={handleProductChange}
-              addNewCategory={addNewCategory}
-              addNewLocation={addNewLocation}
-              addNewStatus={addNewStatus}
-              setNewCategory={setNewCategory}
-              setNewLocation={setNewLocation}
-              setNewStatus={setNewStatus}
-              handleClose={handleClose}
-            />
-          ))}
+                key={index}
+                index={index}
+                product={product}
+                categories={categories}
+                locations={locations}
+                Statuses={Statuses}
+                newCategory={newCategory}
+                newLocation={newLocation}
+                newStatus={newStatus}
+                handleProductChange={handleProductChange}
+                addNewCategory={addNewCategory}
+                addNewLocation={addNewLocation}
+                addNewStatus={addNewStatus}
+                setNewCategory={setNewCategory}
+                setNewLocation={setNewLocation}
+                setNewStatus={setNewStatus}
+                handleClose={handleClose}
+                />
+            ))}
 
           {/* Submit Section */}
           <div className="flex justify-between items-center mt-6">
@@ -490,7 +515,7 @@ const AddProduct: React.FC = () => {
             </button>
 
             <div className="p-2 rounded-lg shadow-md text-gray-800 font-semibold">
-              Invoice Total Amount: ₹{invoiceTotalPrice.toFixed(2)}
+              Invoice Total Amount: ₹{Number(invoiceTotalPrice).toFixed(2)}
             </div>
             <div className={`p-2 rounded-lg shadow-md text-white font-semibold ${isEquals ? " bg-green-700" : " bg-red-700"}`} >
               Total Products Price: ₹
@@ -514,4 +539,4 @@ const AddProduct: React.FC = () => {
   );
 };
 
-export default AddProduct;
+export default invoiceDetails;

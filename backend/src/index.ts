@@ -12,6 +12,7 @@ import stockRouter from "./routes/stock";
 import uploadRouter from "./routes/uploads";
 import logsRouter from "./routes/logs";
 import fundRouter from "./routes/funds";
+import reportStateRouter from "./routes/settingsRoutes"
 // Resolve __dirname in ES Module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +24,7 @@ const port = process.env.PORT;
 app.use(json());
 app.use(urlencoded({ extended: true }));
 app.use(cors());
-app.use("/uploads", express.static(path.join(__dirname, "../uploads"))); // Serve Uploaded Files Statically
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Base Route
 app.get("/", (req, res) => {
@@ -39,6 +40,7 @@ app.use("/stock", stockRouter);
 app.use("/upload", uploadRouter);
 app.use("/logs", logsRouter);
 app.use("/funds", fundRouter);
+app.use("/settings", reportStateRouter)
 
 // Start Server
 app.listen(port, () => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { uploadImageAndGetURL } from "./../utils/index"
 import { Product, RangeMapping } from "./../types/index"
 
@@ -133,7 +133,7 @@ const ProductCard = ({
       <h3 className="text-lg font-semibold text-gray-700 mb-2 flex">
         Product {index + 1}
         <span
-          className="bg-red-500 text-white cursor-pointer ml-auto px-2 rounded"
+          className="bg-red-500 text-white cursor-pointer ml-auto px-2 rounded cursor-pointer"
           onClick={() => handleClose(index)}
         >
           X

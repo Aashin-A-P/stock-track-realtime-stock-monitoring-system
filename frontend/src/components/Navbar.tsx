@@ -100,7 +100,13 @@ const Navbar: React.FC = () => {
 										to="/reportgeneration"
 										className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
 									>
-										Report Generation {/* Add this line */}
+										Report Generation 
+									</Link>
+								</li>
+								<li>
+									<Link to="/budgetform" className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+									>
+										Budgets
 									</Link>
 								</li>
 							</>

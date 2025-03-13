@@ -359,26 +359,27 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     if (!page || !pageSize) {
       return res.status(400).send("Page and pageSize are required");
     }
+
     if (!column) {
       return res.status(400).send("Column is required");
     }
 
     // Mapping of column names to their expected data types
     const columnTypes: Record<string, string> = {
-      product_id: "integer",
+      // product_id: "integer",
       product_vol_page_serial: "string",
       product_name: "string",
       product_description: "string",
-      category_id: "integer",
+      // category_id: "integer",
       category_name: "string",
-      location_id: "integer",
+      // location_id: "integer",
       location_name: "string",
-      status_id: "integer",
+      // status_id: "integer",
       status_description: "string",
-      product_price: "decimal",
-      GST_amount: "decimal",
+      // product_price: "decimal",
+      // GST_amount: "decimal",
       invoice_date: "string",
-      invoice_id: "integer",
+      // invoice_id: "integer",
       invoice_no: "string",
       po_date: "string",
       from_address: "string",
@@ -393,21 +394,26 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
 
     // Convert the query value to the correct type based on the column
     let typedQuery: any = query;
-    if (columnType === "integer") {
-      typedQuery = parseInt(query as string, 10);
-      if (isNaN(typedQuery)) {
-        return res
-          .status(400)
-          .send("Query must be a valid integer for this column");
-      }
-    } else if (columnType === "decimal") {
-      typedQuery = parseFloat(query as string);
-      if (isNaN(typedQuery)) {
-        return res
-          .status(400)
-          .send("Query must be a valid decimal for this column");
-      }
-    }
+    // if (columnType === "integer") {
+    //   typedQuery = parseInt(query as string, 10);
+    //   if (isNaN(typedQuery)) {
+    //     return res
+    //       .status(400)
+    //       .send("Query must be a valid integer for this column");
+    //   }
+    // } else if (columnType === "decimal") {
+    //   typedQuery = parseFloat(query as string);
+    //   console.log("Query: ",typedQuery);
+
+    //   if (isNaN(typedQuery)) {
+    //     return res
+    //       .status(400)
+    //       .send("Query must be a valid decimal for this column");
+    //   }
+    //   console.log("Query: ",typedQuery);
+
+    // }
+
 
     // Calculate the offset for pagination
     const offset =
@@ -416,17 +422,18 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     // Map search keys to fully qualified table columns.
     // This helps avoid ambiguity when the same column name exists in multiple tables.
     const columnMapping: Record<string, any> = {
-      product_id: productsTable.productId,
+      // product_id: productsTable.productId,
       product_vol_page_serial: productsTable.productVolPageSerial,
       product_name: productsTable.productName,
       product_description: productsTable.productDescription,
       category_name: categoriesTable.categoryName,
       location_name: locationTable.locationName,
       status_description: statusTable.statusDescription,
-      product_price: productsTable.productPrice,
-      GST_amount: productsTable.gstAmount,
+      // product_price: productsTable.productPrice,
+      // GST_amount: productsTable.gstAmount,
       invoice_date: invoiceTable.invoiceDate,
       invoice_no: invoiceTable.invoiceNo,
+      // invoice_id: productsTable.invoiceId,
       po_date: invoiceTable.PODate,
       from_address: invoiceTable.fromAddress,
       to_address: invoiceTable.toAddress,
@@ -442,9 +449,11 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     let whereClause = sql`true`;
     if (query && query !== "") {
       whereClause =
-        columnType === "string"
-          ? sql`${columnRef} ILIKE ${"%" + typedQuery + "%"}`
-          : sql`${columnRef} = ${typedQuery}`;
+        // columnType === "string"
+          // ? 
+          sql`${columnRef} ILIKE ${"%" + typedQuery + "%"}`
+          // : sql`${columnRef} = ${typedQuery}`
+          ;
     }
 
     // Get the total number of records matching the filter
@@ -485,7 +494,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
       .where(whereClause)
-      .limit(parseInt(pageSize as string, 10))
+      .limit( pageSize == '-1' ? parseInt(pageSize as string, 10) : totalRecords)
       .offset(offset);
 
     // Return the products and the total record count as JSON
@@ -562,5 +571,58 @@ export const getProductById = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).send("Failed to fetch product");
+  }
+};
+
+export const getReportData = async (req: Request, res: Response) => {
+  try {
+    console.log("getReportData");
+
+    const reportData = await db
+      .select({
+        budgetName: budgetsTable.budgetName,
+        categoryName: categoriesTable.categoryName,
+        invoiceNo: invoiceTable.invoiceNo,
+        fromAddress: invoiceTable.fromAddress,
+        toAddress: invoiceTable.toAddress,
+        stockName: productsTable.productName,
+        stockDescription: productsTable.productDescription,
+        location: locationTable.locationName,
+        staff: locationTable.staffIncharge,
+        stockId: productsTable.productVolPageSerial, // productsTable.productVolPageSerial,
+        productImage: productsTable.productImage,
+        transferLetter: productsTable.transferLetter,
+        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
+        status: statusTable.statusDescription,
+        remarks: productsTable.remarks,
+        quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
+      })
+      .from(productsTable)
+      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
+      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
+      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
+      .groupBy(
+        budgetsTable.budgetName,
+        categoriesTable.categoryName,
+        invoiceTable.invoiceNo,
+        invoiceTable.fromAddress,
+        invoiceTable.toAddress,
+        productsTable.productName,
+        productsTable.productDescription,
+        locationTable.locationName,
+        locationTable.staffIncharge,
+        productsTable.productImage,
+        productsTable.transferLetter,
+        statusTable.statusDescription,
+        productsTable.remarks,
+        productsTable.productVolPageSerial
+      );
+
+    res.status(200).json(reportData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Failed to fetch report data");
   }
 };
