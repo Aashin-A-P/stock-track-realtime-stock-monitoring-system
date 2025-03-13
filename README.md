@@ -7,7 +7,7 @@ StockTrack is a real-time departmental stock monitoring system that ensures opti
 ## Installation
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/stock-track-realtime-stock-monitoring-system.git
+    https://github.com/John-Prabu-A/stock-track-realtime-stock-monitoring-system.git
     cd stock-track-realtime-stock-monitoring-system
     ```
 
