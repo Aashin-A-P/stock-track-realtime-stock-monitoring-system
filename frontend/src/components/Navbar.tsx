@@ -128,7 +128,7 @@ const Navbar: React.FC = () => {
 
 					{/* Profile Image */}
 					<img
-						src={"/images/images.jpg"} // Use profileImage or fallback
+						src={"/images/user_logo.jpg"} // Use profileImage or fallback
 						alt="User Avatar"
 						className="h-8 w-8 rounded-full object-cover"
 					/>
