@@ -72,14 +72,13 @@ const Dashboard: React.FC = () => {
     labels: analysisData?.map(data => data.budgetName),
     datasets: [
       {
-        data: analysisData?.map(data => data.totalBudget - data.totalSpent),
+        data: analysisData?.map(data => data.totalBudget),
         backgroundColor: generateBlueShades(analysisData?.length || 0),
       },
-      {
-        data: analysisData?.map(data => data.totalSpent),
-        backgroundColor: generateBlueShades(analysisData?.length || 0).map(color => color.replace('60%', '40%')),
-      },
     ],
+    options: {
+      cutoutPercentage: 50, // Creates the donut effect
+    },
   };
 
   // Pie chart data for category spending

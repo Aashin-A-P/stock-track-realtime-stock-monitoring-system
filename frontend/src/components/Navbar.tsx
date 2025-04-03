@@ -118,12 +118,20 @@ const Navbar: React.FC = () => {
 			{/* Username and Dropdown */}
 			{username && (
 				<div className="relative">
+					{/* Username Button */}
+
 					<div
 						id="username-button"
 						className="cursor-pointer text-white p-2 rounded-md bg-blue-600 hover:bg-blue-500 transition-all duration-200"
 						onClick={toggleDropdown}
 					>
-						<span className="username">{username}</span>
+
+					{/* Profile Image */}
+					<img
+						src={"/images/images.jpg"} // Use profileImage or fallback
+						alt="User Avatar"
+						className="h-8 w-8 rounded-full object-cover"
+					/>
 					</div>
 
 					{/* Dropdown */}
@@ -133,6 +141,9 @@ const Navbar: React.FC = () => {
 							className="absolute right-0 mt-2 w-48 bg-white bg-opacity-60 backdrop-blur-lg border border-gray-300 shadow-2xl rounded-3xl rounded-tr-none z-20"
 						>
 							<div className="p-4">
+								{/* Username */}
+								<h3 className="text-lg font-semibold text-gray-800 mb-2">{username}</h3>
+								<hr className="my-2 border-gray-300"/>
 								<h4 className="text-sm text-gray-700 mb-3">
 									Are you sure you want to logout?
 								</h4>
