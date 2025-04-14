@@ -1,6 +1,6 @@
 // pages/Dashboard.tsx
 import React, { useEffect } from "react";
-import { Pie, Line } from "react-chartjs-2";
+import { Pie } from "react-chartjs-2";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useDashboard } from "../context/DashboardContext";
@@ -19,20 +19,12 @@ import {
   ArcElement,
   Tooltip,
   Legend,
-  LineElement,
-  PointElement,
-  CategoryScale,
-  LinearScale,
 } from "chart.js";
 
 ChartJS.register(
   ArcElement,
   Tooltip,
-  Legend,
-  LineElement,
-  PointElement,
-  CategoryScale,
-  LinearScale
+  Legend
 );
 
 const Dashboard: React.FC = () => {
@@ -81,51 +73,20 @@ const Dashboard: React.FC = () => {
     },
   };
 
-  // Pie chart data for category spending
+  // Calculate totals
+  const totalBudget = analysisData?.reduce((acc, data) => acc + Number(data.totalBudget), 0) || 0;
+  const totalSpent = analysisData?.reduce((acc, data) => acc + Number(data.totalSpent), 0) || 0;
+  const remainingBudget = totalBudget - totalSpent;
+
+  // Pie chart data for total spent vs remaining
   const pieChartData2 = {
-    labels: analysisData?.flatMap(data => data.categorySpent.map(category => `${data.budgetName} - ${category.category}`)),
+    labels: ["Total Spent", "Remaining Budget"],
     datasets: [
       {
-        data: analysisData?.flatMap(data => data.categorySpent.map(category => category.spent)),
-        backgroundColor: generateBlueShades(analysisData?.flatMap(data => data.categorySpent).length || 0),
+        data: [totalSpent, remainingBudget],
+        backgroundColor: ["#FF6384", "#36A2EB"], // Red for spent, blue for remaining
       },
     ],
-  };
-
-  // Line chart data for monthly spending
-  const lineChartData = {
-    labels: [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ],
-    datasets: analysisData
-      ? analysisData.map(data => ({
-        label: `${data.budgetName} - Monthly Spendings`,
-        data: data.monthlySpent,
-        borderColor: generateBlueShades(analysisData.length).shift(),
-        tension: 0.4,
-        fill: false,
-      }))
-      : [],
-  };
-
-  // Chart options
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { position: "top" as const },
-    },
   };
 
   // For auth-related loading we block the entire page
@@ -155,61 +116,51 @@ const Dashboard: React.FC = () => {
             ) : (
               <>
                 <div className="text-3xl font-semibold text-gray-900 mb-4">
-                  ₹{analysisData.reduce((acc, data) => acc + Number(data.totalBudget), 0).toFixed(2).toLocaleString()}
+                  ₹{totalBudget.toFixed(2).toLocaleString()}
                 </div>
                 <Pie data={pieChartData1} />
               </>
             )}
           </div>
 
-          {/* Total Spent Card */}
-          <div className="bg-white shadow-lg rounded-lg p-6">
-            <h3 className="text-xl font-medium text-gray-800 mb-4">Total Spent</h3>
-            {dashBoardError && <p className="text-red-500 mb-2">{dashBoardError}</p>}
-            {dashboardLoading || !analysisData ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <div className="text-3xl font-semibold text-gray-900 mb-4">
-                  ₹{analysisData.reduce((acc, data) => acc + Number(data.totalSpent), 0).toFixed(2).toLocaleString()}
-                </div>
-                <Pie data={pieChartData2} />
-              </>
-            )}
+          {/* Budget Utilization Card */}
+        <div className="bg-white shadow-lg rounded-lg p-6">
+          <h3 className="text-xl font-medium text-gray-800 mb-4">Department Overview</h3>
+          <div className="mb-4">
+            <p className="text-gray-700 font-medium">Department:</p>
+            <p className="text-blue-600 font-semibold">Information Technology</p>
           </div>
-
-          {/* Monthly Spendings Chart */}
-          <div className="bg-white shadow-lg rounded-lg p-6 hidden col-span-2 md:block">
-            <h3 className="text-xl font-medium text-gray-800 text-center mb-4">Monthly Spendings</h3>
-            {dashBoardError && <p className="text-red-500 mb-2 text-center">{dashBoardError}</p>}
-            {dashboardLoading || !analysisData ? (
-              <LoadingSpinner />
-            ) : (
-              <div className="h-64">
-                <Line data={lineChartData} options={chartOptions} />
-              </div>
-            )}
+          <div className="mb-4">
+            <p className="text-gray-700 font-medium">Institution:</p>
+            <p className="text-blue-600 font-semibold">Madras Institute of Technology</p>
+          </div>
+          <div className="mb-4">
+            <p className="text-gray-700 font-medium">Role:</p>
+            <p className="text-green-600 font-semibold">Stock Manager</p>
           </div>
         </div>
 
-        {/* Recent Logs Section */}
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h3 className="text-xl font-medium text-gray-800 mb-4">Recent Logs</h3>
-          {dashBoardError && <p className="text-red-500 mb-2">{dashBoardError}</p>}
-          {dashboardLoading || !logs ? (
-            <LoadingSpinner />
-          ) : (
-            <ul className="space-y-4">
-              {logs.map((log) => (
-                <li key={log.logId} className="text-gray-700">
-                  {log.description} -{" "}
-                  <span className="text-gray-500">
-                    {dayjs(log.createdAt).fromNow()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* Recent Logs Section */}
+          <div className="bg-white shadow-lg rounded-lg p-6 col-span-2">
+            <h3 className="text-xl font-medium text-gray-800 text-center mb-4">Recent Logs</h3>
+            {dashBoardError && <p className="text-red-500 mb-2 text-center">{dashBoardError}</p>}
+            {dashboardLoading || !logs ? (
+              <LoadingSpinner />
+            ) : (
+              <div className="overflow-y-auto max-h-64">
+                <ul className="space-y-4">
+                  {logs.slice(-10).map((log) => (
+                    <li key={log.logId} className="text-gray-700">
+                      {log.description} -{" "}
+                      <span className="text-gray-500">
+                        {dayjs(log.createdAt).fromNow()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
