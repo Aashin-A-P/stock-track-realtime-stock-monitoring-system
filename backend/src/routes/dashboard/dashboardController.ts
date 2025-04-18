@@ -5,7 +5,6 @@ import { budgetsTable } from "../../db/schemas/budgetsSchema";
 import { sql } from "drizzle-orm";
 import { categoriesTable } from "../../db/schemas/categoriesSchema";
 import { categoryWiseBudgetsTable } from "../../db/schemas/categoryWiseBudgetsSchema";
-import { invoiceTable } from "../../db/schemas/invoicesSchema";
 
 export const getPieChartAnalysis = async (req: Request, res: Response) => {
   const { year }: { year?: string } = req.query;
@@ -98,58 +97,43 @@ export const getAllYearPieChartAnalysis = async (req: Request, res: Response) =>
       .select({
         budget_id: budgetsTable.budgetId,
         budget_name: budgetsTable.budgetName,
-        year: sql<number>`EXTRACT(YEAR FROM ${budgetsTable.startDate})`,
         total_amount: sql<number>`sum(${budgetsTable.amount})`
       })
       .from(budgetsTable)
-      .groupBy(budgetsTable.budgetId, budgetsTable.budgetName, sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`);
+      .groupBy(budgetsTable.budgetId, budgetsTable.budgetName);
 
     if (!budgetsData || budgetsData.length === 0) {
       return res.status(404).json({ error: 'No budget data found' });
     }
 
-    // Fetch total amount spent for each budget per year
+    // Fetch total amount spent for each budget
     const totalSpentData = await db
       .select({
-        budget_id: invoiceTable.budgetId,
-        year: sql<number>`EXTRACT(YEAR FROM ${invoiceTable.invoiceDate})`,
-        total_spent: sql<number>`sum(${invoiceTable.totalAmount})`
+        budget_id: categoryWiseBudgetsTable.budgetId,
+        total_spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`
       })
-      .from(invoiceTable)
-      .groupBy(
-        invoiceTable.budgetId,
-        sql`EXTRACT(YEAR FROM ${invoiceTable.invoiceDate})`
-      );
-    // Fetch category-wise spending data for each budget per year
+      .from(categoryWiseBudgetsTable)
+      .groupBy(categoryWiseBudgetsTable.budgetId);
+
+    // Fetch category-wise spending data for each budget
     const categorySpentData = await db
       .select({
         budget_id: categoryWiseBudgetsTable.budgetId,
-        year: sql<number>`EXTRACT(YEAR FROM ${categoryWiseBudgetsTable.createdAt})`,
         category: categoriesTable.categoryName,
         spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`,
       })
       .from(categoryWiseBudgetsTable)
       .leftJoin(categoriesTable, eq(categoryWiseBudgetsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(budgetsTable, eq(categoryWiseBudgetsTable.budgetId, budgetsTable.budgetId))
-      .groupBy(
-        categoryWiseBudgetsTable.budgetId, 
-        categoriesTable.categoryName, 
-        sql`EXTRACT(YEAR FROM ${categoryWiseBudgetsTable.createdAt})`
-      );
+      .groupBy(categoryWiseBudgetsTable.budgetId, categoriesTable.categoryName);
 
     // Construct response data
     const responseData = budgetsData.map(budget => {
-      const totalSpent = totalSpentData.find(
-        spent => spent.budget_id === budget.budget_id
-      )?.total_spent || 0;
-    
-      const categorySpent = categorySpentData.filter(
-        spent => spent.budget_id === budget.budget_id && spent.year === budget.year
-      );
-    
+      const totalSpent = totalSpentData.find(spent => spent.budget_id === budget.budget_id)?.total_spent || 0;
+      const categorySpent = categorySpentData.filter(spent => spent.budget_id === budget.budget_id);
+
       return {
         budgetName: budget.budget_name,
-        year: budget.year,
         totalBudget: budget.total_amount,
         totalSpent,
         categorySpent,
