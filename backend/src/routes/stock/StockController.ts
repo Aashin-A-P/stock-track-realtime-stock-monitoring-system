@@ -574,9 +574,77 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
+// export const getReportData = async (req: Request, res: Response) => {
+//   try {
+//     console.log("getReportData");
+
+//     const reportData = await db
+//       .select({
+//         budgetName: budgetsTable.budgetName,
+//         categoryName: categoriesTable.categoryName,
+//         invoiceNo: invoiceTable.invoiceNo,
+//         fromAddress: invoiceTable.fromAddress,
+//         toAddress: invoiceTable.toAddress,
+//         stockName: productsTable.productName,
+//         stockDescription: productsTable.productDescription,
+//         location: locationTable.locationName,
+//         staff: locationTable.staffIncharge,
+//         stockId: productsTable.productVolPageSerial, // productsTable.productVolPageSerial,
+//         productImage: productsTable.productImage,
+//         transferLetter: productsTable.transferLetter,
+//         price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
+//         status: statusTable.statusDescription,
+//         remarks: productsTable.remarks,
+//         quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
+//       })
+//       .from(productsTable)
+//       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+//       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
+//       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
+//       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+//       .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
+//       .groupBy(
+//         budgetsTable.budgetName,
+//         categoriesTable.categoryName,
+//         invoiceTable.invoiceNo,
+//         invoiceTable.fromAddress,
+//         invoiceTable.toAddress,
+//         productsTable.productName,
+//         productsTable.productDescription,
+//         locationTable.locationName,
+//         locationTable.staffIncharge,
+//         productsTable.productImage,
+//         productsTable.transferLetter,
+//         statusTable.statusDescription,
+//         productsTable.remarks,
+//         productsTable.productVolPageSerial
+//       );
+
+//     res.status(200).json(reportData);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).send("Failed to fetch report data");
+//   }
+// };
+
+
+
+import { and, gte, lte } from 'drizzle-orm';
+
 export const getReportData = async (req: Request, res: Response) => {
   try {
     console.log("getReportData");
+
+    const { startDate, endDate } = req.query;
+
+    let whereCondition;
+
+    if (startDate && endDate) {
+      whereCondition = and(
+        gte(budgetsTable.startDate, startDate as string),
+        lte(budgetsTable.endDate, endDate as string)
+      );
+    }
 
     const reportData = await db
       .select({
@@ -589,13 +657,13 @@ export const getReportData = async (req: Request, res: Response) => {
         stockDescription: productsTable.productDescription,
         location: locationTable.locationName,
         staff: locationTable.staffIncharge,
-        stockId: productsTable.productVolPageSerial, // productsTable.productVolPageSerial,
+        stockId: productsTable.productVolPageSerial,
         productImage: productsTable.productImage,
         transferLetter: productsTable.transferLetter,
-        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
+        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`,
         status: statusTable.statusDescription,
         remarks: productsTable.remarks,
-        quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
+        quantity: sql<number>`COUNT(${productsTable.productId})`,
       })
       .from(productsTable)
       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
@@ -603,6 +671,7 @@ export const getReportData = async (req: Request, res: Response) => {
       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
       .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
+      .where(whereCondition)
       .groupBy(
         budgetsTable.budgetName,
         categoriesTable.categoryName,

@@ -50,17 +50,28 @@ interface ColumnAliases {
 // ======================
 interface FilterDropdownProps {
 	year: number;
-	onYearChange: (year: number) => void;
+	onYearChange: (year: number ,startDate :string ,endDate : string) => void;
 }
 
 const FilterDropdown: React.FC<FilterDropdownProps> = ({ year, onYearChange }) => {
 	const { years } = useDashboard();
+
+	const handleYearChange = (year: number) => {
+		// Calculate the start and end dates for the selected year
+		const yearstr = year.toString(); 
+		const [startYear, endYear] = yearstr.split('-').map(Number);
+
+		const startDate = `${startYear}-04-01`;
+		const endDate = `${endYear}-03-31`;
+		
+		onYearChange(year, startDate, endDate);
+	};	
 	return (
 		<div className="mb-6">
 			<label htmlFor="yearFilter" className="block font-medium mb-1 text-blue-700">
-				Filter by Year
+				Filter by Budget Year
 			</label>
-			<YearDropdown selectedYear={Number(year)} onSelectYear={onYearChange} years={years} />
+			<YearDropdown selectedYear={year} onSelectYear={handleYearChange} years={years} />
 		</div>
 	);
 };
@@ -381,7 +392,15 @@ const ReportGeneration: React.FC = () => {
 	const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>({});
 	const [columnOrder, setColumnOrder] = useState<string[]>([]);
 	const [columnAliases, setColumnAliases] = useState<ColumnAliases>({});
-	const [yearFilter, setYearFilter] = useState<number>(2024);
+	const [selectedYear, setSelectedYear] = useState<number >(0);
+	const [startDate, setStartDate] = useState<string | null>(null);
+	const [endDate, setEndDate] = useState<string | null>(null);
+
+	const handleYearChange = (year: number, startDate: string, endDate: string) => {
+		setSelectedYear(year);
+		setStartDate(startDate);
+		setEndDate(endDate);
+	};
 
 	// Fetch initial settings from the backend
 	useEffect(() => {
@@ -394,11 +413,27 @@ const ReportGeneration: React.FC = () => {
 		};
 		fetchSettings();
 	}, []);
+// 1. Fetch all data initially (no filters)
+useEffect(() => {
+	const getActualData = async () => {
+		const response = await fetch(`${API_URL}/stock/report`, {
+			method: "GET",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `${token}`,
+			},
+		});
+		const data = await response.json();
+		setStocks(data);
+	};
+	getActualData();
+}, [token]);
 
-	useEffect(() => {
-		const getActualData = async () => {
-			// Fetch data from API
-			const response = await fetch(`${API_URL}/stock/report`, {
+// 2. Refetch only when date filters are set
+useEffect(() => {
+	const getFilteredData = async () => {
+		if (startDate && endDate) {
+			const response = await fetch(`${API_URL}/stock/report?startDate=${startDate}&endDate=${endDate}`, {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -406,10 +441,15 @@ const ReportGeneration: React.FC = () => {
 				},
 			});
 			const data = await response.json();
-			setStocks(data);
+			setStocks(data); // Override unfiltered data with filtered data
 		}
-		getActualData();
-	}, [token]);
+	};
+
+	if (startDate && endDate) {
+		getFilteredData();
+	}
+}, [token, startDate, endDate]);
+
 
 	// Handlers & Helper Functions
 	const moveColumn = (dragIndex: number, hoverIndex: number) => {
@@ -825,7 +865,7 @@ const ReportGeneration: React.FC = () => {
 				<h1 className="text-2xl font-bold text-blue-700 mb-6 text-center">
 					Report Generation
 				</h1>
-				<FilterDropdown year={yearFilter} onYearChange={setYearFilter} />
+				<FilterDropdown year={selectedYear} onYearChange={handleYearChange} />
 				<ColumnSelection
 					selectedColumns={selectedColumns}
 					onToggleColumn={handleColumnSelection}

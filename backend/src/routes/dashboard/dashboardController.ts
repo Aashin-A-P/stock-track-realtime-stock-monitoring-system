@@ -165,25 +165,39 @@ export const getAllYearPieChartAnalysis = async (req: Request, res: Response) =>
 
 export const getAllYears = async (req: Request, res: Response) => {
   try {
-    const years = await db
+    // First get all distinct budget periods
+    const budgetPeriods = await db
       .select({
-        extractedYear: sql<number>`EXTRACT(YEAR FROM ${budgetsTable.startDate})`
+        startDate: budgetsTable.startDate,
+        endDate: budgetsTable.endDate
       })
       .from(budgetsTable)
-      .groupBy(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`)
-      .orderBy(desc(sql`EXTRACT(YEAR FROM ${budgetsTable.startDate})`));
+      .groupBy(budgetsTable.startDate, budgetsTable.endDate)
+      .orderBy(desc(budgetsTable.startDate));
 
-    if (!years || years.length === 0) {
-      return res.status(404).json({ error: "No years found in the budgets table" });
+    if (!budgetPeriods || budgetPeriods.length === 0) {
+      return res.status(404).json({ error: "No budget periods found" });
     }
 
-    // Map the result to an array of years
-    const yearList = years.map((row) => row.extractedYear);
+    // Process the periods into year ranges
+    const yearRanges = budgetPeriods.map(period => {
+      const startYear = new Date(period.startDate).getFullYear();
+      const endYear = new Date(period.endDate).getFullYear();
+      
+      // If the period spans multiple years, return "YYYY-YYYY"
+      // Otherwise just return "YYYY"
+      return startYear !== endYear 
+        ? `${startYear}-${endYear}`
+        : `${startYear}`;
+    });
 
-    res.json({ years: yearList });
+    // Remove duplicates (in case multiple budgets have same year range)
+    const uniqueYearRanges = [...new Set(yearRanges)];
+
+    res.json({ years: uniqueYearRanges });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Something went wrong" });
+    res.status(500).json({ error: "Failed to retrieve budget years" });
   }
 };
 
