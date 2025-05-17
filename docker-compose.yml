@@ -2,59 +2,80 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16 
+    image: postgres:16.2 # Or latest stable 16.x
     container_name: postgres-db
     environment:
-      # Use .env file or secrets for these in production
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      POSTGRES_DB: ${POSTGRES_DB:-stock_db}
-    # ports: # Only expose if absolutely necessary and firewall it
-      # - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-stock_db}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"] # Note $$ for shell vars
       interval: 10s
       timeout: 5s
       retries: 5
+    # ports: # Do NOT expose 5432 to the host unless absolutely necessary
+      # - "5432:5432"
+    deploy: # Optional: Resource limits
+      resources:
+        limits:
+          memory: 1G # Adjust as needed
+        reservations:
+          memory: 512M
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      SERVER_URL: ${SERVER_URL:-http://localhost}
+      SERVER_URL: ${SERVER_URL}
       PORT: 3000
-      SECRET_KEY: ${SECRET_KEY:-mit-it-2024-stock-monitoring-system} # Use .env or secrets
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DB:-stock_db}
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
       postgres:
-        condition: service_healthy # Waits for postgres to be healthy
+        condition: service_healthy
     ports:
-      - "3000:3000" # Expose this if accessed directly or via reverse proxy mapping
+      - "127.0.0.1:3000:3000" # Expose only to localhost if using a reverse proxy
+                               # Or "3000:3000" if accessed directly (less recommended)
     restart: unless-stopped
-    healthcheck: # Example, adjust to your backend's health endpoint
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"] # Assuming a /health endpoint
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"] # Create a /health endpoint in your backend
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s # Give backend time to start up
+      start_period: 45s # Give backend more time to start after DB is healthy
+    deploy: # Optional: Resource limits
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G # Adjust as needed
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-  # Option 1: Frontend served by Nginx
-  frontend-nginx:
-    image: nginx:alpine
-    container_name: frontend-nginx
+  frontend: # Renamed from frontend-nginx for simplicity, assuming Nginx serves it
+    image: nginx:1.25-alpine # Pinned version
+    container_name: frontend-web
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html # Assuming your build output is in ./frontend/dist
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Optional: custom Nginx config
+      - ./frontend/dist:/usr/share/nginx/html:ro # Mount built static assets
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro # Custom Nginx config
     ports:
-      - "80:80" # Or 5173:80 if you want to keep the old port mapping for external access
+      - "80:80"   # For HTTP
+      # - "443:443" # If Nginx handles SSL (requires SSL certs and config)
     depends_on:
-      - backend # If frontend makes API calls at build time or needs backend for proxying
+      - backend # So Nginx knows backend exists for proxy_pass, if Nginx proxies API calls
     restart: unless-stopped
+    deploy: # Optional: Resource limits
+      resources:
+        limits:
+          memory: 256M # Adjust as needed
+        reservations:
+          memory: 128M
 
 volumes:
   postgres-data:
+    # driver: local # Default, but good to be explicit
