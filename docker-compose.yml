@@ -2,41 +2,59 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:16 
     container_name: postgres-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: stock_db
-    ports:
-      - "5432:5432"
+      # Use .env file or secrets for these in production
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-stock_db}
+    # ports: # Only expose if absolutely necessary and firewall it
+      # - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./database/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-stock_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      SERVER_URL: http://localhost
+      SERVER_URL: ${SERVER_URL:-http://localhost}
       PORT: 3000
-      SECRET_KEY: mit-it-2024-stock-monitoring-system
-      DATABASE_URL: postgresql://postgres:admin@postgres:5432/stock_db
+      SECRET_KEY: ${SECRET_KEY:-mit-it-2024-stock-monitoring-system} # Use .env or secrets
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DB:-stock_db}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy # Waits for postgres to be healthy
     ports:
-      - "3000:3000"
+      - "3000:3000" # Expose this if accessed directly or via reverse proxy mapping
+    restart: unless-stopped
+    healthcheck: # Example, adjust to your backend's health endpoint
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"] # Assuming a /health endpoint
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give backend time to start up
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    depends_on:
-      - backend
+  # Option 1: Frontend served by Nginx
+  frontend-nginx:
+    image: nginx:alpine
+    container_name: frontend-nginx
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html # Assuming your build output is in ./frontend/dist
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Optional: custom Nginx config
     ports:
-      - "5173:5173"
+      - "80:80" # Or 5173:80 if you want to keep the old port mapping for external access
+    depends_on:
+      - backend # If frontend makes API calls at build time or needs backend for proxying
+    restart: unless-stopped
 
 volumes:
   postgres-data:
