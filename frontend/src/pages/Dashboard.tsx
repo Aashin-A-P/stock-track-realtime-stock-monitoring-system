@@ -65,14 +65,17 @@ const Dashboard: React.FC = () => {
 
   // Function to generate blue shades for pie chart
   const generateBlueShades = (count: number) =>
-    Array.from({ length: count }, (_, idx) => `hsl(${220 + idx * 10}, 70%, 60%)`);
+    Array.from(
+      { length: count },
+      (_, idx) => `hsl(${220 + idx * 10}, 70%, 60%)`
+    );
 
   // Pie chart data for available vs. used budget
   const pieChartData1 = {
-    labels: analysisData?.map(data => data.budgetName),
+    labels: analysisData?.map((data) => data.budgetName),
     datasets: [
       {
-        data: analysisData?.map(data => data.totalBudget),
+        data: analysisData?.map((data) => data.totalBudget),
         backgroundColor: generateBlueShades(analysisData?.length || 0),
       },
     ],
@@ -83,11 +86,19 @@ const Dashboard: React.FC = () => {
 
   // Pie chart data for category spending
   const pieChartData2 = {
-    labels: analysisData?.flatMap(data => data.categorySpent.map(category => `${data.budgetName} - ${category.category}`)),
+    labels: analysisData?.flatMap((data) =>
+      data.categorySpent.map(
+        (category) => `${data.budgetName} - ${category.category}`
+      )
+    ),
     datasets: [
       {
-        data: analysisData?.flatMap(data => data.categorySpent.map(category => category.spent)),
-        backgroundColor: generateBlueShades(analysisData?.flatMap(data => data.categorySpent).length || 0),
+        data: analysisData?.flatMap((data) =>
+          data.categorySpent.map((category) => category.spent)
+        ),
+        backgroundColor: generateBlueShades(
+          analysisData?.flatMap((data) => data.categorySpent).length || 0
+        ),
       },
     ],
   };
@@ -109,13 +120,13 @@ const Dashboard: React.FC = () => {
       "Dec",
     ],
     datasets: analysisData
-      ? analysisData.map(data => ({
-        label: `${data.budgetName} - Monthly Spendings`,
-        data: data.monthlySpent,
-        borderColor: generateBlueShades(analysisData.length).shift(),
-        tension: 0.4,
-        fill: false,
-      }))
+      ? analysisData.map((data) => ({
+          label: `${data.budgetName} - Monthly Spendings`,
+          data: data.monthlySpent,
+          borderColor: generateBlueShades(analysisData.length).shift(),
+          tension: 0.4,
+          fill: false,
+        }))
       : [],
   };
 
@@ -137,51 +148,58 @@ const Dashboard: React.FC = () => {
     <>
       <Navbar />
       <div className="min-h-screen bg-gray-100 py-6 px-8">
-        <h2 className="text-3xl font-semibold text-center text-gray-900 mb-8">Dashboard</h2>
+        <div className="flex flex-col items-center text-center">
+          <h1 className="text-2xl font-bold text-indigo-700 mb-1">
+            Madras Institute of Technology
+          </h1>
+          <h2 className="text-lg font-semibold text-gray-600">
+            Department of Information Technology
+          </h2>
+        </div>
 
         {/* Year Selector */}
         <div className="flex justify-end mb-6">
-          <YearDropdown selectedYear={year} onSelectYear={handleYearChange} years={years} />
+          <YearDropdown
+            selectedYear={year}
+            onSelectYear={handleYearChange}
+            years={years}
+          />
         </div>
 
         {/* Overview Section */}
         <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Budget Card */}
           <div className="bg-white shadow-lg rounded-lg p-6">
-            <h3 className="text-xl font-medium text-gray-800 mb-4">Total Budget</h3>
-            {dashBoardError && <p className="text-red-500 mb-2">{dashBoardError}</p>}
+            <h3 className="text-xl font-medium text-gray-800 mb-4">
+              Total Budget
+            </h3>
+            {dashBoardError && (
+              <p className="text-red-500 mb-2">{dashBoardError}</p>
+            )}
             {dashboardLoading || !analysisData ? (
               <LoadingSpinner />
             ) : (
               <>
                 <div className="text-3xl font-semibold text-gray-900 mb-4">
-                  ₹{analysisData.reduce((acc, data) => acc + Number(data.totalBudget), 0).toFixed(2).toLocaleString()}
+                  ₹
+                  {analysisData
+                    .reduce((acc, data) => acc + Number(data.totalBudget), 0)
+                    .toFixed(2)
+                    .toLocaleString()}
                 </div>
                 <Pie data={pieChartData1} />
               </>
             )}
           </div>
 
-          {/* Total Spent Card */}
-          <div className="bg-white shadow-lg rounded-lg p-6">
-            <h3 className="text-xl font-medium text-gray-800 mb-4">Total Spent</h3>
-            {dashBoardError && <p className="text-red-500 mb-2">{dashBoardError}</p>}
-            {dashboardLoading || !analysisData ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <div className="text-3xl font-semibold text-gray-900 mb-4">
-                  ₹{analysisData.reduce((acc, data) => acc + Number(data.totalSpent), 0).toFixed(2).toLocaleString()}
-                </div>
-                <Pie data={pieChartData2} />
-              </>
-            )}
-          </div>
-
           {/* Monthly Spendings Chart */}
-          <div className="bg-white shadow-lg rounded-lg p-6 hidden col-span-2 md:block">
-            <h3 className="text-xl font-medium text-gray-800 text-center mb-4">Monthly Spendings</h3>
-            {dashBoardError && <p className="text-red-500 mb-2 text-center">{dashBoardError}</p>}
+          <div className="bg-white shadow-lg rounded-lg p-6 hidden col-span-3 md:block">
+            <h3 className="text-xl font-medium text-gray-800 text-center mb-4">
+              Monthly Spendings
+            </h3>
+            {dashBoardError && (
+              <p className="text-red-500 mb-2 text-center">{dashBoardError}</p>
+            )}
             {dashboardLoading || !analysisData ? (
               <LoadingSpinner />
             ) : (
@@ -194,8 +212,12 @@ const Dashboard: React.FC = () => {
 
         {/* Recent Logs Section */}
         <div className="bg-white shadow-lg rounded-lg p-6">
-          <h3 className="text-xl font-medium text-gray-800 mb-4">Recent Logs</h3>
-          {dashBoardError && <p className="text-red-500 mb-2">{dashBoardError}</p>}
+          <h3 className="text-xl font-medium text-gray-800 mb-4">
+            Recent Logs
+          </h3>
+          {dashBoardError && (
+            <p className="text-red-500 mb-2">{dashBoardError}</p>
+          )}
           {dashboardLoading || !logs ? (
             <LoadingSpinner />
           ) : (

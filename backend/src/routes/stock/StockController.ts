@@ -7,6 +7,8 @@ import { locationTable } from "../../db/schemas/locationsSchema";
 import { statusTable } from "../../db/schemas/statusSchema";
 import { categoriesTable } from "../../db/schemas/categoriesSchema";
 import { budgetsTable } from "../../db/schemas/budgetsSchema";
+import { and, gte, lte } from 'drizzle-orm';
+import { categoryWiseBudgetsTable } from "../../db/schemas/categoryWiseBudgetsSchema";
 
 interface Product {
   pageNo: string;
@@ -27,6 +29,7 @@ interface Product {
 }
 
 export const addStock = async (req: Request, res: Response) => {
+  console.log("Hi bro now I'm.....")
   try {
     const {
       productVolPageSerial,
@@ -41,7 +44,10 @@ export const addStock = async (req: Request, res: Response) => {
       productPrice,
       transferLetter,
       remarks,
+      budgetId,
     } = req.cleanBody;
+
+    console.log("Request Clean Body...")
 
     if (
       !productVolPageSerial ||
@@ -49,7 +55,7 @@ export const addStock = async (req: Request, res: Response) => {
       !gstAmount ||
       !categoryId ||
       !invoiceId ||
-      !productPrice 
+      !productPrice
     ) {
       return res.status(400).send("All fields are required");
     }
@@ -71,7 +77,7 @@ export const addStock = async (req: Request, res: Response) => {
         remarks,
       })
       .returning();
-      
+   
     req.logMessages =
       ["Stock with id " + newProduct.productId + " added successfully"];
     res
@@ -626,10 +632,6 @@ export const getProductById = async (req: Request, res: Response) => {
 //     res.status(500).send("Failed to fetch report data");
 //   }
 // };
-
-
-
-import { and, gte, lte } from 'drizzle-orm';
 
 export const getReportData = async (req: Request, res: Response) => {
   try {

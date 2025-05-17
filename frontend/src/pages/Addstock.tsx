@@ -292,12 +292,6 @@ const AddProduct: React.FC = () => {
       return;
     }
 
-    const parsedInvoiceData = {
-      ...invoiceDetails,
-      totalAmount: invoiceDetails.totalAmount.toString(),
-      budgetId: budgetData.budgets[0].budgetId,
-    };
-
     // Helper function to parse a range string (e.g., "1-5,7,9-10") into an array of numbers.
     const parseRange = (rangeStr: string): number[] => {
       const result: number[] = [];
@@ -316,6 +310,32 @@ const AddProduct: React.FC = () => {
         }
       });
       return result;
+    };
+
+
+    // other validations can be added here
+    for (const product of products) {
+  if (!product.locationRangeMappings || product.locationRangeMappings.length === 0) {
+    toast.error(`No location range mapping provided for product: ${product.productName}`);
+    setLoading(false);
+    return; // ✅ this now exits handleSubmit
+  }
+
+  for (const mapping of product.locationRangeMappings) {
+    const unitNumbers = parseRange(mapping.range);
+    if (unitNumbers.length === 0) {
+      toast.error(`Invalid range provided for product: ${product.productName}`);
+      setLoading(false);
+      return; // ✅ also exits handleSubmit
+    }
+  }
+}
+
+
+    const parsedInvoiceData = {
+      ...invoiceDetails,
+      totalAmount: invoiceDetails.totalAmount.toString(),
+      budgetId: budgetData.budgets[0].budgetId,
     };
 
     try {
@@ -346,25 +366,25 @@ const AddProduct: React.FC = () => {
           fetchMetadata(baseUrl, "stock/category/search", product.category),
         ]);
 
-        // Ensure we have locationRangeMappings for this product
-        if (!product.locationRangeMappings || product.locationRangeMappings.length === 0) {
-          toast.error(`No location range mapping provided for product: ${product.productName}`);
-          setLoading(false);
-          return;
-        }
+        // // Ensure we have locationRangeMappings for this product
+        // if (!product.locationRangeMappings || product.locationRangeMappings.length === 0) {
+        //   toast.error(`No location range mapping provided for product: ${product.productName}`);
+        //   setLoading(false);
+        //   return;
+        // }
 
         // Process each location range mapping
-        for (const mapping of product.locationRangeMappings) {
+        for (const mapping of product.locationRangeMappings!) {
           // Lookup location metadata for the mapping's selected location
           const locationData = await fetchMetadata(baseUrl, "stock/location/search", mapping.location);
 
-          // Parse the mapping range (e.g., "1-5,7") into individual unit numbers
+          // // Parse the mapping range (e.g., "1-5,7") into individual unit numbers
           const unitNumbers = parseRange(mapping.range);
-          if (unitNumbers.length === 0) {
-            toast.error(`Invalid range provided for product: ${product.productName}`);
-            setLoading(false);
-            return;
-          }
+          // if (unitNumbers.length === 0) {
+          //   toast.error(`Invalid range provided for product: ${product.productName}`);
+          //   setLoading(false);
+          //   return;
+          // }
 
           // Prepare common product data for insertion
           const productData = {
@@ -384,7 +404,10 @@ const AddProduct: React.FC = () => {
             transferLetter: product.transferLetter,
           };
 
+          console.log("Product Data : ", productData)
+
           // For each unit specified in the range, add an individual product record
+          console.log(JSON.stringify(productData, null, 2));
           const productAddRequests = unitNumbers.map(() =>
             fetch(`${baseUrl}/stock/add`, {
               method: "POST",

@@ -40,6 +40,7 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   productImage: true, 
   transferLetter: true,
   gstAmount: true, 
+  productId: true,
 
 }).extend({
   invoiceId: z.number(),
