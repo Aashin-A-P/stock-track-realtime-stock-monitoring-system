@@ -5,9 +5,6 @@ import { fileURLToPath } from 'url';
 
 const router = express.Router();
 
-// Resolve __dirname in ES Module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const settingsFilePath = path.join(__dirname, '../../data/columnSettings.json');
 
 // Endpoint to get the settings

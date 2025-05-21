@@ -13,9 +13,6 @@ import uploadRouter from "./routes/uploads";
 import logsRouter from "./routes/logs";
 import fundRouter from "./routes/funds";
 import reportStateRouter from "./routes/settingsRoutes"
-// Resolve __dirname in ES Module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT;

@@ -476,7 +476,7 @@ useEffect(() => {
 	};
 
 	const saveSettings = async (settings: { selectedColumns: SelectedColumns; columnOrder: string[]; columnAliases: ColumnAliases }) => {
-		await fetch("http://localhost:3000/settings", {
+		await fetch(`${API_URL}/settings`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",

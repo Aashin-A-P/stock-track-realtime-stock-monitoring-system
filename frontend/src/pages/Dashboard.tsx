@@ -1,4 +1,3 @@
-// pages/Dashboard.tsx
 import React, { useEffect } from "react";
 import { Pie, Line } from "react-chartjs-2";
 import dayjs from "dayjs";
@@ -10,10 +9,8 @@ import Navbar from "../components/Navbar";
 import YearDropdown from "../components/YearDropdown";
 import LoadingSpinner from "../components/LoadingSpinner";
 
-// Extend dayjs functionality for relative time
 dayjs.extend(relativeTime);
 
-// Register Chart.js components
 import {
   Chart as ChartJS,
   ArcElement,
@@ -52,25 +49,21 @@ const Dashboard: React.FC = () => {
     years,
     loading: dashboardLoading,
     year,
-    error: dashBoardError,
     fetchData,
     setYear,
   } = useDashboard();
 
-  // Handle year change
   const handleYearChange = (selectedYear: number) => {
     setYear(selectedYear);
     fetchData(selectedYear);
   };
 
-  // Function to generate blue shades for pie chart
   const generateBlueShades = (count: number) =>
     Array.from(
       { length: count },
       (_, idx) => `hsl(${220 + idx * 10}, 70%, 60%)`
     );
 
-  // Pie chart data for available vs. used budget
   const pieChartData1 = {
     labels: analysisData?.map((data) => data.budgetName),
     datasets: [
@@ -79,31 +72,8 @@ const Dashboard: React.FC = () => {
         backgroundColor: generateBlueShades(analysisData?.length || 0),
       },
     ],
-    options: {
-      cutoutPercentage: 50, // Creates the donut effect
-    },
   };
 
-  // Pie chart data for category spending
-  const pieChartData2 = {
-    labels: analysisData?.flatMap((data) =>
-      data.categorySpent.map(
-        (category) => `${data.budgetName} - ${category.category}`
-      )
-    ),
-    datasets: [
-      {
-        data: analysisData?.flatMap((data) =>
-          data.categorySpent.map((category) => category.spent)
-        ),
-        backgroundColor: generateBlueShades(
-          analysisData?.flatMap((data) => data.categorySpent).length || 0
-        ),
-      },
-    ],
-  };
-
-  // Line chart data for monthly spending
   const lineChartData = {
     labels: [
       "Jan",
@@ -120,17 +90,16 @@ const Dashboard: React.FC = () => {
       "Dec",
     ],
     datasets: analysisData
-      ? analysisData.map((data) => ({
+      ? analysisData.map((data, i) => ({
           label: `${data.budgetName} - Monthly Spendings`,
           data: data.monthlySpent,
-          borderColor: generateBlueShades(analysisData.length).shift(),
+          borderColor: generateBlueShades(analysisData.length)[i],
           tension: 0.4,
           fill: false,
         }))
       : [],
   };
 
-  // Chart options
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -139,17 +108,14 @@ const Dashboard: React.FC = () => {
     },
   };
 
-  // For auth-related loading we block the entire page
-  if (authLoading) {
-    return <LoadingSpinner />;
-  }
+  if (authLoading) return <LoadingSpinner />;
 
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-100 py-6 px-8">
-        <div className="flex flex-col items-center text-center">
-          <h1 className="text-2xl font-bold text-indigo-700 mb-1">
+      <div className="min-h-screen bg-gray-100 py-6 px-4 md:px-8">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-indigo-700">
             Madras Institute of Technology
           </h1>
           <h2 className="text-lg font-semibold text-gray-600">
@@ -157,7 +123,6 @@ const Dashboard: React.FC = () => {
           </h2>
         </div>
 
-        {/* Year Selector */}
         <div className="flex justify-end mb-6">
           <YearDropdown
             selectedYear={year}
@@ -166,61 +131,55 @@ const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Overview Section */}
         <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Budget Card */}
-          <div className="bg-white shadow-lg rounded-lg p-6">
+          <div className="bg-white shadow-lg rounded-lg p-6 col-span-1">
             <h3 className="text-xl font-medium text-gray-800 mb-4">
               Total Budget
             </h3>
-            {dashBoardError && (
-              <p className="text-red-500 mb-2">{dashBoardError}</p>
-            )}
-            {dashboardLoading || !analysisData ? (
+            {dashboardLoading ? (
               <LoadingSpinner />
-            ) : (
+            ) : analysisData && analysisData.length > 0 ? (
               <>
                 <div className="text-3xl font-semibold text-gray-900 mb-4">
                   ₹
                   {analysisData
                     .reduce((acc, data) => acc + Number(data.totalBudget), 0)
-                    .toFixed(2)
-                    .toLocaleString()}
+                    .toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </div>
                 <Pie data={pieChartData1} />
               </>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                No budget data available for the selected year.
+              </p>
             )}
           </div>
 
-          {/* Monthly Spendings Chart */}
-          <div className="bg-white shadow-lg rounded-lg p-6 hidden col-span-3 md:block">
+          <div className="bg-white shadow-lg rounded-lg p-6 col-span-1 md:col-span-1 lg:col-span-3 hidden md:block">
             <h3 className="text-xl font-medium text-gray-800 text-center mb-4">
               Monthly Spendings
             </h3>
-            {dashBoardError && (
-              <p className="text-red-500 mb-2 text-center">{dashBoardError}</p>
-            )}
-            {dashboardLoading || !analysisData ? (
+            {dashboardLoading ? (
               <LoadingSpinner />
-            ) : (
+            ) : analysisData && analysisData.length > 0 ? (
               <div className="h-64">
                 <Line data={lineChartData} options={chartOptions} />
               </div>
+            ) : (
+              <p className="text-center text-gray-500 text-sm">
+                No monthly spending data to display.
+              </p>
             )}
           </div>
         </div>
 
-        {/* Recent Logs Section */}
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h3 className="text-xl font-medium text-gray-800 mb-4">
             Recent Logs
           </h3>
-          {dashBoardError && (
-            <p className="text-red-500 mb-2">{dashBoardError}</p>
-          )}
-          {dashboardLoading || !logs ? (
+          {dashboardLoading ? (
             <LoadingSpinner />
-          ) : (
+          ) : logs && logs.length > 0 ? (
             <ul className="space-y-4">
               {logs.map((log) => (
                 <li key={log.logId} className="text-gray-700">
@@ -231,6 +190,10 @@ const Dashboard: React.FC = () => {
                 </li>
               ))}
             </ul>
+          ) : (
+            <p className="text-gray-500 text-sm">
+              No logs available for the selected year.
+            </p>
           )}
         </div>
       </div>
