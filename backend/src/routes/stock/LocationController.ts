@@ -8,6 +8,7 @@ export const addLocation = async (req: Request, res: Response) => {
     const { locationName, staffIncharge } = req.cleanBody;
 
     if (!locationName) {
+      req.logMessages = ["[ADD_LOCATION_WARNING] Location name is missing"];
       return res.status(400).send("Location name is required");
     }
 
@@ -16,11 +17,16 @@ export const addLocation = async (req: Request, res: Response) => {
       .values({ locationName, staffIncharge })
       .returning();
 
-    res
-      .status(201)
-      .json({ message: "Location added successfully", location: newLocation });
+    req.logMessages = [
+      `[ADD_LOCATION_SUCCESS] Location '${locationName}' added`,
+    ];
+
+    res.status(201).json({
+      message: "Location added successfully",
+      location: newLocation,
+    });
   } catch (error) {
-    console.error(error);
+    req.logMessages = ["[ADD_LOCATION_ERROR] Failed to add location"];
     res.status(500).send("Failed to add location");
   }
 };
@@ -41,7 +47,6 @@ export const showLocation = async (req: Request, res: Response) => {
 
     res.status(200).json({ location });
   } catch (error) {
-    console.error(error);
     res.status(500).send("Failed to retrieve location");
   }
 };
@@ -49,10 +54,8 @@ export const showLocation = async (req: Request, res: Response) => {
 export const showLocations = async (_req: Request, res: Response) => {
   try {
     const locations = await db.select().from(locationTable);
-
     res.status(200).json({ locations });
   } catch (error) {
-    console.error(error);
     res.status(500).send("Failed to retrieve locations");
   }
 };
@@ -69,17 +72,20 @@ export const updateLocation = async (req: Request, res: Response) => {
       .returning();
 
     if (!updatedLocation) {
+      req.logMessages = ["[UPDATE_LOCATION_WARNING] Location not found"];
       return res.status(404).send("Location not found");
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Location updated successfully",
-        location: updatedLocation,
-      });
+    req.logMessages = [
+      `[UPDATE_LOCATION_SUCCESS] Location '${locationId}' updated`,
+    ];
+
+    res.status(200).json({
+      message: "Location updated successfully",
+      location: updatedLocation,
+    });
   } catch (error) {
-    console.error(error);
+    req.logMessages = ["[UPDATE_LOCATION_ERROR] Failed to update location"];
     res.status(500).send("Failed to update location");
   }
 };
@@ -93,13 +99,18 @@ export const deleteLocation = async (req: Request, res: Response) => {
       .where(eq(locationTable.locationId, Number(locationId)))
       .returning();
 
-    if (!deletedLocation) {
+    if (deletedLocation.length === 0) {
+      req.logMessages = ["[DELETE_LOCATION_WARNING] Location not found"];
       return res.status(404).send("Location not found");
     }
 
+    req.logMessages = [
+      `[DELETE_LOCATION_SUCCESS] Location '${locationId}' deleted`,
+    ];
+
     res.status(200).json({ message: "Location deleted successfully" });
   } catch (error) {
-    console.error(error);
+    req.logMessages = ["[DELETE_LOCATION_ERROR] Failed to delete location"];
     res.status(500).send("Failed to delete location");
   }
 };
@@ -111,14 +122,11 @@ export const searchLocation = async (req: Request, res: Response) => {
     const [location] = await db
       .select()
       .from(locationTable)
-      .where(
-        eq(locationTable.locationName, locationName)
-      )
+      .where(eq(locationTable.locationName, locationName))
       .limit(1);
 
     res.status(200).json(location);
   } catch (error) {
-    console.error(error);
     res.status(500).send("Failed to search location");
   }
-}
+};

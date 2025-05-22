@@ -15,7 +15,7 @@ type Product = {
   locationName: string;
   categoryName: string;
   statusDescription: string;
-  TotalAmount: string;
+  actualAmount: string;
   gstAmount: string;
   PODate: string;
   invoiceNo: string;
@@ -37,6 +37,7 @@ const SearchStock: React.FC = () => {
   }, [token, navigate]);
 
   const [products, setProducts] = useState<Product[]>([]);
+  console.log(products);
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 10,
@@ -201,7 +202,7 @@ const SearchStock: React.FC = () => {
                       <td className="p-4">{product.categoryName}</td>
                       <td className="p-4">{product.locationName}</td>
                       <td className="p-4">{product.statusDescription}</td>
-                      <td className="p-4">{(Number(product.TotalAmount) - Number(product.gstAmount))}</td>
+                      <td className="p-4">{product.actualAmount}</td>
                       <td className="p-4">{product.gstAmount}</td>
                       <td className="p-4">{product.invoiceDate}</td>
                       <td className="p-4">{product.invoiceNo}</td>

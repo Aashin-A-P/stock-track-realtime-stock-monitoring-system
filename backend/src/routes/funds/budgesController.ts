@@ -17,12 +17,18 @@ export const addBudget = async (req: Request, res: Response) => {
       .values({ budgetName, startDate, endDate, amount })
       .returning();
 
+    req.logMessages = [`Budget added: ${budgetName}`];
+
     res.status(201).json({
       message: "Budget added successfully",
       budget: newBudget,
     });
   } catch (error: any) {
-    console.error(error);
+    req.logMessages = [
+      `Failed to add budget: ${req.body?.budgetName || "unknown"} - ${
+        error.message
+      }`,
+    ];
     res.status(500).send("Failed to add budget");
   }
 };
@@ -53,7 +59,6 @@ export const showBudget = async (req: Request, res: Response) => {
 export const showBudgets = async (_req: Request, res: Response) => {
   try {
     const budgets = await db.select().from(budgetsTable);
-
     res.status(200).json({ budgets });
   } catch (error) {
     console.error(error);
@@ -78,15 +83,20 @@ export const updateBudget = async (req: Request, res: Response) => {
       .returning();
 
     if (!updatedBudget) {
+      req.logMessages = [`Failed to update budget (not found): ID ${id}`];
       return res.status(404).send("Budget not found");
     }
+
+    req.logMessages = [`Budget updated: ID ${id}, Name ${budgetName}`];
 
     res.status(200).json({
       message: "Budget updated successfully",
       budget: updatedBudget,
     });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    req.logMessages = [
+      `Failed to update budget ID ${req.params?.id}: ${error.message}`,
+    ];
     res.status(500).send("Failed to update budget");
   }
 };
@@ -102,12 +112,19 @@ export const deleteBudget = async (req: Request, res: Response) => {
       .returning();
 
     if (!deletedBudget) {
+      req.logMessages = [`Failed to delete budget (not found): ID ${id}`];
       return res.status(404).send("Budget not found");
     }
 
+    req.logMessages = [
+      `Budget deleted: ID ${id}, Name ${deletedBudget.budgetName}`,
+    ];
+
     res.status(200).json({ message: "Budget deleted successfully" });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    req.logMessages = [
+      `Failed to delete budget ID ${req.params?.id}: ${error.message}`,
+    ];
     res.status(500).send("Failed to delete budget");
   }
 };

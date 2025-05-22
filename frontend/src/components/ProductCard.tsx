@@ -5,7 +5,7 @@ import { Product, RangeMapping } from "./../types/index"
 interface ProductCardProps {
   index: number;
   product: Product;
-  handleProductChange: (index: number, field: string, value: any) => void;
+  handleProductChange: (index: number, field: string, value: number|string|RangeMapping[]) => void;
   categories: string[];
   locations: string[];
   Statuses: string[];
@@ -49,7 +49,7 @@ const ProductCard = ({
   //   2. There are no duplicate assignments
   //   3. All units from 1 to total are covered.
   const validateRangeMappings = (mappings: RangeMapping[], total: number): string | null => {
-    let assignedNumbers = new Set<number>();
+    const assignedNumbers = new Set<number>();
     for (const mapping of mappings) {
       if (!mapping.range.trim()) {
         return "All mapping rows must have a valid range.";

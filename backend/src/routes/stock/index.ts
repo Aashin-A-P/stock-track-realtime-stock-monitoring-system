@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import { addInvoice, deleteInvoice, showInvoice, showInvoices, updateInvoice } from './InvoiceController';
 import { validateData } from '../../middlewares/validationMiddleware';
@@ -18,42 +17,42 @@ const router = Router();
 
 // // Invoice Routes
 // @ts-ignore
-router.post('/invoice/add', verifyToken, validateData(createInvoiceSchema), addInvoice);
+router.post('/invoice/add', verifyToken, validateData(createInvoiceSchema), logger, addInvoice);
 // @ts-ignore
-router.get('/invoice/:id', verifyToken, showInvoice);
+router.get('/invoice/:id', verifyToken, logger, showInvoice);
 // @ts-ignore
-router.put('/invoice/:id', verifyToken, validateData(createInvoiceSchema), updateInvoice);
+router.put('/invoice/:id', verifyToken, validateData(createInvoiceSchema), logger, updateInvoice);
 // @ts-ignore
-router.delete('/invoice/:id', verifyToken, deleteInvoice);
-router.get('/invoice/', verifyToken, showInvoices);
+router.delete('/invoice/:id', verifyToken, logger, deleteInvoice);
+router.get('/invoice/', verifyToken, logger, showInvoices);
 
 // // Location Routes
 // @ts-ignore
-router.post('/location/add', verifyToken, validateData(createLocationSchema), addLocation);
+router.post('/location/add', verifyToken, validateData(createLocationSchema), logger, addLocation);
 // @ts-ignore
-router.get('/location/search', verifyToken, searchLocation);
+router.get('/location/search', verifyToken, logger, searchLocation);
 // @ts-ignore
-router.put('/location/update/:locationId', verifyToken, validateData(createLocationSchema), updateLocation);
+router.put('/location/update/:locationId', verifyToken, validateData(createLocationSchema), logger, updateLocation);
 // @ts-ignore
-router.delete('/location/delete/:locationId', verifyToken, deleteLocation);
+router.delete('/location/delete/:locationId', verifyToken, logger, deleteLocation);
 // @ts-ignore
-router.get('/location/:locationId', verifyToken, showLocation);
+router.get('/location/:locationId', verifyToken, logger, showLocation);
 // @ts-ignore
-router.get('/locations', verifyToken, showLocations);
+router.get('/locations', verifyToken, logger, showLocations);
 
-// // Remarks Routes
+// // Status Routes (previously referred to as Remarks in comments)
 // @ts-ignore
-router.post('/status/add', verifyToken, validateData(createStatusSchema), addStatus);
+router.post('/status/add', verifyToken, validateData(createStatusSchema), logger, addStatus);
 // @ts-ignore
-router.get('/status/search', verifyToken, searchStatus);
+router.get('/status/search', verifyToken, logger, searchStatus);
 // @ts-ignore
-router.get('/status/:id', verifyToken, showStatus);
+router.get('/status/:id', verifyToken, logger, showStatus);
 // @ts-ignore
-router.put('/status/:id', verifyToken, validateData(createStatusSchema), updateStatus);
+router.put('/status/:id', verifyToken, validateData(createStatusSchema), logger, updateStatus);
 // @ts-ignore
-router.delete('/status/:id', verifyToken, deleteStatus);
+router.delete('/status/:id', verifyToken, logger, deleteStatus);
 // @ts-ignore
-router.get('/status/', verifyToken, showStatuses);
+router.get('/status/', verifyToken, logger, showStatuses);
 
 // // Categories Routes
 // @ts-ignore
@@ -72,14 +71,14 @@ router.get('/category/', verifyToken, logger, showCategories);
 
 // // stocks route
 // @ts-ignore
-// router.get("/search", verifyToken, logger, searchStock);
+// router.get("/search", verifyToken, logger, searchStock); // This line was commented out, keeping it as is.
 router.get("/details", verifyToken, logger, getPaginatedProducts);
 // @ts-ignore
 router.post('/submit', verifyToken, logger, handleInvoiceWithProducts);
 // @ts-ignore
 router.post('/add', verifyToken, validateData(createProductSchema), logger, addStock);
 // @ts-ignore
-router.get('/report', getReportData);
+router.get('/report', logger, getReportData); // Added logger here. Note: verifyToken was not present.
 // @ts-ignore
 router.delete("/:productId", verifyToken, logger, deleteStock);
 // @ts-ignore

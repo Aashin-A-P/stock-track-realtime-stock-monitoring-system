@@ -21,15 +21,16 @@ export const addInvoice = async (req: Request, res: Response) => {
       !fromAddress ||
       !toAddress ||
       !totalAmount ||
-      !invoiceDate||
+      !invoiceDate ||
       !PODate ||
       !budgetId
     ) {
+      req.logMessages = ["Failed to add invoice", "Missing required fields"];
       return res
         .status(400)
         .send("All fields except invoiceImage are required");
     }
-    console.log("Adding Invoice");
+
     const [newInvoice] = await db
       .insert(invoiceTable)
       .values({
@@ -43,12 +44,18 @@ export const addInvoice = async (req: Request, res: Response) => {
         budgetId,
       })
       .returning();
-      console.log("Invoice addedSuccessfully");
-    res
-      .status(201)
-      .json({ message: "Invoice added successfully", invoice: newInvoice });
+
+    req.logMessages = [
+      `Invoice #${newInvoice.invoiceNo} added successfully. Invoice ID: ${newInvoice.invoiceId}`
+    ];
+
+    res.status(201).json({
+      message: "Invoice added successfully",
+      invoice: newInvoice,
+    });
   } catch (error) {
     console.error(error);
+    req.logMessages = ["Error adding invoice", (error as Error).message];
     res.status(500).send("Failed to add invoice");
   }
 };
@@ -115,17 +122,22 @@ export const updateInvoice = async (req: Request, res: Response) => {
       .returning();
 
     if (!updatedInvoice) {
+      req.logMessages = [`Invoice update failed`, `Invoice ID ${id} not found`];
       return res.status(404).send("Invoice not found");
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Invoice updated successfully",
-        invoice: updatedInvoice,
-      });
+    req.logMessages = [
+      `Invoice #${updatedInvoice.invoiceNo} updated successfully`,
+      `Invoice ID: ${updatedInvoice.invoiceId}`,
+    ];
+
+    res.status(200).json({
+      message: "Invoice updated successfully",
+      invoice: updatedInvoice,
+    });
   } catch (error) {
     console.error(error);
+    req.logMessages = ["Error updating invoice", (error as Error).message];
     res.status(500).send("Failed to update invoice");
   }
 };
@@ -134,18 +146,25 @@ export const deleteInvoice = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const deletedInvoice = await db
+    const [deletedInvoice] = await db
       .delete(invoiceTable)
       .where(eq(invoiceTable.invoiceId, Number(id)))
       .returning();
 
     if (!deletedInvoice) {
+      req.logMessages = [`Invoice delete failed`, `Invoice ID ${id} not found`];
       return res.status(404).send("Invoice not found");
     }
+
+    req.logMessages = [
+      `Invoice #${deletedInvoice.invoiceNo} deleted successfully`,
+      `Invoice ID: ${deletedInvoice.invoiceId}`,
+    ];
 
     res.status(200).json({ message: "Invoice deleted successfully" });
   } catch (error) {
     console.error(error);
+    req.logMessages = ["Error deleting invoice", (error as Error).message];
     res.status(500).send("Failed to delete invoice");
   }
 };

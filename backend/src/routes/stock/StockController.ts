@@ -7,7 +7,7 @@ import { locationTable } from "../../db/schemas/locationsSchema";
 import { statusTable } from "../../db/schemas/statusSchema";
 import { categoriesTable } from "../../db/schemas/categoriesSchema";
 import { budgetsTable } from "../../db/schemas/budgetsSchema";
-import { and, gte, lte } from 'drizzle-orm';
+import { and, gte, lte } from "drizzle-orm";
 import { categoryWiseBudgetsTable } from "../../db/schemas/categoryWiseBudgetsSchema";
 
 interface Product {
@@ -29,7 +29,6 @@ interface Product {
 }
 
 export const addStock = async (req: Request, res: Response) => {
-  console.log("Hi bro now I'm.....")
   try {
     const {
       productVolPageSerial,
@@ -44,10 +43,8 @@ export const addStock = async (req: Request, res: Response) => {
       productPrice,
       transferLetter,
       remarks,
-      budgetId,
+      budgetId, // budgetId is destructured but not used in the insert
     } = req.cleanBody;
-
-    console.log("Request Clean Body...")
 
     if (
       !productVolPageSerial ||
@@ -77,9 +74,7 @@ export const addStock = async (req: Request, res: Response) => {
         remarks,
       })
       .returning();
-   
-    req.logMessages =
-      ["Stock with id " + newProduct.productId + " added successfully"];
+
     res
       .status(201)
       .json({ message: "Stock added successfully", product: newProduct });
@@ -126,12 +121,16 @@ export const searchStock = async (req: Request, res: Response) => {
     if (columnType === "integer") {
       typedQuery = parseInt(query as string, 10);
       if (isNaN(typedQuery)) {
-        return res.status(400).send("Query must be a valid integer for this column");
+        return res
+          .status(400)
+          .send("Query must be a valid integer for this column");
       }
     } else if (columnType === "decimal") {
       typedQuery = parseFloat(query as string);
       if (isNaN(typedQuery)) {
-        return res.status(400).send("Query must be a valid decimal for this column");
+        return res
+          .status(400)
+          .send("Query must be a valid decimal for this column");
       }
     }
 
@@ -165,15 +164,26 @@ export const deleteStock = async (req: Request, res: Response) => {
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
       .returning();
 
-    req.logMessages =
-      ["Stock with id " +
-      productId +
-      " deleted. " +
-      "\nDeleted Data : " +
-      deletedStock];
+    if (deletedStock.length > 0) {
+      req.logMessages = [
+        `Stock with id ${productId} deleted. Deleted Data: ${JSON.stringify(
+          deletedStock
+        )}`,
+      ];
+    } else {
+      req.logMessages = [
+       `Stock with id ${productId} deletion processed. Data returned: ${JSON.stringify(deletedStock)}`
+      ];
+    }
     res.status(200).send("Stock deleted successfully");
   } catch (error) {
     console.error(error);
+    // For failure of operation (e.g., DB error)
+    req.logMessages = [
+      `Failed to delete stock with id ${productsTable.productId}. Error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    ];
     res.status(500).send("Failed to delete stock");
   }
 };
@@ -195,20 +205,17 @@ export const updateStock = async (req: Request, res: Response) => {
       categoryId,
       productPrice,
       remarks,
-      
     } = req.cleanBody;
 
     if (!productId) {
       return res.status(400).send("Product ID is required");
     }
-  
+
     const oldStockData = await db
       .select()
       .from(productsTable)
       .where(sql`${productsTable.productId} = ${Number(productId)}`);
-      
-     
-      
+
     const updatedStock = await db
       .update(productsTable)
       .set({
@@ -228,18 +235,29 @@ export const updateStock = async (req: Request, res: Response) => {
       .where(sql`${productsTable.productId} = ${Number(productId)}`)
       .returning();
 
-    req.logMessages =
-      ["Stock with id " +
-      productId +
-      " updated. \nold data: " +
-      oldStockData +
-      " \nnew data: " +
-      updatedStock];
+    if (updatedStock.length > 0) {
+      req.logMessages = [
+        `Stock with id ${productId} updated. Old data: ${JSON.stringify(
+          oldStockData
+        )}. New data: ${JSON.stringify(updatedStock)}`,
+      ];
+    } else {
+      // Similar to delete, if update affects 0 rows.
+      req.logMessages = [
+        `Attempted to update stock with id ${productId}, but it was not found or no changes made.`,
+      ];
+    }
     res
       .status(200)
       .json({ message: "Stock updated successfully", stock: updatedStock });
   } catch (error) {
     console.error(error);
+    const { productId } = req.params; // ensure productId is available for log
+    req.logMessages = [
+      `Failed to update stock with id ${productId || "unknown"}. Error: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    ];
     res.status(500).send("Failed to update stock");
   }
 };
@@ -255,106 +273,133 @@ export const getAllStock = async (_req: Request, res: Response) => {
   }
 };
 
-export const handleInvoiceWithProducts = async (req: Request, res: Response) => {
-  await db.transaction(async (transaction) => {
-    try {
-      const { invoiceDetails, products }: { invoiceDetails: any, products : Product[]} = req.body;
+export const handleInvoiceWithProducts = async (
+  req: Request,
+  res: Response
+) => {
+  await db.transaction(
+    async (transaction) => {
+      try {
+        const {
+          invoiceDetails,
+          products,
+        }: { invoiceDetails: any; products: Product[] } = req.body;
 
-      const {
-        fromAddress,
-        toAddress,
-        totalAmount,
-        PODate,
-        invoiceDate,
-        invoiceImage,
-      } = invoiceDetails;
-
-      if (!fromAddress || !toAddress || !totalAmount || !PODate || !invoiceDate) {
-        return res
-          .status(400)
-          .send("All invoice fields except invoiceImage are required");
-      }
-
-      // Add invoice
-      const [newInvoice] = await transaction
-        .insert(invoiceTable)
-        .values({
+        const {
           fromAddress,
           toAddress,
           totalAmount,
           PODate,
           invoiceDate,
           invoiceImage,
-        })
-        .returning();
-      const invoiceId = newInvoice.invoiceId;
+        } = invoiceDetails;
 
-      // Batch fetch metadata
-      const uniqueLocations = [...new Set(products.map((p) => p.location))];
-      const uniqueStatus = [...new Set(products.map((p) => p.statusDescription))];
-      const uniqueCategories = [...new Set(products.map((p) => p.category))];
+        if (
+          !fromAddress ||
+          !toAddress ||
+          !totalAmount ||
+          !PODate ||
+          !invoiceDate
+        ) {
+          return res
+            .status(400)
+            .send("All invoice fields except invoiceImage are required");
+        }
 
-      const locations = await transaction
-        .select()
-        .from(locationTable)
-        .where(inArray(locationTable.locationName, uniqueLocations));
-      const status = await transaction
-        .select()
-        .from(statusTable)
-        .where(inArray(statusTable.statusDescription, uniqueStatus));
-      const categories = await transaction
-        .select()
-        .from(categoriesTable)
-        .where(inArray(categoriesTable.categoryName, uniqueCategories));
+        // Add invoice
+        const [newInvoice] = await transaction
+          .insert(invoiceTable)
+          .values({
+            fromAddress,
+            toAddress,
+            totalAmount,
+            PODate,
+            invoiceDate,
+            invoiceImage,
+          })
+          .returning();
+        const invoiceId = newInvoice.invoiceId;
 
-      // Create mapping for metadata
-      const locationMap = Object.fromEntries(locations.map((l) => [l.locationName, l]));
-      const statusMap = Object.fromEntries(status.map((s) => [s.statusDescription, s]));
-      const categoryMap = Object.fromEntries(categories.map((c) => [c.categoryName, c]));
+        // Batch fetch metadata
+        const uniqueLocations = [...new Set(products.map((p) => p.location))];
+        const uniqueStatus = [
+          ...new Set(products.map((p) => p.statusDescription)),
+        ];
+        const uniqueCategories = [...new Set(products.map((p) => p.category))];
 
-      // Validate metadata
-      const invalidMetadata = products.find(
-        (p) =>
-          !locationMap[p.location] ||
-          !statusMap[p.statusDescription] ||
-          !categoryMap[p.category]
-      );
-      if (invalidMetadata) {
-        throw new Error("Invalid location, status, or category");
+        const locations = await transaction
+          .select()
+          .from(locationTable)
+          .where(inArray(locationTable.locationName, uniqueLocations));
+        const status = await transaction
+          .select()
+          .from(statusTable)
+          .where(inArray(statusTable.statusDescription, uniqueStatus));
+        const categories = await transaction
+          .select()
+          .from(categoriesTable)
+          .where(inArray(categoriesTable.categoryName, uniqueCategories));
+
+        // Create mapping for metadata
+        const locationMap = Object.fromEntries(
+          locations.map((l) => [l.locationName, l])
+        );
+        const statusMap = Object.fromEntries(
+          status.map((s) => [s.statusDescription, s])
+        );
+        const categoryMap = Object.fromEntries(
+          categories.map((c) => [c.categoryName, c])
+        );
+
+        // Validate metadata
+        const invalidMetadata = products.find(
+          (p) =>
+            !locationMap[p.location] ||
+            !statusMap[p.statusDescription] ||
+            !categoryMap[p.category]
+        );
+        if (invalidMetadata) {
+          throw new Error("Invalid location, status, or category");
+        }
+
+        // Prepare product data for batch insert
+        const productData = products.flatMap((product) =>
+          Array.from({ length: product.quantity }, () => ({
+            productVolPageSerial: product.productVolPageSerial,
+            productName: product.productName,
+            productDescription: product.productDescription,
+            locationId: locationMap[product.location].locationId,
+            statusId: statusMap[product.statusDescription].statusId,
+            gst: invoiceDetails.gstAmount, // This was 'gst', assuming it maps to gstAmount in productsTable
+            productImage: product.productImage,
+            transferLetter: product.transferLetter,
+            invoiceId,
+            categoryId: categoryMap[product.category].categoryId,
+            productPrice: product.productPrice,
+            remarks: product.remarks, // Added remarks from Product interface
+          }))
+        );
+
+        // Batch insert products
+        await transaction.insert(productsTable).values(productData);
+
+        res
+          .status(201)
+          .json({
+            message: "Invoice and products added successfully",
+            invoiceId,
+          });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("Failed to process the request");
       }
-
-      // Prepare product data for batch insert
-      const productData = products.flatMap((product) =>
-        Array.from({ length: product.quantity }, () => ({
-          productVolPageSerial: product.productVolPageSerial,
-          productName: product.productName,
-          productDescription: product.productDescription,
-          locationId: locationMap[product.location].locationId,
-          statusId: statusMap[product.statusDescription].statusId,
-          gst: invoiceDetails.gstAmount,
-          productImage: product.productImage,
-          transferLetter: product.transferLetter,
-          invoiceId,
-          categoryId: categoryMap[product.category].categoryId,
-          productPrice: product.productPrice, 
-        }))
-      );
-
-      // Batch insert products
-      await transaction.insert(productsTable).values(productData);
-
-      res
-        .status(201)
-        .json({ message: "Invoice and products added successfully", invoiceId });
-    } catch (error) {
-      console.error(error);
-      res.status(500).send("Failed to process the request");
+    },
+    {
+      isolationLevel: "read committed",
+      accessMode: "read write",
+      deferrable: true,
     }
-  }, {
-    isolationLevel: "read committed",
-    accessMode: "read write",
-    deferrable: true,
-  });
+  );
 };
 
 export const getPaginatedProducts = async (req: Request, res: Response) => {
@@ -372,20 +417,13 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
 
     // Mapping of column names to their expected data types
     const columnTypes: Record<string, string> = {
-      // product_id: "integer",
       product_vol_page_serial: "string",
       product_name: "string",
       product_description: "string",
-      // category_id: "integer",
       category_name: "string",
-      // location_id: "integer",
       location_name: "string",
-      // status_id: "integer",
       status_description: "string",
-      // product_price: "decimal",
-      // GST_amount: "decimal",
       invoice_date: "string",
-      // invoice_id: "integer",
       invoice_no: "string",
       po_date: "string",
       from_address: "string",
@@ -393,53 +431,26 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       remarks: "string",
     };
 
-    const columnType = columnTypes[column as string];
+    const columnType = columnTypes[column as string]; // columnType is declared but not used after this.
+    // The whereClause logic below does not use columnType.
     if (!columnType) {
       return res.status(400).send("Invalid column name");
     }
-
-    // Convert the query value to the correct type based on the column
-    let typedQuery: any = query;
-    // if (columnType === "integer") {
-    //   typedQuery = parseInt(query as string, 10);
-    //   if (isNaN(typedQuery)) {
-    //     return res
-    //       .status(400)
-    //       .send("Query must be a valid integer for this column");
-    //   }
-    // } else if (columnType === "decimal") {
-    //   typedQuery = parseFloat(query as string);
-    //   console.log("Query: ",typedQuery);
-
-    //   if (isNaN(typedQuery)) {
-    //     return res
-    //       .status(400)
-    //       .send("Query must be a valid decimal for this column");
-    //   }
-    //   console.log("Query: ",typedQuery);
-
-    // }
-
 
     // Calculate the offset for pagination
     const offset =
       (parseInt(page as string, 10) - 1) * parseInt(pageSize as string, 10);
 
     // Map search keys to fully qualified table columns.
-    // This helps avoid ambiguity when the same column name exists in multiple tables.
     const columnMapping: Record<string, any> = {
-      // product_id: productsTable.productId,
       product_vol_page_serial: productsTable.productVolPageSerial,
       product_name: productsTable.productName,
       product_description: productsTable.productDescription,
       category_name: categoriesTable.categoryName,
       location_name: locationTable.locationName,
       status_description: statusTable.statusDescription,
-      // product_price: productsTable.productPrice,
-      // GST_amount: productsTable.gstAmount,
       invoice_date: invoiceTable.invoiceDate,
       invoice_no: invoiceTable.invoiceNo,
-      // invoice_id: productsTable.invoiceId,
       po_date: invoiceTable.PODate,
       from_address: invoiceTable.fromAddress,
       to_address: invoiceTable.toAddress,
@@ -454,22 +465,27 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
     // Build the WHERE clause for filtering
     let whereClause = sql`true`;
     if (query && query !== "") {
-      whereClause =
-        // columnType === "string"
-          // ? 
-          sql`${columnRef} ILIKE ${"%" + typedQuery + "%"}`
-          // : sql`${columnRef} = ${typedQuery}`
-          ;
+      // Using 'query' directly as typedQuery and columnType were not used for type-specific conditions
+      whereClause = sql`${columnRef} ILIKE ${"%" + query + "%"}`;
     }
 
     // Get the total number of records matching the filter
     const totalRecordsQuery = await db
       .select({ count: count() })
       .from(productsTable)
-      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(
+        locationTable,
+        eq(productsTable.locationId, locationTable.locationId)
+      )
       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
-      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
-      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(
+        categoriesTable,
+        eq(productsTable.categoryId, categoriesTable.categoryId)
+      )
+      .leftJoin(
+        invoiceTable,
+        eq(productsTable.invoiceId, invoiceTable.invoiceId)
+      )
       .where(whereClause);
 
     const totalRecords = totalRecordsQuery[0].count;
@@ -487,7 +503,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         categoryName: categoriesTable.categoryName,
         fromAddress: invoiceTable.fromAddress,
         toAddress: invoiceTable.toAddress,
-        TotalAmount: invoiceTable.totalAmount,
+        actualAmount: productsTable.productPrice,
         gstAmount: productsTable.gstAmount,
         PODate: invoiceTable.PODate,
         invoiceDate: invoiceTable.invoiceDate,
@@ -495,12 +511,22 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
         remarks: productsTable.remarks,
       })
       .from(productsTable)
-      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(
+        locationTable,
+        eq(productsTable.locationId, locationTable.locationId)
+      )
       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
-      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
-      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(
+        categoriesTable,
+        eq(productsTable.categoryId, categoriesTable.categoryId)
+      )
+      .leftJoin(
+        invoiceTable,
+        eq(productsTable.invoiceId, invoiceTable.invoiceId)
+      )
       .where(whereClause)
-      .limit( pageSize == '-1' ? parseInt(pageSize as string, 10) : totalRecords)
+      // Corrected logic would be: pageSize === '-1' ? totalRecords : parseInt(pageSize as string, 10)
+      .limit(pageSize == "-1" ? parseInt(pageSize as string, 10) : totalRecords)
       .offset(offset);
 
     // Return the products and the total record count as JSON
@@ -517,7 +543,6 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
 export const getProductById = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
-    // console.log("productId", productId);
 
     if (!productId) {
       return res.status(400).send("Product ID is required");
@@ -527,19 +552,25 @@ export const getProductById = async (req: Request, res: Response) => {
     const product = await db
       .select()
       .from(productsTable)
-      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(
+        locationTable,
+        eq(productsTable.locationId, locationTable.locationId)
+      )
       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
-      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
-      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(
+        categoriesTable,
+        eq(productsTable.categoryId, categoriesTable.categoryId)
+      )
+      .leftJoin(
+        invoiceTable,
+        eq(productsTable.invoiceId, invoiceTable.invoiceId)
+      )
       .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
       .where(sql`${productsTable.productId} = ${Number(productId)}`);
 
     if (!product.length) {
       return res.status(404).send("Product not found");
     }
-
-    // console.log("Product", JSON.stringify(product, null, 2));
-    
 
     // Separate the product data and invoice data into two objects
     const productData = {
@@ -548,12 +579,12 @@ export const getProductById = async (req: Request, res: Response) => {
       productName: product[0].ProductsTable.productName,
       productDescription: product[0].ProductsTable.productDescription,
       productImage: product[0].ProductsTable.productImage,
-      transferLetter:product[0].ProductsTable.transferLetter,
-      productPrice: product[0].ProductsTable.productPrice,  // Include productPrice
-      gstAmount: product[0].ProductsTable.gstAmount,  // Include GST Amount
-      locationName: product[0].LocationTable?.locationName,  // Location Name
-      categoryName: product[0].CategoriesTable?.categoryName,  // Category Name
-      status: product[0].StatusTable?.statusDescription,  
+      transferLetter: product[0].ProductsTable.transferLetter,
+      productPrice: product[0].ProductsTable.productPrice,
+      gstAmount: product[0].ProductsTable.gstAmount,
+      locationName: product[0].LocationTable?.locationName,
+      categoryName: product[0].CategoriesTable?.categoryName,
+      status: product[0].StatusTable?.statusDescription,
       remarks: product[0].ProductsTable.remarks,
     };
 
@@ -580,71 +611,16 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
-// export const getReportData = async (req: Request, res: Response) => {
-//   try {
-//     console.log("getReportData");
-
-//     const reportData = await db
-//       .select({
-//         budgetName: budgetsTable.budgetName,
-//         categoryName: categoriesTable.categoryName,
-//         invoiceNo: invoiceTable.invoiceNo,
-//         fromAddress: invoiceTable.fromAddress,
-//         toAddress: invoiceTable.toAddress,
-//         stockName: productsTable.productName,
-//         stockDescription: productsTable.productDescription,
-//         location: locationTable.locationName,
-//         staff: locationTable.staffIncharge,
-//         stockId: productsTable.productVolPageSerial, // productsTable.productVolPageSerial,
-//         productImage: productsTable.productImage,
-//         transferLetter: productsTable.transferLetter,
-//         price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
-//         status: statusTable.statusDescription,
-//         remarks: productsTable.remarks,
-//         quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
-//       })
-//       .from(productsTable)
-//       .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
-//       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
-//       .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
-//       .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
-//       .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
-//       .groupBy(
-//         budgetsTable.budgetName,
-//         categoriesTable.categoryName,
-//         invoiceTable.invoiceNo,
-//         invoiceTable.fromAddress,
-//         invoiceTable.toAddress,
-//         productsTable.productName,
-//         productsTable.productDescription,
-//         locationTable.locationName,
-//         locationTable.staffIncharge,
-//         productsTable.productImage,
-//         productsTable.transferLetter,
-//         statusTable.statusDescription,
-//         productsTable.remarks,
-//         productsTable.productVolPageSerial
-//       );
-
-//     res.status(200).json(reportData);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).send("Failed to fetch report data");
-//   }
-// };
-
 export const getReportData = async (req: Request, res: Response) => {
   try {
-    console.log("getReportData");
-
     const { startDate, endDate } = req.query;
 
     let whereCondition;
 
     if (startDate && endDate) {
       whereCondition = and(
-        gte(budgetsTable.startDate, startDate as string),
-        lte(budgetsTable.endDate, endDate as string)
+        gte(budgetsTable.startDate, startDate as string), // Ensure budgetTable.startDate is comparable
+        lte(budgetsTable.endDate, endDate as string) // Ensure budgetTable.endDate is comparable
       );
     }
 
@@ -662,18 +638,27 @@ export const getReportData = async (req: Request, res: Response) => {
         stockId: productsTable.productVolPageSerial,
         productImage: productsTable.productImage,
         transferLetter: productsTable.transferLetter,
-        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`,
+        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
         status: statusTable.statusDescription,
         remarks: productsTable.remarks,
-        quantity: sql<number>`COUNT(${productsTable.productId})`,
+        quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
       })
       .from(productsTable)
-      .leftJoin(locationTable, eq(productsTable.locationId, locationTable.locationId))
+      .leftJoin(
+        locationTable,
+        eq(productsTable.locationId, locationTable.locationId)
+      )
       .leftJoin(statusTable, eq(productsTable.statusId, statusTable.statusId))
-      .leftJoin(categoriesTable, eq(productsTable.categoryId, categoriesTable.categoryId))
-      .leftJoin(invoiceTable, eq(productsTable.invoiceId, invoiceTable.invoiceId))
+      .leftJoin(
+        categoriesTable,
+        eq(productsTable.categoryId, categoriesTable.categoryId)
+      )
+      .leftJoin(
+        invoiceTable,
+        eq(productsTable.invoiceId, invoiceTable.invoiceId)
+      )
       .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
-      .where(whereCondition)
+      .where(whereCondition) // Apply the date range filter if present
       .groupBy(
         budgetsTable.budgetName,
         categoriesTable.categoryName,

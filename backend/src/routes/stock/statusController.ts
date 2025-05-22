@@ -16,11 +16,16 @@ export const addStatus = async (req: Request, res: Response) => {
       .values({ statusDescription })
       .returning();
 
+    req.logMessages = req.logMessages || [];
+    req.logMessages.push("Status added successfully");
+
     res
       .status(201)
       .json({ message: "Status added successfully", status: newStatus });
   } catch (error) {
-    console.error(error);
+    req.logMessages = req.logMessages || [];
+    req.logMessages.push("Failed to add status");
+
     res.status(500).send("Failed to add status");
   }
 };
@@ -41,7 +46,6 @@ export const showStatus = async (req: Request, res: Response) => {
 
     res.status(200).json({ status });
   } catch (error) {
-    console.error(error);
     res.status(500).send("Failed to retrieve status");
   }
 };
@@ -49,10 +53,8 @@ export const showStatus = async (req: Request, res: Response) => {
 export const showStatuses = async (_req: Request, res: Response) => {
   try {
     const statuses = await db.select().from(statusTable);
-
     res.status(200).json({ statuses });
   } catch (error) {
-    console.error(error);
     res.status(500).send("Failed to retrieve statuses");
   }
 };
@@ -69,14 +71,21 @@ export const updateStatus = async (req: Request, res: Response) => {
       .returning();
 
     if (!updatedStatus) {
+      req.logMessages = req.logMessages || [];
+      req.logMessages.push("Status not found for update");
       return res.status(404).send("Status not found");
     }
+
+    req.logMessages = req.logMessages || [];
+    req.logMessages.push("Status updated successfully");
 
     res
       .status(200)
       .json({ message: "Status updated successfully", status: updatedStatus });
   } catch (error) {
-    console.error(error);
+    req.logMessages = req.logMessages || [];
+    req.logMessages.push("Failed to update status");
+
     res.status(500).send("Failed to update status");
   }
 };
@@ -90,13 +99,20 @@ export const deleteStatus = async (req: Request, res: Response) => {
       .where(eq(statusTable.statusId, Number(id)))
       .returning();
 
-    if (!deletedStatus) {
+    if (!deletedStatus.length) {
+      req.logMessages = req.logMessages || [];
+      req.logMessages.push("Status not found for deletion");
       return res.status(404).send("Status not found");
     }
 
+    req.logMessages = req.logMessages || [];
+    req.logMessages.push("Status deleted successfully");
+
     res.status(200).json({ message: "Status deleted successfully" });
   } catch (error) {
-    console.error(error);
+    req.logMessages = req.logMessages || [];
+    req.logMessages.push("Failed to delete status");
+
     res.status(500).send("Failed to delete status");
   }
 };
@@ -104,7 +120,6 @@ export const deleteStatus = async (req: Request, res: Response) => {
 export const searchStatus = async (req: Request, res: Response) => {
   try {
     const query = req.query.query as string;
-    console.log("Search Query: ", query);
 
     if (!query) {
       return res.status(400).send("Search query is required");
@@ -116,11 +131,8 @@ export const searchStatus = async (req: Request, res: Response) => {
       .where(eq(statusTable.statusDescription, query))
       .limit(1);
 
-    console.log("Status Data: ", statusData);
-
     res.status(200).json(statusData);
   } catch (error) {
-    console.error(error);
     res.status(500).send("Failed to search status");
   }
 };

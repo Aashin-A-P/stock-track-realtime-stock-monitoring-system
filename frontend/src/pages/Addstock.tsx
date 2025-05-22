@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchMetadata } from "../utils";
 import InvoiceCard from "../components/InvoiceCard";
 import ProductCard from "../components/ProductCard";
-import { Product } from "../types";
+import { Product, RangeMapping } from "../types";
 
 const AddProduct: React.FC = () => {
   const navigate = useNavigate();
@@ -63,7 +63,7 @@ const AddProduct: React.FC = () => {
   const productTotalPrice = products.reduce((acc, product) => acc + (product.price + product.gstAmount) * product.quantity, 0);
   const isEquals = invoiceTotalPrice === productTotalPrice;
 
-  const handleProductChange = (index: number, field: string, value: any) => {
+  const handleProductChange = (index: number, field: string, value: string|number|RangeMapping[]) => {
     const updatedProducts = [...products];
     updatedProducts[index] = {
       ...updatedProducts[index],
@@ -184,7 +184,7 @@ const AddProduct: React.FC = () => {
         // Parse the response as JSON
         const budgetData = await budgetRes.json();
         const parsedBudgets = budgetData.budgets.map(
-          (budget: any) => budget.budgetName
+          (budget: {budgetName: string}) => budget.budgetName
         );
         setBudgets(parsedBudgets);
 
@@ -202,7 +202,7 @@ const AddProduct: React.FC = () => {
         // Parse the response as JSON
         const locationData = await locationRes.json();
         const parsedLocations = locationData.locations.map(
-          (loc: any) => loc.locationName
+          (loc: {locationName: string}) => loc.locationName
         );
         setLocations(parsedLocations);
 
@@ -242,7 +242,7 @@ const AddProduct: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleInvoiceChange = (field: string, value: any) => {
+  const handleInvoiceChange = (field: string, value: string|number) => {
     setInvoiceDetails({ ...invoiceDetails, [field]: value });
   };
 
@@ -366,25 +366,12 @@ const AddProduct: React.FC = () => {
           fetchMetadata(baseUrl, "stock/category/search", product.category),
         ]);
 
-        // // Ensure we have locationRangeMappings for this product
-        // if (!product.locationRangeMappings || product.locationRangeMappings.length === 0) {
-        //   toast.error(`No location range mapping provided for product: ${product.productName}`);
-        //   setLoading(false);
-        //   return;
-        // }
-
         // Process each location range mapping
         for (const mapping of product.locationRangeMappings!) {
           // Lookup location metadata for the mapping's selected location
           const locationData = await fetchMetadata(baseUrl, "stock/location/search", mapping.location);
 
-          // // Parse the mapping range (e.g., "1-5,7") into individual unit numbers
           const unitNumbers = parseRange(mapping.range);
-          // if (unitNumbers.length === 0) {
-          //   toast.error(`Invalid range provided for product: ${product.productName}`);
-          //   setLoading(false);
-          //   return;
-          // }
 
           // Prepare common product data for insertion
           const productData = {

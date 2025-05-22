@@ -83,3 +83,4 @@ uploads/
 *.sln
 *.sw?
 drizzle/
+.qodo
