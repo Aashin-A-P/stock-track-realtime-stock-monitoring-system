@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS "ProductsTable" (
 	"status_description" varchar DEFAULT 'new',
 	"GST_amount" numeric,
 	"product_image" varchar,
-	"product_price" integer DEFAULT 0 NOT NULL,
+	"product_price" numeric NOT NULL,
 	"invoice_id" integer,
 	"transfer_letter" varchar,
 	"remarks" varchar,

@@ -72,7 +72,7 @@ export const addStock = async (req: Request, res: Response) => {
           productImage: productImage || null,
           invoiceId,
           categoryId,
-          productPrice,
+          productPrice: productPrice.toString(),
           transferLetter: transferLetter || null,
           remarks: remarks || "",
         })
@@ -393,7 +393,7 @@ export const handleInvoiceWithProducts = async (
             transferLetter: product.transferLetter,
             invoiceId,
             categoryId: categoryMap[product.category].categoryId,
-            productPrice: product.productPrice,
+            productPrice: product.productPrice.toString(),
             remarks: product.remarks, // Added remarks from Product interface
           }))
         );

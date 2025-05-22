@@ -18,7 +18,7 @@ export const productsTable = pgTable('ProductsTable', {
   status: varchar('status_description').default('new'),
   gstAmount: decimal('GST_amount'),
   productImage: varchar('product_image'),
-  productPrice: integer('product_price').notNull().default(0), 
+  productPrice: decimal('product_price').notNull(), 
   invoiceId: integer('invoice_id')
     .references(() => invoiceTable.invoiceId, { onDelete: 'cascade', onUpdate: 'cascade' }),
   transferLetter: varchar('transfer_letter'),
