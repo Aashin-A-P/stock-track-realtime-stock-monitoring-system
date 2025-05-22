@@ -269,7 +269,7 @@ const AddProduct: React.FC = () => {
     }
 
     // Validate total amount calculation
-    const calculatedTotal = products.reduce((acc, product) => {
+    const calculatedTotal = products.reduce((acc: number, product: Product) => {
       return acc + (product.price + product.gstAmount) * product.quantity;
     }, 0);
 
@@ -285,61 +285,102 @@ const AddProduct: React.FC = () => {
       return;
     }
 
-    const budgetData = await fetchMetadata(baseUrl, "funds/search", invoiceDetails.budgetName);
-    if (!budgetData) {
-      toast.error("Budget not found");
+    if (products.length === 0) {
+      toast.error("Please add at least one product.");
       setLoading(false);
       return;
     }
 
-    // Helper function to parse a range string (e.g., "1-5,7,9-10") into an array of numbers.
-    const parseRange = (rangeStr: string): number[] => {
-      const result: number[] = [];
-      const parts = rangeStr.split(",").map((part) => part.trim());
-      parts.forEach((part) => {
-        if (part.includes("-")) {
-          const [startStr, endStr] = part.split("-").map((s) => s.trim());
-          const start = parseInt(startStr, 10);
-          const end = parseInt(endStr, 10);
-          for (let i = start; i <= end; i++) {
-            result.push(i);
-          }
-        } else {
-          const num = parseInt(part, 10);
-          if (!isNaN(num)) result.push(num);
-        }
-      });
-      return result;
-    };
-
-
-    // other validations can be added here
     for (const product of products) {
-  if (!product.locationRangeMappings || product.locationRangeMappings.length === 0) {
-    toast.error(`No location range mapping provided for product: ${product.productName}`);
-    setLoading(false);
-    return; // ✅ this now exits handleSubmit
-  }
-
-  for (const mapping of product.locationRangeMappings) {
-    const unitNumbers = parseRange(mapping.range);
-    if (unitNumbers.length === 0) {
-      toast.error(`Invalid range provided for product: ${product.productName}`);
-      setLoading(false);
-      return; // ✅ also exits handleSubmit
+      if (!product.productName.trim()) {
+        toast.error("Product name is required for all products.");
+        setLoading(false);
+        return;
+      }
+      if (!product.volNo.trim()) {
+        toast.error(
+          `Volume Number is required for product: ${product.productName}`
+        );
+        setLoading(false);
+        return;
+      }
+      if (!product.pageNo.trim()) {
+        toast.error(
+          `Page Number is required for product: ${product.productName}`
+        );
+        setLoading(false);
+        return;
+      }
+      if (!product.category) {
+        toast.error(`Category is required for product: ${product.productName}`);
+        setLoading(false);
+        return;
+      }
+      if (!product.Status) {
+        // Assuming 'Status' maps to a status description
+        toast.error(`Status is required for product: ${product.productName}`);
+        setLoading(false);
+        return;
+      }
+      if (
+        !product.locationRangeMappings ||
+        product.locationRangeMappings.length === 0
+      ) {
+        toast.error(
+          `At least one location and serial range mapping is required for product: ${product.productName}`
+        );
+        setLoading(false);
+        return;
+      }
+      for (const mapping of product.locationRangeMappings) {
+        if (!mapping.location) {
+          toast.error(
+            `Location is required for all range mappings in product: ${product.productName}`
+          );
+          setLoading(false);
+          return;
+        }
+        if (!mapping.range.trim()) {
+          toast.error(
+            `Serial range is required for all range mappings in product: ${product.productName}`
+          );
+          setLoading(false);
+          return;
+        }
+        const unitNumbers = parseRange(mapping.range);
+        if (unitNumbers.length === 0) {
+          toast.error(
+            `Invalid or empty serial range provided for product: ${product.productName} in location ${mapping.location}`
+          );
+          setLoading(false);
+          return;
+        }
+      }
     }
-  }
-}
-
-
-    const parsedInvoiceData = {
-      ...invoiceDetails,
-      totalAmount: invoiceDetails.totalAmount.toString(),
-      budgetId: budgetData.budgets[0].budgetId,
-    };
 
     try {
-      // Add invoice details to the backend
+      const budgetMeta = await fetchMetadata(
+        baseUrl,
+        "funds/search",
+        invoiceDetails.budgetName
+      );
+      if (
+        !budgetMeta ||
+        !budgetMeta.budgets ||
+        budgetMeta.budgets.length === 0
+      ) {
+        toast.error("Budget not found or invalid budget data.");
+        setLoading(false);
+        return;
+      }
+      const budgetId = budgetMeta.budgets[0].budgetId;
+
+      const parsedInvoiceData = {
+        ...invoiceDetails,
+        totalAmount: invoiceDetails.totalAmount.toString(), // Keep as string if backend expects
+        budgetId: budgetId,
+      };
+
       const invoiceRes = await fetch(`${baseUrl}/stock/invoice/add`, {
         method: "POST",
         headers: fetchedHeaders,
@@ -347,9 +388,9 @@ const AddProduct: React.FC = () => {
       });
 
       if (!invoiceRes.ok) {
-        const errorData = await invoiceRes.json();
+        const errorData = await invoiceRes.text();
         console.error("Error adding invoice:", errorData);
-        toast.error("Failed to add invoice");
+        toast.error(`Failed to add invoice: ${errorData}`);
         setLoading(false);
         return;
       }
@@ -358,66 +399,88 @@ const AddProduct: React.FC = () => {
       const invoiceId = invoice.invoiceId;
       console.log("Invoice added successfully, ID:", invoiceId);
 
-      // Process each product
-      products.forEach(async (product, index) => {
-        // Get common metadata for status and category
-        const [statusData, categoryData] = await Promise.all([
+      for (const product of products) {
+        const [statusMeta, categoryMeta] = await Promise.all([
           fetchMetadata(baseUrl, "stock/status/search", product.Status),
           fetchMetadata(baseUrl, "stock/category/search", product.category),
         ]);
 
-        // Process each location range mapping
+        if (!statusMeta || !statusMeta.statusId) {
+          toast.error(`Status metadata not found for: ${product.Status}`);
+          throw new Error(`Status metadata not found for: ${product.Status}`);
+        }
+        if (!categoryMeta || !categoryMeta.categoryId) {
+          toast.error(`Category metadata not found for: ${product.category}`);
+          throw new Error(
+            `Category metadata not found for: ${product.category}`
+          );
+        }
+
         for (const mapping of product.locationRangeMappings!) {
-          // Lookup location metadata for the mapping's selected location
-          const locationData = await fetchMetadata(baseUrl, "stock/location/search", mapping.location);
+          const locationMeta = await fetchMetadata(
+            baseUrl,
+            "stock/location/search",
+            mapping.location
+          );
+          if (!locationMeta || !locationMeta.locationId) {
+            toast.error(`Location metadata not found for: ${mapping.location}`);
+            throw new Error(
+              `Location metadata not found for: ${mapping.location}`
+            );
+          }
 
           const unitNumbers = parseRange(mapping.range);
+          const productAddPromises = unitNumbers.map(async (unitNo) => {
+            const individualProductVolPageSerial = `${product.volNo}-${product.pageNo}-${unitNo}`;
 
-          // Prepare common product data for insertion
-          const productData = {
-            productVolPageSerial: `${product.productVolPageSerial}-[${index + 1}/${products.length}]`,
-            productName: product.productName,
-            productDescription: product.productDescription,
-            locationId: locationData.locationId,
-            statusId: statusData.statusId,
-            productImage: product.productImage,
-            invoiceId,
-            categoryId: categoryData.categoryId,
-            productPrice: product.price,
-            gstAmount: product.gstAmount,
-            remarks: product.remark,
-            PODate: invoiceDetails.PODate,
-            invoice_no: invoiceDetails.invoiceNo,
-            transferLetter: product.transferLetter,
-          };
+            const singleProductData = {
+              productVolPageSerial: individualProductVolPageSerial,
+              productName: product.productName,
+              productDescription: product.productDescription,
+              locationId: locationMeta.locationId,
+              statusId: statusMeta.statusId,
+              gstAmount: product.gstAmount, // Number
+              productImage: product.productImage,
+              invoiceId: invoiceId, // Number
+              categoryId: categoryMeta.categoryId, // Number
+              productPrice: product.price, // Number
+              transferLetter: product.transferLetter,
+              remarks: product.remark,
+              budgetId: budgetId, // Number
+            };
+            console.log(
+              `Submitting product unit: ${individualProductVolPageSerial}`,
+              singleProductData
+            );
 
-          console.log("Product Data : ", productData)
-
-          // For each unit specified in the range, add an individual product record
-          console.log(JSON.stringify(productData, null, 2));
-          const productAddRequests = unitNumbers.map(() =>
-            fetch(`${baseUrl}/stock/add`, {
+            const res = await fetch(`${baseUrl}/stock/add`, {
               method: "POST",
               headers: fetchedHeaders,
-              body: JSON.stringify(productData),
-            }).then((res) =>
-              res.ok ? res.json() : Promise.reject("Failed to add product")
-            )
-          );
+              body: JSON.stringify(singleProductData),
+            });
 
-          // Execute all insertions for this mapping and handle errors
-          await Promise.all(productAddRequests).catch((err) => {
-            console.error(err);
-            toast.error("Failed to add one or more products");
-            throw err; // Stop processing further on error
+            if (!res.ok) {
+              const errorText = await res.text();
+              console.error(
+                `Failed to add product unit ${individualProductVolPageSerial}. Status: ${res.status}. Body: ${errorText}`
+              );
+              toast.error(
+                `Error for ${individualProductVolPageSerial}: ${errorText.substring(
+                  0,
+                  100
+                )}`
+              ); // Show snippet of error
+              throw new Error( // This error will be caught by Promise.all
+                `Failed to add product unit ${individualProductVolPageSerial}: ${errorText}`
+              );
+            }
+            return res.json();
           });
+          await Promise.all(productAddPromises); // Wait for all units in this mapping
         }
-      });
+      }
 
-      // Success message
       toast.success("Products and invoice added successfully!");
-
-      // Reset invoice and products state
       setInvoiceDetails({
         invoiceNo: "",
         invoiceDate: "",
@@ -428,14 +491,42 @@ const AddProduct: React.FC = () => {
         invoiceImage: "",
         budgetName: "",
       });
-
-      setProducts([]);
+      setProducts([]); // Add defaultProduct if you want one to remain
+      // setProducts([defaultProduct]);
     } catch (err) {
-      console.error("Transaction failed:", err);
-      toast.error("An error occurred while processing the request.");
+      console.error("Transaction failed overall:", err);
+      // Error already toasted by specific failing parts, or add a generic one
+      if (
+        err instanceof Error &&
+        !err.message.startsWith("Failed to add product unit")
+      ) {
+        toast.error("An error occurred: " + err.message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const parseRange = (rangeStr: string): number[] => {
+    const result: number[] = [];
+    if (!rangeStr || typeof rangeStr !== "string") return result;
+    const parts = rangeStr.split(",").map((part) => part.trim());
+    parts.forEach((part) => {
+      if (part.includes("-")) {
+        const [startStr, endStr] = part.split("-").map((s) => s.trim());
+        const start = parseInt(startStr, 10);
+        const end = parseInt(endStr, 10);
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            result.push(i);
+          }
+        }
+      } else {
+        const num = parseInt(part, 10);
+        if (!isNaN(num)) result.push(num);
+      }
+    });
+    return result;
   };
 
   const handleClose = (index: number) => {
@@ -446,7 +537,7 @@ const AddProduct: React.FC = () => {
         {
           label: "Yes",
           onClick: () =>
-            setProducts(products.filter((_, i) => i !== index)),
+            setProducts(products.filter((_, i: number) => i !== index)),
         },
         {
           label: "No",

@@ -20,6 +20,7 @@ import {
   PointElement,
   CategoryScale,
   LinearScale,
+  Title, // Import Title if you plan to use it
 } from "chart.js";
 
 ChartJS.register(
@@ -29,47 +30,51 @@ ChartJS.register(
   LineElement,
   PointElement,
   CategoryScale,
-  LinearScale
+  LinearScale,
+  Title // Register Title
 );
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { token, isLoading: authLoading } = useAuth();
 
-  // Redirect to login if no token
   useEffect(() => {
-    if (!token) {
+    if (!authLoading && !token) {
+      // Ensure auth loading is complete before redirecting
       navigate("/login");
     }
-  }, [token, navigate]);
+  }, [token, authLoading, navigate]);
 
   const {
     analysisData,
     logs,
     years,
     loading: dashboardLoading,
-    year,
+    year, // current selected year from context
     fetchData,
-    setYear,
+    setYear, // function to update year in context
   } = useDashboard();
 
   const handleYearChange = (selectedYear: number) => {
-    setYear(selectedYear);
-    fetchData(selectedYear);
+    setYear(selectedYear); // Update year in context
+    fetchData(selectedYear); // Fetch data for the newly selected year
   };
 
   const generateBlueShades = (count: number) =>
     Array.from(
       { length: count },
-      (_, idx) => `hsl(${220 + idx * 10}, 70%, 60%)`
+      (_, idx) => `hsl(${200 + idx * (40 / Math.max(1, count - 1))}, 70%, 60%)` // একটু ভালো শেড জেনারেট করতে
     );
 
   const pieChartData1 = {
     labels: analysisData?.map((data) => data.budgetName),
     datasets: [
       {
+        label: "Total Budget Distribution", // Added label for clarity
         data: analysisData?.map((data) => data.totalBudget),
         backgroundColor: generateBlueShades(analysisData?.length || 0),
+        borderColor: analysisData?.map(() => "rgba(255, 255, 255, 0.6)"), // Optional: border for segments
+        borderWidth: 1, // Optional
       },
     ],
   };
@@ -89,26 +94,55 @@ const Dashboard: React.FC = () => {
       "Nov",
       "Dec",
     ],
-    datasets: analysisData
-      ? analysisData.map((data, i) => ({
-          label: `${data.budgetName} - Monthly Spendings`,
-          data: data.monthlySpent,
-          borderColor: generateBlueShades(analysisData.length)[i],
-          tension: 0.4,
-          fill: false,
-        }))
-      : [],
+    datasets:
+      analysisData && analysisData.length > 0
+        ? analysisData.map((data, i) => ({
+            label: `${data.budgetName} - Monthly Spendings`,
+            data: data.monthlySpent, // This should now be a safe array of 12 numbers
+            borderColor: generateBlueShades(analysisData.length)[i],
+            tension: 0.3, // Adjusted for potentially smoother curves
+            fill: false,
+            pointRadius: 3, // Optional: make points more visible
+            pointHoverRadius: 5, // Optional
+          }))
+        : [],
   };
 
-  const chartOptions = {
+  const commonChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: "top" as const },
+      legend: {
+        position: "top" as const,
+        labels: {
+          font: {
+            size: 10, // Smaller font for legend
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            let label = context.dataset.label || "";
+            if (label) {
+              label += ": ";
+            }
+            if (context.parsed.y !== null) {
+              label += new Intl.NumberFormat("en-IN", {
+                style: "currency",
+                currency: "INR",
+              }).format(context.parsed.y);
+            }
+            return label;
+          },
+        },
+      },
     },
   };
 
   if (authLoading) return <LoadingSpinner />;
+  // If not authLoading and no token, useEffect above will navigate.
+  // Can also add: if (!token) return <p>Redirecting to login...</p>; to prevent flicker.
 
   return (
     <>
@@ -125,49 +159,66 @@ const Dashboard: React.FC = () => {
 
         <div className="flex justify-end mb-6">
           <YearDropdown
-            selectedYear={year}
+            selectedYear={year} // Use year from context
             onSelectYear={handleYearChange}
             years={years}
           />
         </div>
 
         <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white shadow-lg rounded-lg p-6 col-span-1">
-            <h3 className="text-xl font-medium text-gray-800 mb-4">
+          <div className="bg-white shadow-lg rounded-lg p-6 col-span-1 md:col-span-2 lg:col-span-1">
+            {" "}
+            {/* Adjusted md span */}
+            <h3 className="text-xl font-medium text-gray-800 mb-4 text-center">
               Total Budget
             </h3>
             {dashboardLoading ? (
               <LoadingSpinner />
             ) : analysisData && analysisData.length > 0 ? (
               <>
-                <div className="text-3xl font-semibold text-gray-900 mb-4">
+                <div className="text-3xl font-semibold text-gray-900 mb-4 text-center">
                   ₹
                   {analysisData
                     .reduce((acc, data) => acc + Number(data.totalBudget), 0)
-                    .toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    .toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                 </div>
-                <Pie data={pieChartData1} />
+                <div className="h-64 md:h-72">
+                  {" "}
+                  {/* Ensure height for pie chart */}
+                  <Pie data={pieChartData1} options={commonChartOptions} />
+                </div>
               </>
             ) : (
-              <p className="text-gray-500 text-sm">
+              <p className="text-center text-gray-500 text-sm">
                 No budget data available for the selected year.
               </p>
             )}
           </div>
 
-          <div className="bg-white shadow-lg rounded-lg p-6 col-span-1 md:col-span-1 lg:col-span-3 hidden md:block">
+          <div className="bg-white shadow-lg rounded-lg p-6 col-span-1 md:col-span-2 lg:col-span-3">
+            {" "}
+            {/* Adjusted md span */}
             <h3 className="text-xl font-medium text-gray-800 text-center mb-4">
               Monthly Spendings
             </h3>
             {dashboardLoading ? (
               <LoadingSpinner />
-            ) : analysisData && analysisData.length > 0 ? (
-              <div className="h-64">
-                <Line data={lineChartData} options={chartOptions} />
+            ) : analysisData &&
+              analysisData.length > 0 &&
+              analysisData.some((d) => d.monthlySpent.some((s) => s > 0)) ? ( // Check if there's any actual spending
+              <div className="h-96">
+                {" "}
+                {/* Increased height for line chart */}
+                <Line data={lineChartData} options={commonChartOptions} />
               </div>
             ) : (
               <p className="text-center text-gray-500 text-sm">
-                No monthly spending data to display.
+                {dashboardLoading
+                  ? "Loading data..."
+                  : "No monthly spending data to display for the selected year."}
               </p>
             )}
           </div>
@@ -177,23 +228,22 @@ const Dashboard: React.FC = () => {
           <h3 className="text-xl font-medium text-gray-800 mb-4">
             Recent Logs
           </h3>
-          {dashboardLoading ? (
+          {dashboardLoading ? ( // Logs also depend on dashboardLoading
             <LoadingSpinner />
           ) : logs && logs.length > 0 ? (
-            <ul className="space-y-4">
+            <ul className="space-y-3 divide-y divide-gray-200 max-h-96 overflow-y-auto">
               {logs.map((log) => (
-                <li key={log.logId} className="text-gray-700">
-                  {log.description} -{" "}
-                  <span className="text-gray-500">
-                    {dayjs(log.createdAt).fromNow()}
+                <li key={log.logId} className="text-gray-700 pt-3 first:pt-0">
+                  <span className="font-medium">{log.description}</span> -{" "}
+                  <span className="text-sm text-gray-500">
+                    {dayjs(log.createdAt).fromNow()} (
+                    {dayjs(log.createdAt).format("DD MMM YYYY, hh:mm A")})
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">
-              No logs available for the selected year.
-            </p>
+            <p className="text-gray-500 text-sm">No recent logs available.</p>
           )}
         </div>
       </div>

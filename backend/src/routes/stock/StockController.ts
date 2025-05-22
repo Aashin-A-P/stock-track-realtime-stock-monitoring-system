@@ -43,7 +43,7 @@ export const addStock = async (req: Request, res: Response) => {
       productPrice,
       transferLetter,
       remarks,
-      budgetId, // budgetId is destructured but not used in the insert
+      budgetId,
     } = req.cleanBody;
 
     if (
@@ -52,34 +52,52 @@ export const addStock = async (req: Request, res: Response) => {
       !gstAmount ||
       !categoryId ||
       !invoiceId ||
-      !productPrice
+      !productPrice ||
+      !budgetId
     ) {
       return res.status(400).send("All fields are required");
     }
 
-    const [newProduct] = await db
-      .insert(productsTable)
-      .values({
-        productVolPageSerial,
-        productName,
-        productDescription,
-        locationId,
-        statusId,
-        gstAmount,
-        productImage,
-        invoiceId,
-        categoryId,
-        productPrice,
-        transferLetter,
-        remarks,
-      })
-      .returning();
+    // Use a transaction
+    await db.transaction(async (trx) => {
+      const [newProduct] = await trx
+        .insert(productsTable)
+        .values({
+          productVolPageSerial,
+          productName,
+          productDescription: productDescription || "",
+          locationId,
+          statusId,
+          gstAmount,
+          productImage: productImage || null,
+          invoiceId,
+          categoryId,
+          productPrice,
+          transferLetter: transferLetter || null,
+          remarks: remarks || "",
+        })
+        .returning();
 
-    res
-      .status(201)
-      .json({ message: "Stock added successfully", product: newProduct });
+      await trx.insert(categoryWiseBudgetsTable).values({
+        budgetId,
+        categoryId,
+        amount: (Number(productPrice) + Number(gstAmount)).toString()
+      });
+
+      // If execution reaches here, transaction will be committed.
+      res
+        .status(201)
+        .json({ message: "Stock added successfully", product: newProduct });
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Failed to add Stock:", error);
+    if (error instanceof Error && error.message.includes("unique constraint")) {
+      return res
+        .status(409)
+        .send(
+          "Failed to add stock: An item with this identifier (e.g., Volume/Page/Serial) may already exist."
+        );
+    }
     res.status(500).send("Failed to add Stock");
   }
 };
