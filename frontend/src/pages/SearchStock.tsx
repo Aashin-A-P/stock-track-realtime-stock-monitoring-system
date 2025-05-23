@@ -139,9 +139,9 @@ const SearchStock: React.FC = () => {
             <option value="status_description">Status</option>
             {/* <option value="product_price">Actual Amount</option> */}
             {/* <option value="GST_amount">GST Amount</option> */}
-            <option value="invoice_date">Invoice Date</option>
+            {/* <option value="invoice_date">Invoice Date</option> */}
             <option value="invoice_no">Invoice No</option>
-            <option value="po_date">PO Date</option>
+            {/* <option value="po_date">PO Date</option> */}
             <option value="from_address">From Address</option>
             <option value="to_address">To Address</option>
             <option value="remarks">Remarks</option>
