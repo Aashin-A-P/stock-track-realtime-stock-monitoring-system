@@ -50,7 +50,8 @@ type EditProduct = {
   categoryId: number;
   statusId: number;
   remarks: string;
-  productPrice: string; // will convert on save
+  productPrice: string; 
+  invoiceId: number;
 };
 
 const formatAmount = (amount: number) => (
@@ -152,7 +153,7 @@ const StockDetails = () => {
 
   // When entering edit mode for the product, prepopulate editing state.
   const handleEditClick = () => {
-    if (!product) return;
+    if (!product || !invoice) return;
     setIsEditing(true);
     setUpdatedProduct({
       productId: product.productId,
@@ -168,6 +169,7 @@ const StockDetails = () => {
       statusId: statuses.find((s) => s.statusDescription === product.status)?.statusId ?? 0,
       remarks: product.remarks,
       productPrice: product.productPrice.toString(),
+      invoiceId: invoice.invoiceId, 
     });
   };
 
@@ -209,7 +211,7 @@ const StockDetails = () => {
 
   // Save product changes: convert numeric strings to numbers and merge IDs back to names
   const handleSaveChanges = async () => {
-    if (!updatedProduct) return;
+    if (!updatedProduct || !invoice) return;
     setLoading(true);
     try {
       // Convert string values to numbers using Number(…)
@@ -217,6 +219,7 @@ const StockDetails = () => {
         ...updatedProduct,
         productPrice: Number(updatedProduct.productPrice),
         gstAmount: Number(updatedProduct.gstAmount),
+        invoiceId:invoice.invoiceId,
       };
 
       // Send product update
@@ -294,6 +297,7 @@ const StockDetails = () => {
         statusId: 0,
         remarks: product.remarks,
         productPrice: product.productPrice.toString(),
+        invoiceId:0,
       };
 
   // Compute computed total amount display only if base amount is entered.
