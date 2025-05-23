@@ -53,5 +53,5 @@ export const createProductSchema = createInsertSchema(productsTable).pick({
   transferLetter: z.string().optional(), 
   productPrice: z.number().min(0),
   remarks: z.string().optional(),
-  budgetId: z.number(),
+  budgetId: z.number().optional(),
 });
