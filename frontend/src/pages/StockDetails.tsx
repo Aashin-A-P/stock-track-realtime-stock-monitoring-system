@@ -10,7 +10,7 @@ type Product = {
   productVolPageSerial: string;
   productName: string;
   productDescription: string;
-  transferLetter?: string;
+  transferLetter: string;
   gstAmount: string; // API returns as string
   productImage: string;
   locationName: string;
@@ -30,6 +30,7 @@ type Invoice = {
   invoiceDate: string;
   invoiceImage: string;
   budgetName?: string;
+  
 };
 
 // Dropdown option types – adjust property names per your API
@@ -43,7 +44,7 @@ type EditProduct = {
   productVolPageSerial: string;
   productName: string;
   productDescription: string;
-  transferLetter?: string;
+  transferLetter: string;
   gstAmount: string; // will convert on save
   productImage: string;
   locationId: number;
@@ -160,9 +161,9 @@ const StockDetails = () => {
       productVolPageSerial: product.productVolPageSerial,
       productName: product.productName,
       productDescription: product.productDescription,
-      transferLetter: product.transferLetter,
+      transferLetter: product.transferLetter || '',
       gstAmount: product.gstAmount, // remains as string; will convert on save
-      productImage: product.productImage,
+      productImage: product.productImage || '',
       // Use a fallback of 0 if not found so that the API receives a valid number
       locationId: locations.find((loc) => loc.locationName === product.locationName)?.locationId ?? 0,
       categoryId: categories.find((cat) => cat.categoryName === product.categoryName)?.categoryId ?? 0,
@@ -190,7 +191,7 @@ const StockDetails = () => {
     if (file && updatedProduct) {
       try {
         const imageUrl = await uploadImageAndGetURL(file, e);
-        setUpdatedProduct({ ...updatedProduct, productImage: imageUrl });
+        setUpdatedProduct({ ...updatedProduct, productImage: imageUrl  || '' });
       } catch (error) {
         console.error("Error uploading product image:", error);
       }
@@ -202,7 +203,7 @@ const StockDetails = () => {
     if (file && updatedProduct) {
       try {
         const imageUrl = await uploadImageAndGetURL(file, e);
-        setUpdatedProduct({ ...updatedProduct, transferLetter: imageUrl });
+        setUpdatedProduct({ ...updatedProduct, transferLetter: imageUrl  || '' });
       } catch (error) {
         console.error("Error uploading transfer letter:", error);
       }
@@ -220,6 +221,8 @@ const StockDetails = () => {
         productPrice: Number(updatedProduct.productPrice),
         gstAmount: Number(updatedProduct.gstAmount),
         invoiceId:invoice.invoiceId,
+        productImage: updatedProduct.productImage || '',
+        transferLetter: updatedProduct.transferLetter || '',
       };
 
       // Send product update
