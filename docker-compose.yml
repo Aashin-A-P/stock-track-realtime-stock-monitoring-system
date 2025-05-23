@@ -51,7 +51,8 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
-
+    ports:
+      - "3000:3000"
   nginx:
     build:
       context: .
