@@ -468,7 +468,7 @@ const InvoiceDetailsPage: React.FC = () => {
       delete (updatedInvoicePayload as any).budgetName;
 
       const invoiceUpdateRes = await fetch(
-        `${baseUrl}/stock/invoice/update/${invoiceIdFromParams}`,
+        `${baseUrl}/stock/invoice/${invoiceIdFromParams}`,
         {
           method: "PUT",
           headers,
