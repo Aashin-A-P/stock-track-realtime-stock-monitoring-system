@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "../components/Navbar";
 import * as ExcelJS from "exceljs";
 import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable';
+import autoTable from "jspdf-autotable";
 import { DndProvider, useDrag, useDrop, DropTargetMonitor } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import YearDropdown from "../components/YearDropdown";
@@ -38,7 +38,7 @@ const STOCK_REG_SUB_COLUMNS = [
 // Interfaces & Types
 // ======================
 interface Stock {
-  serialNo: number;
+  serialNo: string;
   volNo: string;
   pageNo: string;
   stockName: string;
@@ -73,6 +73,22 @@ interface DragItem {
   index: number;
   type: string;
 }
+
+// Types for Excel column definitions
+interface ExcelSubColumnInfo {
+  id: (typeof STOCK_REG_SUB_COLUMNS)[number]["id"];
+  defaultHeader: (typeof STOCK_REG_SUB_COLUMNS)[number]["defaultHeader"];
+  dataKey: (typeof STOCK_REG_SUB_COLUMNS)[number]["dataKey"];
+  groupHeader: string; // Mandatory for this type
+}
+
+interface ExcelMainColumnInfo {
+  id: string;
+  defaultHeader: string;
+  dataKey: keyof Stock | "displaySerialNo";
+  // No groupHeader property here
+}
+type ActualExcelColumnInfo = ExcelSubColumnInfo | ExcelMainColumnInfo;
 
 const formatColumnKeyForDisplay = (key: string): string => {
   if (key === "displaySerialNo") return "S.No.";
@@ -557,7 +573,7 @@ const StockTable: React.FC<StockTableProps> = ({
 interface ExportButtonsProps {
   onExportExcel: () => void;
   onExportPDF: (pageSize: "a4" | "a3" | "a2" | "letter" | "legal") => void;
-  onPrintTable: () => void; // Keep it simple for now
+  onPrintTable: () => void;
   hasData: boolean;
 }
 const ExportButtons: React.FC<ExportButtonsProps> = ({
@@ -778,8 +794,9 @@ const ReportGeneration: React.FC = () => {
     const getReportData = async () => {
       if (!token) return;
       let url = `${API_URL}/stock/report`;
-      if (startDate && endDate)
+      if (startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;
+      }
       try {
         const response = await fetch(url, {
           headers: {
@@ -787,15 +804,56 @@ const ReportGeneration: React.FC = () => {
             Authorization: `${token}`,
           },
         });
-        if (!response.ok)
+        if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setStocks(Array.isArray(data) ? data : []);
+        }
+        const rawApiData = await response.json();
+
+        const processedData = (Array.isArray(rawApiData) ? rawApiData : []).map(
+          (item: any): Stock => {
+            const [vol = "", page = "", ser = ""] =
+              item.stockId?.toString().split("-") || [];
+
+            return {
+              stockId: item.stockId || "",
+              stockName: item.stockName || "N/A",
+              stockDescription: item.stockDescription || "",
+              location: item.location || "N/A",
+              quantity: parseInt(item.quantity, 10) || 0,
+              price: parseFloat(item.price) || 0,
+              remarks: item.remarks || "",
+              budgetName: item.budgetName || "N/A",
+
+              volNo: vol.trim(),
+              pageNo: page.trim(),
+              serialNo: ser.trim(),
+
+              categoryName: item.categoryName,
+              invoiceNo: item.invoiceNo,
+              fromAddress: item.fromAddress,
+              toAddress: item.toAddress,
+              status: item.status,
+              staff: item.staff,
+
+              annexure: item.annexure,
+              nameOfCenter: item.nameOfCenter,
+              stockRegNameAndVolNo: item.stockRegNameAndVolNo,
+              statementOfVerification: item.statementOfVerification,
+            };
+          }
+        );
+
+        console.log(
+          "Processed Stock Data: ",
+          JSON.stringify(processedData, null, 2)
+        );
+        setStocks(processedData);
       } catch (error) {
         console.error("Failed to fetch stock data:", error);
         setStocks([]);
       }
     };
+
     getReportData();
   }, [token, startDate, endDate]);
 
@@ -907,14 +965,21 @@ const ReportGeneration: React.FC = () => {
     const isStockRegisterGroupSelected =
       selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
       columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
-    const actualDataColumns = columnOrder
-      .flatMap((colKey) => {
-        if (colKey === STOCK_REGISTER_GROUP_KEY && isStockRegisterGroupSelected)
+
+    const actualDataColumns: ActualExcelColumnInfo[] = columnOrder.flatMap(
+      (colKey): ActualExcelColumnInfo[] => {
+        if (
+          colKey === STOCK_REGISTER_GROUP_KEY &&
+          isStockRegisterGroupSelected
+        ) {
           return STOCK_REG_SUB_COLUMNS.map((sc) => ({
-            ...sc,
+            id: sc.id,
+            defaultHeader: sc.defaultHeader,
+            dataKey: sc.dataKey,
             groupHeader: getColumnDisplayName(STOCK_REGISTER_GROUP_KEY),
           }));
-        if (selectedColumns[colKey] && colKey !== STOCK_REGISTER_GROUP_KEY)
+        }
+        if (selectedColumns[colKey] && colKey !== STOCK_REGISTER_GROUP_KEY) {
           return [
             {
               id: colKey,
@@ -922,9 +987,11 @@ const ReportGeneration: React.FC = () => {
               dataKey: colKey as keyof Stock | "displaySerialNo",
             },
           ];
+        }
         return [];
-      })
-      .filter(Boolean);
+      }
+    );
+
     const colCount = actualDataColumns.length;
     if (colCount === 0) return;
 
@@ -939,9 +1006,9 @@ const ReportGeneration: React.FC = () => {
         bottom: { style: "thin" },
         right: { style: "thin" },
       };
-      Object.assign(cell.font || {}, style.font); // Merge font properties
-      Object.assign(cell.alignment || {}, style.alignment); // Merge alignment
-      Object.assign(cell.fill || {}, style.fill); // Merge fill
+      cell.font = { ...cell.font, ...style.font };
+      cell.alignment = { ...cell.alignment, ...style.alignment };
+      cell.fill = { ...cell.fill, ...style.fill };
       if (style.value !== undefined) cell.value = style.value;
     };
 
@@ -1006,7 +1073,7 @@ const ReportGeneration: React.FC = () => {
     }
 
     const headerRow1Values: (string | null)[] = [];
-    const headerRow2Values: (string | null)[] = [];
+    // const headerRow2Values: (string | null)[] = []; // Not directly used to add row, but for logic
 
     columnOrder
       .filter((colKey) => selectedColumns[colKey])
@@ -1014,13 +1081,11 @@ const ReportGeneration: React.FC = () => {
         if (colKey === STOCK_REGISTER_GROUP_KEY) {
           headerRow1Values.push(getColumnDisplayName(STOCK_REGISTER_GROUP_KEY));
           for (let i = 1; i < STOCK_REG_SUB_COLUMNS.length; i++)
-            headerRow1Values.push(null);
-          STOCK_REG_SUB_COLUMNS.forEach((sc) =>
-            headerRow2Values.push(sc.defaultHeader)
-          );
+            headerRow1Values.push(null); // For merging
+          // STOCK_REG_SUB_COLUMNS.forEach((sc) => headerRow2Values.push(sc.defaultHeader)); // For headerRow2 if needed
         } else {
           headerRow1Values.push(getColumnDisplayName(colKey));
-          if (isStockRegisterGroupSelected) headerRow2Values.push(null);
+          // if (isStockRegisterGroupSelected) headerRow2Values.push(null); // For merging
         }
       });
 
@@ -1044,36 +1109,39 @@ const ReportGeneration: React.FC = () => {
       .forEach((colKey) => {
         if (colKey === STOCK_REGISTER_GROUP_KEY) {
           worksheet.mergeCells(
-            currentRowIdx,
+            currentRowIdx, // current row for header 1
             currentExcelCol,
-            currentRowIdx,
+            currentRowIdx, // same row
             currentExcelCol + STOCK_REG_SUB_COLUMNS.length - 1
           );
           currentExcelCol += STOCK_REG_SUB_COLUMNS.length;
         } else {
-          if (isStockRegisterGroupSelected)
+          if (isStockRegisterGroupSelected) {
+            // If there's a second header row, merge this main column cell
             worksheet.mergeCells(
-              currentRowIdx,
+              currentRowIdx, // current row for header 1
               currentExcelCol,
-              currentRowIdx + 1,
+              currentRowIdx + 1, // merge down to next row
               currentExcelCol
             );
+          }
+          // If not isStockRegisterGroupSelected, no merge needed, it's a single row header.
           currentExcelCol++;
         }
       });
     const mainHeaderRow1Number = currentRowIdx;
-    currentRowIdx++;
+    currentRowIdx++; // Advance to where second header row (if any) or data will start
 
     if (isStockRegisterGroupSelected) {
-      let subHeaderColStart = 1;
+      let excelColCursorForSubHeaders = 1; // Tracks current column in Excel for placing sub-headers
       columnOrder
         .filter((colKey) => selectedColumns[colKey])
         .forEach((colKey) => {
           if (colKey === STOCK_REGISTER_GROUP_KEY) {
             STOCK_REG_SUB_COLUMNS.forEach((sc, subIndex) => {
               const cell = worksheet.getCell(
-                currentRowIdx,
-                subHeaderColStart + subIndex
+                currentRowIdx, // This is the second header row
+                excelColCursorForSubHeaders + subIndex
               );
               cell.value = sc.defaultHeader;
               styleCell(cell, {
@@ -1090,33 +1158,35 @@ const ReportGeneration: React.FC = () => {
                 },
               });
             });
-            subHeaderColStart += STOCK_REG_SUB_COLUMNS.length;
+            excelColCursorForSubHeaders += STOCK_REG_SUB_COLUMNS.length;
           } else {
-            subHeaderColStart++;
+            // This is a non-grouped, selected column. Its cell in header row 1 was merged downwards.
+            // We just need to advance the column cursor.
+            excelColCursorForSubHeaders++;
           }
         });
       worksheet.getRow(currentRowIdx).height = 25;
-      currentRowIdx++;
+      currentRowIdx++; // Move past the second header row
     }
 
     stocks.forEach((stock, idx) => {
       const rowData = actualDataColumns.map((colDef) =>
-        colDef.id === "displaySerialNo"
+        colDef.id === "displaySerialNo" && !("groupHeader" in colDef) // Ensure it's the main S.No.
           ? idx + 1
           : stock[colDef.dataKey as keyof Stock] ?? ""
       );
       const dataRow = worksheet.addRow(rowData);
       dataRow.height = 18;
       dataRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
-        // colNum used here
         const colInfo = actualDataColumns[colNum - 1];
+        if (!colInfo) return;
         let alignment: Partial<ExcelJS.Alignment> = {
           vertical: "top",
           wrapText: true,
           horizontal: [
             "quantity",
             "price",
-            "displaySerialNo",
+            "displaySerialNo", // This applies to the main S.No.
             ...STOCK_REG_SUB_COLUMNS.map((s) => s.id),
           ].includes(colInfo.id)
             ? "center"
@@ -1127,7 +1197,7 @@ const ReportGeneration: React.FC = () => {
           cell.numFmt = "#,##0.00";
         else if (
           typeof cell.value === "number" &&
-          ["quantity", "serialNoSub"].includes(colInfo.id)
+          (colInfo.id === "quantity" || colInfo.id === "serialNoSub")
         )
           cell.numFmt = "#,##0";
       });
@@ -1135,14 +1205,20 @@ const ReportGeneration: React.FC = () => {
 
     actualDataColumns.forEach((colDef, i) => {
       const column = worksheet.getColumn(i + 1);
-      let maxLength = (colDef.defaultHeader || colDef.id).length;
+      let headerTextForLength = colDef.defaultHeader;
+      if (!headerTextForLength && colDef.id) headerTextForLength = colDef.id; // Fallback, though defaultHeader should exist
+      let maxLength = headerTextForLength.length;
+
       stocks.forEach((stock) => {
-        let cellValue =
-          colDef.id === "displaySerialNo"
-            ? String(stocks.indexOf(stock) + 1)
-            : String(stock[colDef.dataKey as keyof Stock] ?? "");
+        let cellValue = "";
+        if (colDef.id === "displaySerialNo" && !("groupHeader" in colDef)) {
+          cellValue = String(stocks.indexOf(stock) + 1);
+        } else {
+          cellValue = String(stock[colDef.dataKey as keyof Stock] ?? "");
+        }
         if (cellValue.length > maxLength) maxLength = cellValue.length;
       });
+
       if (colDef.id === "stockDescription") column.width = 40;
       else if (colDef.id === "stockName") column.width = 25;
       else column.width = Math.max(10, Math.min(30, maxLength + 2));
@@ -1213,17 +1289,17 @@ const ReportGeneration: React.FC = () => {
     head.push(headRow1);
 
     if (isStockRegisterGroupSelected) {
-      const headRow2: any[] = [];
+      const dynamicHeadRow2: any[] = [];
       columnOrder
         .filter((colKey) => selectedColumns[colKey])
         .forEach((colKey) => {
           if (colKey === STOCK_REGISTER_GROUP_KEY) {
             STOCK_REG_SUB_COLUMNS.forEach((sc) =>
-              headRow2.push(sc.defaultHeader)
+              dynamicHeadRow2.push(sc.defaultHeader)
             );
           }
         });
-      if (headRow2.length > 0) head.push(headRow2);
+      if (dynamicHeadRow2.length > 0) head.push(dynamicHeadRow2);
     }
 
     const body = stocks.map((stock, idx) => {
@@ -1252,8 +1328,14 @@ const ReportGeneration: React.FC = () => {
       .filter((colKey) => selectedColumns[colKey])
       .forEach((outerColKey) => {
         if (outerColKey === STOCK_REGISTER_GROUP_KEY) {
-          STOCK_REG_SUB_COLUMNS.forEach(() => {
-            columnStyles[currentPdfColIndex++] = { halign: "center" };
+          STOCK_REG_SUB_COLUMNS.forEach((subCol) => {
+            columnStyles[currentPdfColIndex++] = {
+              halign: ["volNoSub", "pageNoSub", "serialNoSub"].includes(
+                subCol.id
+              )
+                ? "center"
+                : "left",
+            };
           });
         } else {
           columnStyles[currentPdfColIndex++] = {
@@ -1288,7 +1370,7 @@ const ReportGeneration: React.FC = () => {
           columnAliases.stockRegNameAndVolNo
         )
       )
-        return yPos; // check added for splitCols
+        return yPos;
       doc.setFont("helvetica", isBold ? "bold" : "normal");
       doc.setFontSize(isBold ? 9 : 8);
       const textHeight = 7; // mm
@@ -1314,7 +1396,6 @@ const ReportGeneration: React.FC = () => {
           { align: "center", maxWidth: secondColWidth - 4 }
         );
       } else if (text) {
-        // Added check for text
         doc.text(
           text,
           isCentered ? pageWidth / 2 : margin + 2,
@@ -1371,7 +1452,7 @@ const ReportGeneration: React.FC = () => {
       },
       columnStyles: columnStyles,
       didDrawPage: (hookData: any) => {
-        const pageCount = doc.internal.pages.length - 1;
+        const pageCount = (doc as any).internal.getNumberOfPages();
         doc.setFontSize(8);
         doc.text(
           `Page ${hookData.pageNumber} of ${pageCount}`,
@@ -1405,7 +1486,6 @@ const ReportGeneration: React.FC = () => {
     <>
       <Navbar />
       <style>{`
-        /* ... (print styles as before) ... */
         @media print {
             body { margin: 0; padding: 0; }
             body * { visibility: hidden; box-shadow: none !important; }
