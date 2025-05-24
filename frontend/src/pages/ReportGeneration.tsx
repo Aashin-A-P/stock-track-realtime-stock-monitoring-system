@@ -1,896 +1,1489 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "../components/Navbar";
-import ExcelJS from "exceljs";
+import * as ExcelJS from "exceljs";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
+import "jspdf-autotable"; // Ensure this is imported for jsPDF typings
+import { DndProvider, useDrag, useDrop, DropTargetMonitor } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import YearDropdown from "../components/YearDropdown";
 import { useDashboard } from "../context/DashboardContext";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+
+// ======================
+// Constants for Stock Register Group
+// ======================
+const STOCK_REGISTER_GROUP_KEY = "stockRegisterGroup";
+const STOCK_REG_SUB_COLUMNS = [
+  {
+    id: "volNoSub",
+    defaultHeader: "VOL. NO.",
+    dataKey: "volNo" as keyof Stock,
+  },
+  {
+    id: "pageNoSub",
+    defaultHeader: "PAGE NO.",
+    dataKey: "pageNo" as keyof Stock,
+  },
+  {
+    id: "serialNoSub",
+    defaultHeader: "SERIAL NO.",
+    dataKey: "serialNo" as keyof Stock,
+  },
+];
 
 // ======================
 // Interfaces & Types
 // ======================
 interface Stock {
-	serialNo: number;
-	volNo: string;
-	pageNo: string;
-	stockName: string;
-	stockDescription: string;
-	stockId: string;
-	location: string;
-	quantity: number;
-	price: number;
-	remarks: string;
-	budgetName: string;
-	categoryName?: string;
-	invoiceNo?: string;
-	fromAddress?: string;
-	toAddress?: string;
-	status?: string;
-	staff?: string;
-	annexure?: string;
-	nameOfCenter?: string;
-	stockRegNameAndVolNo?: string;
+  serialNo: number;
+  volNo: string;
+  pageNo: string;
+  stockName: string;
+  stockDescription: string;
+  stockId: string;
+  location: string;
+  quantity: number;
+  price: number;
+  remarks: string;
+  budgetName: string;
+  categoryName?: string;
+  invoiceNo?: string;
+  fromAddress?: string;
+  toAddress?: string;
+  status?: string;
+  staff?: string;
+  annexure?: string;
+  nameOfCenter?: string;
+  stockRegNameAndVolNo?: string;
+  statementOfVerification?: string;
 }
 
 interface SelectedColumns {
-	[key: string]: boolean;
+  [key: string]: boolean;
 }
 
 interface ColumnAliases {
-	[key: string]: string;
+  [key: string]: string;
 }
+
+interface DragItem {
+  index: number;
+  type: string;
+}
+
+const formatColumnKeyForDisplay = (key: string): string => {
+  if (key === "displaySerialNo") return "S.No.";
+  if (key === STOCK_REGISTER_GROUP_KEY) return "Stock Register";
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase());
+};
 
 // ======================
 // Filter Dropdown Component
 // ======================
 interface FilterDropdownProps {
-	year: number;
-	onYearChange: (year: number ,startDate :string ,endDate : string) => void;
+  year: number;
+  onYearChange: (year: number, startDate: string, endDate: string) => void;
 }
 
-const FilterDropdown: React.FC<FilterDropdownProps> = ({ year, onYearChange }) => {
-	const { years } = useDashboard();
-
-	const handleYearChange = (year: number) => {
-		// Calculate the start and end dates for the selected year
-		const yearstr = year.toString(); 
-		const [startYear, endYear] = yearstr.split('-').map(Number);
-
-		const startDate = `${startYear}-04-01`;
-		const endDate = `${endYear}-03-31`;
-		
-		onYearChange(year, startDate, endDate);
-	};	
-	return (
-		<div className="mb-6">
-			<label htmlFor="yearFilter" className="block font-medium mb-1 text-blue-700">
-				Filter by Budget Year
-			</label>
-			<YearDropdown selectedYear={year} onSelectYear={handleYearChange} years={years} />
-		</div>
-	);
+const FilterDropdown: React.FC<FilterDropdownProps> = ({
+  year,
+  onYearChange,
+}) => {
+  const { years } = useDashboard();
+  const handleYearSelect = (selectedYearValue: number) => {
+    const yearStr = selectedYearValue.toString();
+    const [startYearStr, endYearStr] = yearStr.split("-");
+    const startYear = parseInt(startYearStr);
+    const endYear = endYearStr ? parseInt(endYearStr) : startYear;
+    const startDate = `${startYear}-04-01`;
+    const financialEndDate = `${endYear + (endYearStr ? 0 : 1)}-03-31`;
+    onYearChange(selectedYearValue, startDate, financialEndDate);
+  };
+  return (
+    <div className="mb-6 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
+      <label className="block font-medium mb-2 text-gray-700">
+        Filter by Budget Year
+      </label>
+      <YearDropdown
+        selectedYear={year}
+        onSelectYear={handleYearSelect}
+        years={years}
+      />
+    </div>
+  );
 };
 
 // ======================
 // Column Selection Component
 // ======================
 interface ColumnSelectionProps {
-	selectedColumns: SelectedColumns;
-	onToggleColumn: (column: keyof SelectedColumns) => void;
+  selectedColumns: SelectedColumns;
+  onToggleColumn: (column: string) => void;
+  allPossibleColumnsForSelection: string[];
 }
 
-const ColumnSelection: React.FC<ColumnSelectionProps> = ({ selectedColumns, onToggleColumn }) => {
-	return (
-		<div className="mb-6">
-			<h2 className="font-semibold text-blue-700 mb-3">Select Columns</h2>
-			<div className="grid lg:grid-cols-6 gap-4 md:grid-cols-3 sm:grid-cols-2">
-				{Object.keys(selectedColumns).map((column) => (
-					<label key={column} className="flex items-center space-x-2">
-						<input
-							type="checkbox"
-							checked={selectedColumns[column as keyof SelectedColumns]}
-							onChange={() => onToggleColumn(column as keyof SelectedColumns)}
-							className="mr-2"
-						/>
-						<span className="text-blue-700 capitalize">{column}</span>
-					</label>
-				))}
-			</div>
-		</div>
-	);
+const ColumnSelection: React.FC<ColumnSelectionProps> = ({
+  selectedColumns,
+  onToggleColumn,
+  allPossibleColumnsForSelection,
+}) => {
+  return (
+    <div className="mb-6 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
+      <h2 className="font-semibold text-gray-700 mb-3 text-lg">
+        Select Columns to Display
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {allPossibleColumnsForSelection
+          .filter(
+            (col) =>
+              ![
+                "annexure",
+                "nameOfCenter",
+                "stockRegNameAndVolNo",
+                "statementOfVerification",
+              ].includes(col)
+          )
+          .map((columnKey) => (
+            <label
+              key={columnKey}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={!!selectedColumns[columnKey]}
+                onChange={() => onToggleColumn(columnKey)}
+                className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-gray-700 capitalize text-sm">
+                {formatColumnKeyForDisplay(columnKey)}
+              </span>
+            </label>
+          ))}
+      </div>
+    </div>
+  );
 };
 
 // ======================
 // Draggable Column Component
 // ======================
 interface DraggableColumnProps {
-	column: string;
-	index: number;
-	moveColumn: (dragIndex: number, hoverIndex: number) => void;
-	alias: string;
-	handleAliasChange: (e: React.ChangeEvent<HTMLInputElement>, column: string) => void;
+  columnKey: string;
+  index: number;
+  moveColumn: (dragIndex: number, hoverIndex: number) => void;
+  alias: string;
+  handleAliasChange: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    columnKey: string
+  ) => void;
 }
 
 const DraggableColumn: React.FC<DraggableColumnProps> = ({
-	column,
-	index,
-	moveColumn,
-	alias,
-	handleAliasChange,
+  columnKey,
+  index,
+  moveColumn,
+  alias,
+  handleAliasChange,
 }) => {
-	const ref = React.useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const displayColumnName = formatColumnKeyForDisplay(columnKey);
 
-	const [{ isDragging }, drag] = useDrag({
-		type: "COLUMN",
-		item: { index },
-		collect: (monitor) => ({
-			isDragging: monitor.isDragging(),
-		}),
-	});
+  const [{ isDragging }, drag] = useDrag({
+    type: "COLUMN",
+    item: { index },
+    collect: (monitor) => ({ isDragging: monitor.isDragging() }),
+  });
 
-	const [, drop] = useDrop({
-		accept: "COLUMN",
-		hover: (item: { index: number }, monitor) => {
-			if (!ref.current) return;
-			const dragIndex = item.index;
-			const hoverIndex = index;
-			if (dragIndex === hoverIndex) return;
+  const [, drop] = useDrop<
+    DragItem,
+    void,
+    { handlerId: string | symbol | null }
+  >({
+    accept: "COLUMN",
+    hover: (item: DragItem, monitor: DropTargetMonitor) => {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY =
+        (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      if (!clientOffset) return;
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+      if (
+        (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) ||
+        (dragIndex > hoverIndex && hoverClientY > hoverMiddleY)
+      )
+        return;
+      moveColumn(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+  drag(drop(ref));
 
-			const hoverBoundingRect = ref.current.getBoundingClientRect();
-			const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-			const clientOffset = monitor.getClientOffset();
-			if (!clientOffset) return;
-			const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-
-			if (
-				(dragIndex < hoverIndex && hoverClientY < hoverMiddleY) ||
-				(dragIndex > hoverIndex && hoverClientY > hoverMiddleY)
-			) {
-				return;
-			}
-			moveColumn(dragIndex, hoverIndex);
-			item.index = hoverIndex;
-		},
-	});
-
-	drag(drop(ref));
-
-	return (
-		<div
-			ref={ref}
-			className={`flex items-center pl-4 pr-2 py-2 border border-gray-300 rounded-xl bg-white shadow-lg transition-all transform ${isDragging ? "opacity-50 scale-95" : "opacity-100 scale-100"
-				} cursor-grab active:cursor-grabbing backdrop-blur-lg`}
-		>
-			<span className="mr-3 text-gray-600 text-xl">☰</span>
-			<div className="grid grid-cols-5 items-center gap-4 w-full">
-				<span className="text-lg font-semibold text-black capitalize mr-2">{column}</span>
-				<input
-					type="text"
-					value={alias}
-					onChange={(e) => handleAliasChange(e, column)}
-					className="ml-2 col-span-4 mt-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
-				/>
-			</div>
-		</div>
-	);
+  return (
+    <div
+      ref={ref}
+      className={`flex items-center p-3 border border-gray-300 rounded-md bg-white shadow-sm transition-all transform ${
+        isDragging ? "opacity-50 scale-95" : "opacity-100 scale-100"
+      } cursor-grab active:cursor-grabbing`}
+    >
+      <span className="mr-3 text-gray-500 text-lg">☰</span>
+      <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 items-center gap-2">
+        <span className="text-sm font-medium text-gray-800 capitalize">
+          {displayColumnName}
+        </span>
+        <input
+          type="text"
+          value={alias}
+          onChange={(e) => handleAliasChange(e, columnKey)}
+          placeholder={`Rename ${displayColumnName}`}
+          className="text-sm p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+    </div>
+  );
 };
 
 // ======================
 // Column Reorder & Rename Component
 // ======================
 interface ColumnReorderProps {
-	columnOrder: string[];
-	selectedColumns: Record<string, boolean>;
-	columnAliases: Record<string, string>;
-	moveColumn: (dragIndex: number, hoverIndex: number) => void;
-	onAliasChange: (e: React.ChangeEvent<HTMLInputElement>, column: string) => void;
+  draggableColumnOrder: string[];
+  columnAliases: Record<string, string>;
+  moveColumn: (dragIndex: number, hoverIndex: number) => void;
+  onAliasChange: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    columnKey: string
+  ) => void;
+  onAliasChangeForSpecialHeader: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    headerKey:
+      | "annexure"
+      | "nameOfCenter"
+      | "stockRegNameAndVolNo"
+      | "statementOfVerification"
+  ) => void;
 }
 
 const ColumnReorder: React.FC<ColumnReorderProps> = ({
-	columnOrder,
-	selectedColumns,
-	columnAliases,
-	moveColumn,
-	onAliasChange
+  draggableColumnOrder,
+  columnAliases,
+  moveColumn,
+  onAliasChange,
+  onAliasChangeForSpecialHeader,
 }) => {
-
-	return (
-		<div className="mb-6 p-5 rounded-lg bg-gray-50 shadow-md">
-			<h2 className="font-bold text-blue-700 text-lg mb-4">Reorder & Rename Columns</h2>
-			<DndProvider backend={HTML5Backend}>
-				<div className="space-y-3">
-					{columnOrder.map(
-						(column, index) =>
-							selectedColumns[column] && (
-								<DraggableColumn
-									key={column}
-									column={column}
-									index={index}
-									moveColumn={moveColumn}
-									alias={columnAliases[column]}
-									handleAliasChange={onAliasChange}
-								/>
-							)
-					)}
-				</div>
-			</DndProvider>
-		</div>
-	);
+  const specialHeaderKeys: Array<
+    | "annexure"
+    | "nameOfCenter"
+    | "stockRegNameAndVolNo"
+    | "statementOfVerification"
+  > = [
+    "annexure",
+    "nameOfCenter",
+    "stockRegNameAndVolNo",
+    "statementOfVerification",
+  ];
+  return (
+    <div className="mb-6 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
+      <h2 className="font-semibold text-gray-700 text-lg mb-3">
+        Reorder & Rename Columns
+      </h2>
+      <DndProvider backend={HTML5Backend}>
+        <div className="space-y-2">
+          {draggableColumnOrder.map((columnKey, index) => (
+            <DraggableColumn
+              key={columnKey}
+              columnKey={columnKey}
+              index={index}
+              moveColumn={moveColumn}
+              alias={
+                columnAliases[columnKey] || formatColumnKeyForDisplay(columnKey)
+              }
+              handleAliasChange={onAliasChange}
+            />
+          ))}
+        </div>
+      </DndProvider>
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        <h3 className="font-semibold text-gray-700 text-md mb-3">
+          Rename Report Headers
+        </h3>
+        <div className="space-y-3">
+          {specialHeaderKeys.map((key) => (
+            <div
+              key={key}
+              className="grid grid-cols-1 sm:grid-cols-2 items-center gap-2"
+            >
+              <label
+                htmlFor={`alias-${key}`}
+                className="text-sm font-medium text-gray-800 capitalize"
+              >
+                {formatColumnKeyForDisplay(key)}:
+              </label>
+              <input
+                type="text"
+                id={`alias-${key}`}
+                value={columnAliases[key] || ""}
+                onChange={(e) => onAliasChangeForSpecialHeader(e, key)}
+                placeholder={`Enter ${formatColumnKeyForDisplay(key)}`}
+                className="text-sm p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ======================
 // Stock Table Component
 // ======================
 interface StockTableProps {
-	stocks: Stock[];
-	columnOrder: string[];
-	selectedColumns: SelectedColumns;
-	columnAliases: ColumnAliases;
-	annexure?: string;
-	nameOfCenter?: string;
-	stockRegNameAndVolNo?: string;
-	statementOfVerification?: string;
+  stocks: Stock[];
+  columnOrder: string[];
+  selectedColumns: SelectedColumns;
+  columnAliases: ColumnAliases;
+  annexureText?: string;
+  nameOfCenterText?: string;
+  stockRegNameAndVolNoText?: string;
+  statementOfVerificationText?: string;
 }
 
 const StockTable: React.FC<StockTableProps> = ({
-	stocks,
-	columnOrder,
-	selectedColumns,
-	columnAliases,
-	annexure,
-	nameOfCenter,
-	stockRegNameAndVolNo,
-	statementOfVerification,
+  stocks,
+  columnOrder,
+  selectedColumns,
+  columnAliases,
+  annexureText,
+  nameOfCenterText,
+  stockRegNameAndVolNoText,
+  statementOfVerificationText,
 }) => {
-	const colCount = columnOrder.length - 4;
-	return (
-		<div className="overflow-x-auto mb-6">
-			<table className="w-full text-sm text-left bg-white shadow border border-gray-300 rounded-lg">
-				<thead className="text-black text-center border border-gray-300">
-					{annexure && (
-						<tr className="border border-gray-300 hover:bg-blue-50">
-							<th colSpan={colCount} className="p-4 border border-gray-300">
-								{annexure}
-							</th>
-						</tr>
-					)}
-					{(nameOfCenter || stockRegNameAndVolNo) && (
-						<tr className="border border-gray-300 hover:bg-blue-50">
-							{nameOfCenter && (
-								<th
-									colSpan={nameOfCenter && stockRegNameAndVolNo ? (colCount / 2) - 2 : colCount}
-									className="p-4 border border-gray-300"
-								>
-									{nameOfCenter}
-								</th>
-							)}
-							{stockRegNameAndVolNo && (
-								<th
-									colSpan={nameOfCenter && stockRegNameAndVolNo ? colCount - (colCount / 2) + 2: colCount}
-									className="p-4 border border-gray-300"
-								>
-									{stockRegNameAndVolNo}
-								</th>
-							)}
-						</tr>
-					)}
-					{statementOfVerification && (
-						<tr>
-							<th colSpan={colCount} className="p-4 border border-gray-300">
-								{statementOfVerification}
-							</th>
-						</tr>
-					)}
-					<tr className="border border-gray-300 hover:bg-blue-50">
-						{columnOrder.map(
-							(column) =>
-								selectedColumns[column] &&
-								column !== "annexure" &&
-								column !== "statementOfVerification" &&
-								column !== "stockRegNameAndVolNo" &&
-								column !== "nameOfCenter" && (
-									<th key={column} className="p-4 border border-gray-300">
-										{columnAliases[column]}
-									</th>
-								)
-						)}
-					</tr>
-				</thead>
-				<tbody>
-					{stocks.map((stock, idx) => (
-						<tr key={idx} className="border border-gray-300 hover:bg-blue-50">
-							{columnOrder.map(
-								(column) =>
-									selectedColumns[column] &&
-									column !== "annexure" &&
-									column !== "statementOfVerification" &&
-									column !== "stockRegNameAndVolNo" &&
-									column !== "nameOfCenter" && (
-										<td key={column} className="p-4 border border-gray-300 break-words">
-											{column === "stockRegister"
-												? `Vol-${stock["stockId"].split("-")[0]} Page-${stock["stockId"].split("-")[1]} Serial-${stock["stockId"].split("-")[2]}`
-												: column === "serialNo" ? idx + 1 : stock[column as keyof Stock]}
-										</td>
-									)
-							)}
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</div>
-	);
+  const getColumnDisplayName = (colKey: string) =>
+    columnAliases[colKey] || formatColumnKeyForDisplay(colKey);
+
+  const actualDataColumns = columnOrder
+    .flatMap((colKey) => {
+      if (
+        colKey === STOCK_REGISTER_GROUP_KEY &&
+        selectedColumns[STOCK_REGISTER_GROUP_KEY]
+      ) {
+        return STOCK_REG_SUB_COLUMNS.map((sc) => ({
+          key: sc.id,
+          dataKey: sc.dataKey,
+          isSubColumn: true,
+        }));
+      }
+      if (selectedColumns[colKey] && colKey !== STOCK_REGISTER_GROUP_KEY) {
+        return [
+          {
+            key: colKey,
+            dataKey: colKey as keyof Stock | "displaySerialNo",
+            isSubColumn: false,
+          },
+        ];
+      }
+      return [];
+    })
+    .filter(Boolean);
+
+  const colCount = actualDataColumns.length;
+  const isStockRegisterGroupSelected =
+    selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
+    columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
+
+  if (colCount === 0 && stocks.length === 0)
+    return (
+      <div className="p-4 text-center text-gray-500">
+        Select columns and filters.
+      </div>
+    );
+  if (colCount === 0 && stocks.length > 0)
+    return (
+      <div className="p-4 text-center text-gray-500">No columns selected.</div>
+    );
+  if (colCount > 0 && stocks.length === 0)
+    return (
+      <div className="p-4 text-center text-gray-500">No data for filters.</div>
+    );
+
+  return (
+    <div className="overflow-x-auto shadow-lg rounded-lg bg-white">
+      <table
+        id="stockReportTable"
+        className="w-full text-xs text-left border-collapse border border-black"
+      >
+        <thead className="text-black align-middle">
+          {annexureText && (
+            <tr className="bg-white">
+              <th
+                colSpan={colCount || 1}
+                className="p-2 border border-black text-center font-bold text-sm h-10"
+              >
+                {annexureText}
+              </th>
+            </tr>
+          )}
+          {(nameOfCenterText || stockRegNameAndVolNoText) && (
+            <tr className="bg-white">
+              {nameOfCenterText && (
+                <th
+                  colSpan={
+                    nameOfCenterText && stockRegNameAndVolNoText
+                      ? Math.ceil(colCount / 2)
+                      : colCount || 1
+                  }
+                  className="p-2 border border-black text-center font-semibold h-10"
+                >
+                  {nameOfCenterText}
+                </th>
+              )}
+              {stockRegNameAndVolNoText && (
+                <th
+                  colSpan={
+                    nameOfCenterText && stockRegNameAndVolNoText
+                      ? Math.floor(colCount / 2)
+                      : colCount || 1
+                  }
+                  className="p-2 border border-black text-center font-semibold h-10"
+                >
+                  {stockRegNameAndVolNoText}
+                </th>
+              )}
+            </tr>
+          )}
+          {statementOfVerificationText && (
+            <tr className="bg-white">
+              <th
+                colSpan={colCount || 1}
+                className="p-2 border border-black text-center font-bold text-sm h-10"
+              >
+                {statementOfVerificationText}
+              </th>
+            </tr>
+          )}
+
+          <tr className="bg-gray-200">
+            {columnOrder
+              .filter((colKey) => selectedColumns[colKey])
+              .map((colKey) => {
+                if (colKey === STOCK_REGISTER_GROUP_KEY) {
+                  return (
+                    <th
+                      key={colKey}
+                      colSpan={STOCK_REG_SUB_COLUMNS.length}
+                      className="p-2 border border-black font-bold text-center h-12 align-middle"
+                    >
+                      {getColumnDisplayName(colKey)}
+                    </th>
+                  );
+                } else {
+                  return (
+                    <th
+                      key={colKey}
+                      rowSpan={isStockRegisterGroupSelected ? 2 : 1}
+                      className="p-2 border border-black font-bold text-center h-12 align-middle"
+                    >
+                      {getColumnDisplayName(colKey)}
+                    </th>
+                  );
+                }
+              })}
+          </tr>
+          {isStockRegisterGroupSelected && (
+            <tr className="bg-gray-200">
+              {columnOrder
+                .filter((colKey) => selectedColumns[colKey])
+                .flatMap((colKey) => {
+                  if (colKey === STOCK_REGISTER_GROUP_KEY) {
+                    return STOCK_REG_SUB_COLUMNS.map((subCol) => (
+                      <th
+                        key={subCol.id}
+                        className="p-2 border border-black font-bold text-center h-12"
+                      >
+                        {subCol.defaultHeader}
+                      </th>
+                    ));
+                  }
+                  return [];
+                })}
+            </tr>
+          )}
+        </thead>
+        <tbody>
+          {stocks.map((stock, idx) => (
+            <tr
+              key={stock.stockId + idx}
+              className="hover:bg-gray-50 transition-colors"
+            >
+              {actualDataColumns.map((col) => (
+                <td
+                  key={col.key}
+                  className={`p-2 border border-black break-words align-top ${
+                    [
+                      "quantity",
+                      "price",
+                      "displaySerialNo",
+                      ...STOCK_REG_SUB_COLUMNS.map((s) => s.id),
+                    ].includes(col.key)
+                      ? "text-center"
+                      : "text-left"
+                  } ${col.key === "stockDescription" ? "min-w-[200px]" : ""}`}
+                >
+                  {col.key === "displaySerialNo"
+                    ? idx + 1
+                    : String(stock[col.dataKey as keyof Stock] ?? "")}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 // ======================
-// Export Buttons Component
+// Export Buttons
 // ======================
 interface ExportButtonsProps {
-	onExportExcel: () => void;
-	onExportPDF: (pageSize: "a4" | "a3" | "a2" | "letter" | "legal") => void;
+  onExportExcel: () => void;
+  onExportPDF: (pageSize: "a4" | "a3" | "a2" | "letter" | "legal") => void;
+  onPrintTable: () => void; // Keep it simple for now
+  hasData: boolean;
 }
-
-const ExportButtons: React.FC<ExportButtonsProps> = ({ onExportExcel, onExportPDF }) => {
-	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-	return (
-		<div className="mt-6 flex justify-between">
-			<button
-				onClick={onExportExcel}
-				className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-			>
-				Export to Excel
-			</button>
-			<div className="relative">
-				<button
-					onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-					className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center"
-				>
-					Export to PDF <span className="ml-2">&#9652;</span>
-				</button>
-				{isDropdownOpen && (
-					<div className="absolute right-0 bottom-full mb-2 w-40 bg-white border border-blue-300 shadow-lg rounded">
-						{["a4", "a3", "a2", "letter", "legal"].map((size) => (
-							<button
-								key={size}
-								onClick={() => {
-									setIsDropdownOpen(false);
-									onExportPDF(size as "a4" | "a3" | "a2" | "letter" | "legal");
-								}}
-								className="block w-full text-left px-4 py-2 hover:bg-blue-100"
-							>
-								{size.toUpperCase()}
-							</button>
-						))}
-					</div>
-				)}
-			</div>
-		</div>
-	);
+const ExportButtons: React.FC<ExportButtonsProps> = ({
+  onExportExcel,
+  onExportPDF,
+  onPrintTable,
+  hasData,
+}) => {
+  const [isPdfDropdownOpen, setIsPdfDropdownOpen] = useState(false);
+  return (
+    <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
+      <button
+        onClick={onPrintTable}
+        disabled={!hasData}
+        className="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Print Table
+      </button>
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <button
+          onClick={onExportExcel}
+          disabled={!hasData}
+          className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Export to Excel
+        </button>
+        <div className="relative w-full sm:w-auto">
+          <button
+            onClick={() => setIsPdfDropdownOpen(!isPdfDropdownOpen)}
+            disabled={!hasData}
+            className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Export to PDF{" "}
+            <span
+              className={`ml-2 transform transition-transform ${
+                isPdfDropdownOpen ? "rotate-180" : "rotate-0"
+              }`}
+            >
+              ▼
+            </span>
+          </button>
+          {isPdfDropdownOpen && (
+            <div className="absolute right-0 sm:left-0 bottom-full mb-1 w-full sm:w-40 bg-white border border-gray-300 shadow-lg rounded-md z-10">
+              {["a4", "a3", "a2", "letter", "legal"].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    setIsPdfDropdownOpen(false);
+                    onExportPDF(size as any);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  {size.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ======================
 // Main ReportGeneration Component
 // ======================
+const ALL_SELECTABLE_COLUMNS: Array<
+  | keyof Omit<Stock, "volNo" | "pageNo" | "serialNo">
+  | "displaySerialNo"
+  | typeof STOCK_REGISTER_GROUP_KEY
+> = [
+  "displaySerialNo",
+  STOCK_REGISTER_GROUP_KEY,
+  "stockId",
+  "stockName",
+  "stockDescription",
+  "location",
+  "quantity",
+  "price",
+  "remarks",
+  "budgetName",
+  "categoryName",
+  "invoiceNo",
+  "fromAddress",
+  "toAddress",
+  "status",
+  "staff",
+];
+
 const ReportGeneration: React.FC = () => {
-	const navigate = useNavigate();
-	const { token } = useAuth();
+  const navigate = useNavigate();
+  const { token } = useAuth();
 
-	// Redirect to login if no token
-	useEffect(() => {
-		if (!token) {
-			navigate("/login");
-		}
-	}, [token, navigate]);
+  useEffect(() => {
+    if (!token) navigate("/login");
+  }, [token, navigate]);
 
-	// State declarations
-	const [stocks, setStocks] = useState<Stock[]>([]);
-	const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>({});
-	const [columnOrder, setColumnOrder] = useState<string[]>([]);
-	const [columnAliases, setColumnAliases] = useState<ColumnAliases>({});
-	const [selectedYear, setSelectedYear] = useState<number >(0);
-	const [startDate, setStartDate] = useState<string | null>(null);
-	const [endDate, setEndDate] = useState<string | null>(null);
+  const [stocks, setStocks] = useState<Stock[]>([]);
 
-	const handleYearChange = (year: number, startDate: string, endDate: string) => {
-		setSelectedYear(year);
-		setStartDate(startDate);
-		setEndDate(endDate);
-	};
+  const initialSelectedColumns = ALL_SELECTABLE_COLUMNS.reduce(
+    (acc, colKey) => {
+      const key = colKey as string;
+      acc[key] = [
+        "displaySerialNo",
+        STOCK_REGISTER_GROUP_KEY,
+        "stockName",
+        "quantity",
+        "price",
+      ].includes(key);
+      return acc;
+    },
+    {} as SelectedColumns
+  );
+  const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>(
+    initialSelectedColumns
+  );
 
-	// Fetch initial settings from the backend
-	useEffect(() => {
-		const fetchSettings = async () => {
-			const response = await fetch(`${API_URL}/settings`);
-			const data = await response.json();
-			setSelectedColumns(data.selectedColumns);
-			setColumnOrder(data.columnOrder);
-			setColumnAliases(data.columnAliases);
-		};
-		fetchSettings();
-	}, []);
-// 1. Fetch all data initially (no filters)
-useEffect(() => {
-	const getActualData = async () => {
-		const response = await fetch(`${API_URL}/stock/report`, {
-			method: "GET",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `${token}`,
-			},
-		});
-		const data = await response.json();
-		setStocks(data);
-	};
-	getActualData();
-}, [token]);
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    ALL_SELECTABLE_COLUMNS as string[]
+  );
 
-// 2. Refetch only when date filters are set
-useEffect(() => {
-	const getFilteredData = async () => {
-		if (startDate && endDate) {
-			const response = await fetch(`${API_URL}/stock/report?startDate=${startDate}&endDate=${endDate}`, {
-				method: "GET",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `${token}`,
-				},
-			});
-			const data = await response.json();
-			setStocks(data); // Override unfiltered data with filtered data
-		}
-	};
+  const initialColumnAliases = {
+    annexure: "ANNEXURE - I",
+    nameOfCenter: "Name of the Center/Department: Example Department",
+    stockRegNameAndVolNo:
+      "Name of the Stock Register & Vol.No: Example Register Vol. 1",
+    statementOfVerification:
+      "STATEMENT SHOWING THE DETAILS OF VERIFICATION OF STORES AND STOCK FOR THE YEAR 2023-2024",
+    ...ALL_SELECTABLE_COLUMNS.reduce((acc, colKey) => {
+      const key = colKey as string;
+      acc[key] = formatColumnKeyForDisplay(key);
+      return acc;
+    }, {} as ColumnAliases),
+  };
+  const [columnAliases, setColumnAliases] =
+    useState<ColumnAliases>(initialColumnAliases);
 
-	if (startDate && endDate) {
-		getFilteredData();
-	}
-}, [token, startDate, endDate]);
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear()
+  );
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
 
+  const handleYearChange = (year: number, startDt: string, endDt: string) => {
+    setSelectedYear(year);
+    setStartDate(startDt);
+    setEndDate(endDt);
+  };
 
-	// Handlers & Helper Functions
-	const moveColumn = (dragIndex: number, hoverIndex: number) => {
-		const updatedOrder = [...columnOrder];
-		const [draggedColumn] = updatedOrder.splice(dragIndex, 1);
-		updatedOrder.splice(hoverIndex, 0, draggedColumn);
-		setColumnOrder(updatedOrder);
-		saveSettings({ selectedColumns, columnOrder: updatedOrder, columnAliases });
-	};
+  const getColumnDisplayName = (colKey: string) =>
+    columnAliases[colKey] || formatColumnKeyForDisplay(colKey);
 
-	const handleColumnSelection = (column: keyof SelectedColumns) => {
-		const updatedColumns = {
-			...selectedColumns,
-			[column]: !selectedColumns[column],
-		};
-		setSelectedColumns(updatedColumns);
-		saveSettings({ selectedColumns: updatedColumns, columnOrder, columnAliases });
-	};
+  const fetchSettingsCallback = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_URL}/settings`, {
+        headers: { Authorization: `${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const newSelectedColumns: SelectedColumns = {
+          ...initialSelectedColumns,
+        };
+        if (data.selectedColumns) {
+          (ALL_SELECTABLE_COLUMNS as string[]).forEach((key) => {
+            if (data.selectedColumns[key] !== undefined)
+              newSelectedColumns[key] = data.selectedColumns[key];
+          });
+        }
+        setSelectedColumns(newSelectedColumns);
 
-	const handleAliasChange = (e: React.ChangeEvent<HTMLInputElement>, column: keyof ColumnAliases) => {
-		const updatedAliases = { ...columnAliases, [column]: e.target.value };
-		setColumnAliases(updatedAliases);
-		saveSettings({ selectedColumns, columnOrder, columnAliases: updatedAliases });
-	};
+        let savedOrder =
+          data.columnOrder && Array.isArray(data.columnOrder)
+            ? data.columnOrder.filter((col: string) =>
+                (ALL_SELECTABLE_COLUMNS as string[]).includes(col)
+              )
+            : [];
+        const baseOrder = ALL_SELECTABLE_COLUMNS as string[];
+        setColumnOrder([...new Set([...savedOrder, ...baseOrder])]);
 
-	const saveSettings = async (settings: { selectedColumns: SelectedColumns; columnOrder: string[]; columnAliases: ColumnAliases }) => {
-		await fetch(`${API_URL}/settings`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(settings),
-		});
-	};
+        const newAliases: ColumnAliases = { ...initialColumnAliases };
+        if (data.columnAliases) {
+          Object.keys(data.columnAliases).forEach((key) => {
+            if (
+              newAliases[key] !== undefined ||
+              [
+                "annexure",
+                "nameOfCenter",
+                "stockRegNameAndVolNo",
+                "statementOfVerification",
+              ].includes(key)
+            ) {
+              newAliases[key] = data.columnAliases[key];
+            }
+          });
+        }
+        setColumnAliases(newAliases);
+      } else {
+        console.warn("Failed to fetch settings, using defaults.");
+        setSelectedColumns(initialSelectedColumns);
+        setColumnOrder(ALL_SELECTABLE_COLUMNS as string[]);
+        setColumnAliases(initialColumnAliases);
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      setSelectedColumns(initialSelectedColumns);
+      setColumnOrder(ALL_SELECTABLE_COLUMNS as string[]);
+      setColumnAliases(initialColumnAliases);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-	const exportToExcel = async () => {
-		// Create table data similar to your original logic
-		const tableData = stocks.map((stock) => {
-			const row: Record<string, any> = {};
-			columnOrder.forEach((key) => {
-				if (selectedColumns[key]) {
-					row[columnAliases[key]] =
-						key === "stockRegister"
-							? `Vol-${stock["stockId"].split("-")[0]} Page-${stock["stockId"].split("-")[1]} Serial-${stock["stockId"].split("-")[2]}`
-							: stock[key as keyof Stock];
-				}
-			});
-			return row;
-		});
+  useEffect(() => {
+    if (token) fetchSettingsCallback();
+  }, [fetchSettingsCallback, token]);
 
-		// Create a new workbook and add a worksheet
-		const workbook = new ExcelJS.Workbook();
-		const worksheet = workbook.addWorksheet("Stock Report");
+  useEffect(() => {
+    const getReportData = async () => {
+      if (!token) return;
+      let url = `${API_URL}/stock/report`;
+      if (startDate && endDate)
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+      try {
+        const response = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+        });
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        setStocks(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to fetch stock data:", error);
+        setStocks([]);
+      }
+    };
+    getReportData();
+  }, [token, startDate, endDate]);
 
-		if (tableData.length > 0) {
-			// Extract header keys from the first row object
-			const headers = Object.keys(tableData[0]);
-			// Add header row to the worksheet
-			worksheet.addRow(headers);
+  const saveSettings = useCallback(
+    async (settings: {
+      selectedColumns: SelectedColumns;
+      columnOrder: string[];
+      columnAliases: ColumnAliases;
+    }) => {
+      if (!token) return;
+      try {
+        await fetch(`${API_URL}/settings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${token}`,
+          },
+          body: JSON.stringify(settings),
+        });
+      } catch (error) {
+        console.error("Failed to save settings:", error);
+      }
+    },
+    [token]
+  );
 
-			// Add each data row in the same order as the headers
-			tableData.forEach((rowData) => {
-				const rowValues = headers.map((header) => rowData[header]);
-				worksheet.addRow(rowValues);
-			});
+  const moveColumn = (dragIndex: number, hoverIndex: number) => {
+    const currentDraggableOrder = columnOrder.filter(
+      (colKey) =>
+        selectedColumns[colKey] &&
+        ![
+          "annexure",
+          "nameOfCenter",
+          "stockRegNameAndVolNo",
+          "statementOfVerification",
+        ].includes(colKey)
+    );
+    const draggedItem = currentDraggableOrder[dragIndex];
+    const newDraggableOrder = [...currentDraggableOrder];
+    newDraggableOrder.splice(dragIndex, 1);
+    newDraggableOrder.splice(hoverIndex, 0, draggedItem);
 
-			// Dynamically calculate and set column widths
-			headers.forEach((header, colIndex) => {
-				const column = worksheet.getColumn(colIndex + 1);
-				const maxLength = Math.max(
-					header.length,
-					...tableData.map((row) => (row[header]?.toString().length || 0))
-				);
-				column.width = maxLength + 2;
-			});
-		}
+    const fullOrder = ALL_SELECTABLE_COLUMNS as string[];
+    const finalNewOrder: string[] = [];
+    const draggableSet = new Set(newDraggableOrder);
 
-		// Write workbook to a buffer and trigger download
-		const buffer = await workbook.xlsx.writeBuffer();
-		const blob = new Blob([buffer], {
-			type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-		});
-		const url = window.URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = "Stock_Report.xlsx";
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		window.URL.revokeObjectURL(url);
-	};
+    newDraggableOrder.forEach((col) => finalNewOrder.push(col));
+    fullOrder.forEach((col) => {
+      if (!draggableSet.has(col)) {
+        finalNewOrder.push(col);
+      }
+    });
 
-	// Export to PDF
-	const exportToPDF = (pageSize: "a4" | "a3" | "a2" | "letter" | "legal" = "a4") => {
-		const PAGE_SIZES: Record<string, [number, number]> = {
-		  a4: [297, 210],
-		  a3: [420, 297],
-		  a2: [594, 420],
-		  letter: [279.4, 215.9],
-		  legal: [355.6, 215.9],
-		};
-	  
-		const [width, height] = PAGE_SIZES[pageSize] || PAGE_SIZES["a4"];
-	  
-		const doc = new jsPDF({
-		  orientation: "landscape",
-		  unit: "mm",
-		  format: [width, height],
-		});
-	  
-		// Determine visible columns
-		const visibleColumns = columnOrder.filter(
-		  (column) =>
-			selectedColumns[column] &&
-			column !== "annexure" &&
-			column !== "statementOfVerification" &&
-			column !== "stockRegNameAndVolNo" &&
-			column !== "nameOfCenter"
-		);
-	  
-		// Set styling variables
-		const margin = 10;
-		const tableWidth = width - margin * 2;
-	  
-		// Define heights for title rows
-		const titleRowHeight = 8;
-		const headerRowHeight = 10;
-		const minRowHeight = 8; // Minimum row height
-		const cellPadding = 2; // Padding inside cells
-	  
-		// Set starting Y position
-		let currentY = margin;
-	  
-		// Draw borders and add text for title rows using variables from columnAliases
-		doc.setDrawColor(0);
-		doc.setLineWidth(0.1);
-	  
-		// Row 1: Annexure
-		doc.rect(margin, currentY, tableWidth, titleRowHeight);
-		doc.setFontSize(8);
-		doc.setFont("helvetica", "bold");
-		doc.text(columnAliases.annexure, width / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		currentY += titleRowHeight;
-	  
-		// Row 2: Department and register info
-		const halfWidth = tableWidth / 2;
-		doc.rect(margin, currentY, halfWidth, titleRowHeight);
-		doc.rect(margin + halfWidth, currentY, halfWidth, titleRowHeight);
-	  
-		doc.setFontSize(8);
-		doc.text(columnAliases.nameOfCenter, margin + halfWidth / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		doc.text(columnAliases.stockRegNameAndVolNo, margin + halfWidth + halfWidth / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		currentY += titleRowHeight;
-	  
-		// Row 3: Statement of Verification
-		doc.rect(margin, currentY, tableWidth, titleRowHeight);
-		doc.text(columnAliases.statementOfVerification, width / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		currentY += titleRowHeight;
-	  
-		// Table header position
-		const tableStartY = currentY;
-	  
-		// Calculate column widths based on available space
-		const columnWidths: Record<string, number> = {};
-		const totalTableWidth = tableWidth;
-	  
-		// Updated relative column widths with keys matching state
-		const columnWidthFactors: Record<string, number> = {
-		  serialNo: 3,
-		  stockRegister: 10,
-		  stockName: 5,
-		  stockDescription: 8,
-		  stockId: 4,
-		  location: 4,
-		  quantity: 4,
-		  price: 4,
-		  status: 4,
-		  remarks: 5,
-		  staff: 5,
-		  budgetName: 5,
-		  categoryName: 4,
-		  invoiceNo: 4,
-		  fromAddress: 5,
-		  toAddress: 5,
-		};
-	  
-		// Calculate total factors
-		const totalFactors = visibleColumns.reduce(
-		  (total, col) => total + (columnWidthFactors[col] || 5),
-		  0
-		);
-	  
-		// Set actual widths based on factors
-		visibleColumns.forEach((col) => {
-		  columnWidths[col] = ((columnWidthFactors[col] || 5) / totalFactors) * totalTableWidth;
-		});
-	  
-		// Draw header cells
-		let currentX = margin;
-		doc.rect(margin, tableStartY, tableWidth, headerRowHeight);
-	  
-		visibleColumns.forEach((column) => {
-		  const colWidth = columnWidths[column];
-		  doc.rect(currentX, tableStartY, colWidth, headerRowHeight);
-	  
-		  doc.setFont("helvetica", "bold");
-		  doc.setFontSize(8);
-		  
-		  // Center text vertically in header cell
-		  doc.text(
-			columnAliases[column] || column,
-			currentX + colWidth / 2,
-			tableStartY + headerRowHeight / 2,
-			{ 
-			  align: "center", 
-			  maxWidth: colWidth - (2 * cellPadding),
-			  baseline: 'middle'
-			}
-		  );
-	  
-		  currentX += colWidth;
-		});
-	  
-		// Improved function to calculate text height with better precision
-		const calculateTextHeight = (text: string, fontSize: number, maxWidth: number): number => {
-		  doc.setFontSize(fontSize);
-		  
-		  // Split text into lines based on available width
-		  const textLines = doc.splitTextToSize(text, maxWidth);
-		  
-		  // Calculate height based on font size and line count
-		  // Use a multiplier that accounts for line spacing (1.2 is common)
-		  const lineHeight = fontSize * 0.352778; // Convert pt to mm (1pt = 0.352778mm)
-		  const textHeight = textLines.length * lineHeight * 1.2;
-		  
-		  // Add padding to ensure text doesn't touch borders
-		  return textHeight + (2 * cellPadding);
-		};
-	  
-		// Add table data rows with adaptive heights
-		let rowY = tableStartY + headerRowHeight;
-	  
-		// Function to add a new page with headers
-		const addNewPageWithHeaders = () => {
-		  doc.addPage();
-		  currentY = margin;
-	  
-		  // Re-add title rows on the new page
-		  doc.rect(margin, currentY, tableWidth, titleRowHeight);
-		  doc.setFontSize(8);
-		  doc.setFont("helvetica", "bold");
-		  doc.text(columnAliases.annexure, width / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		  currentY += titleRowHeight;
-	  
-		  doc.rect(margin, currentY, halfWidth, titleRowHeight);
-		  doc.rect(margin + halfWidth, currentY, halfWidth, titleRowHeight);
-		  doc.setFontSize(8);
-		  doc.text(columnAliases.nameOfCenter, margin + halfWidth / 2, currentY + titleRowHeight / 2, { align: "center" });
-		  doc.text(columnAliases.stockRegNameAndVolNo, margin + halfWidth + halfWidth / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		  currentY += titleRowHeight;
-	  
-		  doc.rect(margin, currentY, tableWidth, titleRowHeight);
-		  doc.text(columnAliases.statementOfVerification, width / 2, currentY + titleRowHeight / 2 + 2, { align: "center" });
-		  currentY += titleRowHeight;
-	  
-		  const newTableStartY = currentY;
-		  doc.rect(margin, newTableStartY, tableWidth, headerRowHeight);
-	  
-		  currentX = margin;
-		  visibleColumns.forEach((column) => {
-			const colWidth = columnWidths[column];
-			doc.rect(currentX, newTableStartY, colWidth, headerRowHeight);
-			doc.setFont("helvetica", "bold");
-			doc.setFontSize(8);
-			doc.text(
-			  columnAliases[column] || column,
-			  currentX + colWidth / 2,
-			  newTableStartY + headerRowHeight / 2,
-			  { 
-				align: "center", 
-				maxWidth: colWidth - (2 * cellPadding),
-				baseline: 'middle'
-			  }
-			);
-			currentX += colWidth;
-		  });
-	  
-		  return newTableStartY + headerRowHeight;
-		};
-	  
-		// Process each stock item
-		stocks.forEach((stock, index) => {
-		  // First pass: calculate the required row height
-		  let rowHeight = minRowHeight;
-	  
-		  visibleColumns.forEach((column) => {
-			const colWidth = columnWidths[column];
-			let cellContent = "";
-	  
-			if (column === "stockRegister") {
-			  cellContent = `Vol-${stock["stockId"].split("-")[0]} Page-${stock["stockId"].split("-")[1]} Serial-${stock["stockId"].split("-")[2]}`;
-			} else if (column === "serialNo") {
-			  cellContent = String(index + 1);
-			} else {
-			  cellContent = String(stock[column as keyof Stock] || "");
-			}
-	  
-			// Calculate height needed for this cell's content
-			const fontSize = column === "stockRegister" ? 6 : 7;
-			const cellHeight = calculateTextHeight(cellContent, fontSize, colWidth - (2 * cellPadding));
-	  
-			// Update row height if this cell needs more space
-			if (cellHeight > rowHeight) {
-			  rowHeight = cellHeight;
-			}
-		  });
-	  
-		  // Add a bit of extra height to prevent overflow
-		  rowHeight += 2;
-	  
-		  // Check if this row will fit on the current page
-		  if (rowY + rowHeight > height - 20) {
-			// Add a new page and reset Y position
-			rowY = addNewPageWithHeaders();
-		  }
-	  
-		  // Draw the outer row rectangle
-		  doc.rect(margin, rowY, tableWidth, rowHeight);
-	  
-		  // Second pass: render the cell content
-		  currentX = margin;
-		  visibleColumns.forEach((column) => {
-			const colWidth = columnWidths[column];
-			doc.rect(currentX, rowY, colWidth, rowHeight);
-	  
-			let cellContent = "";
-			if (column === "stockRegister") {
-			  cellContent = `Vol-${stock["stockId"].split("-")[0]} Page-${stock["stockId"].split("-")[1]} Serial-${stock["stockId"].split("-")[2]}`;
-			} else if (column === "serialNo") {
-			  cellContent = String(index + 1);
-			} else {
-			  cellContent = String(stock[column as keyof Stock] || "");
-			}
-	  
-			doc.setFont("helvetica", "normal");
-			doc.setFontSize(column === "stockRegister" ? 6 : 7);
-	  
-			// Get text split into lines for this cell
-			const maxWidth = colWidth - (2 * cellPadding);
-			const textLines = doc.splitTextToSize(cellContent, maxWidth);
-			
-			if (column === "stockRegister") {
-			  // Left-aligned text for stockRegister with proper vertical alignment
-			  const lineHeight = (column === "stockRegister" ? 6 : 7) * 0.352778; // Convert pt to mm
-			  
-			  // Calculate top position to properly center the text block
-			  const textBlockHeight = textLines.length * lineHeight;
-			  const startY = rowY + (rowHeight - textBlockHeight) / 2;
-			  
-			  // Draw each line individually with proper spacing
-			  // @ts-ignore
-			  textLines.forEach((line, i) => {
-				doc.text(line, currentX + cellPadding, startY + (i * lineHeight * 1.2));
-			  });
-			} else {
-			  // Center-aligned text for other columns
-			  if (textLines.length === 1) {
-				// If single line, use baseline middle for perfect centering
-				doc.text(cellContent, currentX + colWidth / 2, rowY + rowHeight / 2, {
-				  align: "center",
-				  maxWidth,
-				  baseline: 'middle'
-				});
-			  } else {
-				// For multiple lines, calculate proper vertical spacing
-				const lineHeight = (column === "stockRegister" ? 6 : 7) * 0.352778; // Convert pt to mm
-				const textBlockHeight = textLines.length * lineHeight * 1.2;
-				const startY = rowY + (rowHeight - textBlockHeight) / 2;
-				
-				// Draw each line centered
-				// @ts-ignore
-				textLines.forEach((line, i) => {
-				  doc.text(line, currentX + colWidth / 2, startY + (i * lineHeight * 1.2), {
-					align: "center"
-				  });
-				});
-			  }
-			}
-	  
-			currentX += colWidth;
-		  });
-	  
-		  // Move to the next row position
-		  rowY += rowHeight;
-		});
-	  
-		// Add page numbers
-		// @ts-ignore
-		const pageCount = doc.internal.getNumberOfPages();
-		for (let i = 1; i <= pageCount; i++) {
-		  doc.setPage(i);
-		  doc.setFontSize(8);
-		  doc.text(`Page ${i} of ${pageCount}`, width / 2, height - 10, { align: "center" });
-		}
-	  
-		doc.save(`Stock_Report_${pageSize.toUpperCase()}.pdf`);
-	  };
+    setColumnOrder(finalNewOrder);
+    saveSettings({
+      selectedColumns,
+      columnOrder: finalNewOrder,
+      columnAliases,
+    });
+  };
 
-	return (
-		<>
-			<Navbar />
-			<div className="p-10 mx-auto">
-				<h1 className="text-2xl font-bold text-blue-700 mb-6 text-center">
-					Report Generation
-				</h1>
-				<FilterDropdown year={selectedYear} onYearChange={handleYearChange} />
-				<ColumnSelection
-					selectedColumns={selectedColumns}
-					onToggleColumn={handleColumnSelection}
-				/>
-				<ColumnReorder
-					columnOrder={columnOrder}
-					selectedColumns={selectedColumns}
-					columnAliases={columnAliases}
-					moveColumn={moveColumn}
-					onAliasChange={handleAliasChange}
-				/>
-				<StockTable
-					stocks={stocks}
-					columnOrder={columnOrder}
-					selectedColumns={selectedColumns}
-					columnAliases={columnAliases}
-					annexure={columnAliases.annexure}
-					nameOfCenter={columnAliases.nameOfCenter}
-					stockRegNameAndVolNo={columnAliases.stockRegNameAndVolNo}
-					statementOfVerification={columnAliases.statementOfVerification}
-				/>
-				<ExportButtons onExportExcel={exportToExcel} onExportPDF={exportToPDF} />
-			</div>
-		</>
-	);
+  const handleColumnSelection = (columnKey: string) => {
+    const updatedSelected = {
+      ...selectedColumns,
+      [columnKey]: !selectedColumns[columnKey],
+    };
+    setSelectedColumns(updatedSelected);
+    saveSettings({
+      selectedColumns: updatedSelected,
+      columnOrder,
+      columnAliases,
+    });
+  };
+
+  const handleAliasChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    columnKey: string
+  ) => {
+    const updatedAliases = { ...columnAliases, [columnKey]: e.target.value };
+    setColumnAliases(updatedAliases);
+    saveSettings({
+      selectedColumns,
+      columnOrder,
+      columnAliases: updatedAliases,
+    });
+  };
+
+  const handleAliasChangeForSpecialHeader = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    headerKey:
+      | "annexure"
+      | "nameOfCenter"
+      | "stockRegNameAndVolNo"
+      | "statementOfVerification"
+  ) => {
+    const updatedAliases = { ...columnAliases, [headerKey]: e.target.value };
+    setColumnAliases(updatedAliases);
+    saveSettings({
+      selectedColumns,
+      columnOrder,
+      columnAliases: updatedAliases,
+    });
+  };
+
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Stock Report");
+
+    const isStockRegisterGroupSelected =
+      selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
+      columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
+    const actualDataColumns = columnOrder
+      .flatMap((colKey) => {
+        if (colKey === STOCK_REGISTER_GROUP_KEY && isStockRegisterGroupSelected)
+          return STOCK_REG_SUB_COLUMNS.map((sc) => ({
+            ...sc,
+            groupHeader: getColumnDisplayName(STOCK_REGISTER_GROUP_KEY),
+          }));
+        if (selectedColumns[colKey] && colKey !== STOCK_REGISTER_GROUP_KEY)
+          return [
+            {
+              id: colKey,
+              defaultHeader: getColumnDisplayName(colKey),
+              dataKey: colKey as keyof Stock | "displaySerialNo",
+            },
+          ];
+        return [];
+      })
+      .filter(Boolean);
+    const colCount = actualDataColumns.length;
+    if (colCount === 0) return;
+
+    let currentRowIdx = 1;
+    const styleCell = (
+      cell: ExcelJS.Cell,
+      style: Partial<ExcelJS.Style & { value: any }>
+    ) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+      Object.assign(cell.font || {}, style.font); // Merge font properties
+      Object.assign(cell.alignment || {}, style.alignment); // Merge alignment
+      Object.assign(cell.fill || {}, style.fill); // Merge fill
+      if (style.value !== undefined) cell.value = style.value;
+    };
+
+    if (columnAliases.annexure) {
+      worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+      styleCell(worksheet.getCell(currentRowIdx, 1), {
+        value: columnAliases.annexure,
+        font: { bold: true, size: 12 },
+        alignment: { horizontal: "center", vertical: "middle" },
+      });
+      worksheet.getRow(currentRowIdx).height = 20;
+      currentRowIdx++;
+    }
+    if (columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo) {
+      const row = worksheet.getRow(currentRowIdx);
+      row.height = 20;
+      if (columnAliases.nameOfCenter && columnAliases.stockRegNameAndVolNo) {
+        const midPoint = Math.ceil(colCount / 2);
+        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, midPoint);
+        styleCell(worksheet.getCell(currentRowIdx, 1), {
+          value: columnAliases.nameOfCenter,
+          font: { bold: false, size: 10 },
+          alignment: { horizontal: "center", vertical: "middle" },
+        });
+        worksheet.mergeCells(
+          currentRowIdx,
+          midPoint + 1,
+          currentRowIdx,
+          colCount
+        );
+        styleCell(worksheet.getCell(currentRowIdx, midPoint + 1), {
+          value: columnAliases.stockRegNameAndVolNo,
+          font: { bold: false, size: 10 },
+          alignment: { horizontal: "center", vertical: "middle" },
+        });
+      } else if (columnAliases.nameOfCenter) {
+        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+        styleCell(worksheet.getCell(currentRowIdx, 1), {
+          value: columnAliases.nameOfCenter,
+          font: { bold: false, size: 10 },
+          alignment: { horizontal: "center", vertical: "middle" },
+        });
+      } else if (columnAliases.stockRegNameAndVolNo) {
+        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+        styleCell(worksheet.getCell(currentRowIdx, 1), {
+          value: columnAliases.stockRegNameAndVolNo,
+          font: { bold: false, size: 10 },
+          alignment: { horizontal: "center", vertical: "middle" },
+        });
+      }
+      currentRowIdx++;
+    }
+    if (columnAliases.statementOfVerification) {
+      worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+      styleCell(worksheet.getCell(currentRowIdx, 1), {
+        value: columnAliases.statementOfVerification,
+        font: { bold: true, size: 12 },
+        alignment: { horizontal: "center", vertical: "middle" },
+      });
+      worksheet.getRow(currentRowIdx).height = 20;
+      currentRowIdx++;
+    }
+
+    const headerRow1Values: (string | null)[] = [];
+    const headerRow2Values: (string | null)[] = [];
+
+    columnOrder
+      .filter((colKey) => selectedColumns[colKey])
+      .forEach((colKey) => {
+        if (colKey === STOCK_REGISTER_GROUP_KEY) {
+          headerRow1Values.push(getColumnDisplayName(STOCK_REGISTER_GROUP_KEY));
+          for (let i = 1; i < STOCK_REG_SUB_COLUMNS.length; i++)
+            headerRow1Values.push(null);
+          STOCK_REG_SUB_COLUMNS.forEach((sc) =>
+            headerRow2Values.push(sc.defaultHeader)
+          );
+        } else {
+          headerRow1Values.push(getColumnDisplayName(colKey));
+          if (isStockRegisterGroupSelected) headerRow2Values.push(null);
+        }
+      });
+
+    const r1 = worksheet.addRow(headerRow1Values);
+    r1.height = 25;
+    r1.eachCell((cell) =>
+      styleCell(cell, {
+        font: { bold: true, size: 9 },
+        alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+        fill: {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFD9D9D9" },
+        },
+      })
+    );
+
+    let currentExcelCol = 1;
+    columnOrder
+      .filter((colKey) => selectedColumns[colKey])
+      .forEach((colKey) => {
+        if (colKey === STOCK_REGISTER_GROUP_KEY) {
+          worksheet.mergeCells(
+            currentRowIdx,
+            currentExcelCol,
+            currentRowIdx,
+            currentExcelCol + STOCK_REG_SUB_COLUMNS.length - 1
+          );
+          currentExcelCol += STOCK_REG_SUB_COLUMNS.length;
+        } else {
+          if (isStockRegisterGroupSelected)
+            worksheet.mergeCells(
+              currentRowIdx,
+              currentExcelCol,
+              currentRowIdx + 1,
+              currentExcelCol
+            );
+          currentExcelCol++;
+        }
+      });
+    const mainHeaderRow1Number = currentRowIdx;
+    currentRowIdx++;
+
+    if (isStockRegisterGroupSelected) {
+      let subHeaderColStart = 1;
+      columnOrder
+        .filter((colKey) => selectedColumns[colKey])
+        .forEach((colKey) => {
+          if (colKey === STOCK_REGISTER_GROUP_KEY) {
+            STOCK_REG_SUB_COLUMNS.forEach((sc, subIndex) => {
+              const cell = worksheet.getCell(
+                currentRowIdx,
+                subHeaderColStart + subIndex
+              );
+              cell.value = sc.defaultHeader;
+              styleCell(cell, {
+                font: { bold: true, size: 9 },
+                alignment: {
+                  horizontal: "center",
+                  vertical: "middle",
+                  wrapText: true,
+                },
+                fill: {
+                  type: "pattern",
+                  pattern: "solid",
+                  fgColor: { argb: "FFD9D9D9" },
+                },
+              });
+            });
+            subHeaderColStart += STOCK_REG_SUB_COLUMNS.length;
+          } else {
+            subHeaderColStart++;
+          }
+        });
+      worksheet.getRow(currentRowIdx).height = 25;
+      currentRowIdx++;
+    }
+
+    stocks.forEach((stock, idx) => {
+      const rowData = actualDataColumns.map((colDef) =>
+        colDef.id === "displaySerialNo"
+          ? idx + 1
+          : stock[colDef.dataKey as keyof Stock] ?? ""
+      );
+      const dataRow = worksheet.addRow(rowData);
+      dataRow.height = 18;
+      dataRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+        // colNum used here
+        const colInfo = actualDataColumns[colNum - 1];
+        let alignment: Partial<ExcelJS.Alignment> = {
+          vertical: "top",
+          wrapText: true,
+          horizontal: [
+            "quantity",
+            "price",
+            "displaySerialNo",
+            ...STOCK_REG_SUB_COLUMNS.map((s) => s.id),
+          ].includes(colInfo.id)
+            ? "center"
+            : "left",
+        };
+        styleCell(cell, { font: { size: 8 }, alignment });
+        if (typeof cell.value === "number" && colInfo.id === "price")
+          cell.numFmt = "#,##0.00";
+        else if (
+          typeof cell.value === "number" &&
+          ["quantity", "serialNoSub"].includes(colInfo.id)
+        )
+          cell.numFmt = "#,##0";
+      });
+    });
+
+    actualDataColumns.forEach((colDef, i) => {
+      const column = worksheet.getColumn(i + 1);
+      let maxLength = (colDef.defaultHeader || colDef.id).length;
+      stocks.forEach((stock) => {
+        let cellValue =
+          colDef.id === "displaySerialNo"
+            ? String(stocks.indexOf(stock) + 1)
+            : String(stock[colDef.dataKey as keyof Stock] ?? "");
+        if (cellValue.length > maxLength) maxLength = cellValue.length;
+      });
+      if (colDef.id === "stockDescription") column.width = 40;
+      else if (colDef.id === "stockName") column.width = 25;
+      else column.width = Math.max(10, Math.min(30, maxLength + 2));
+    });
+
+    worksheet.pageSetup.printTitlesRow = `${mainHeaderRow1Number}:${
+      isStockRegisterGroupSelected
+        ? mainHeaderRow1Number + 1
+        : mainHeaderRow1Number
+    }`;
+    worksheet.pageSetup.orientation = "landscape";
+    worksheet.pageSetup.fitToPage = true;
+    worksheet.pageSetup.fitToWidth = 1;
+    worksheet.pageSetup.fitToHeight = 0;
+    worksheet.pageSetup.margins = {
+      left: 0.5,
+      right: 0.5,
+      top: 0.75,
+      bottom: 0.75,
+      header: 0.3,
+      footer: 0.3,
+    };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Stock_Report_${selectedYear || "AllYears"}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportToPDF = (
+    pageSize: "a4" | "a3" | "a2" | "letter" | "legal" = "a4"
+  ) => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: pageSize,
+    });
+    const isStockRegisterGroupSelected =
+      selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
+      columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
+
+    const head: any[][] = [];
+    const headRow1: any[] = [];
+
+    columnOrder
+      .filter((colKey) => selectedColumns[colKey])
+      .forEach((colKey) => {
+        if (colKey === STOCK_REGISTER_GROUP_KEY) {
+          headRow1.push({
+            content: getColumnDisplayName(colKey),
+            colSpan: STOCK_REG_SUB_COLUMNS.length,
+          });
+        } else {
+          headRow1.push({
+            content: getColumnDisplayName(colKey),
+            rowSpan: isStockRegisterGroupSelected ? 2 : 1,
+          });
+        }
+      });
+    head.push(headRow1);
+
+    if (isStockRegisterGroupSelected) {
+      const headRow2: any[] = [];
+      columnOrder
+        .filter((colKey) => selectedColumns[colKey])
+        .forEach((colKey) => {
+          if (colKey === STOCK_REGISTER_GROUP_KEY) {
+            STOCK_REG_SUB_COLUMNS.forEach((sc) =>
+              headRow2.push(sc.defaultHeader)
+            );
+          }
+        });
+      if (headRow2.length > 0) head.push(headRow2);
+    }
+
+    const body = stocks.map((stock, idx) => {
+      return columnOrder
+        .flatMap((colKey) => {
+          if (
+            colKey === STOCK_REGISTER_GROUP_KEY &&
+            selectedColumns[STOCK_REGISTER_GROUP_KEY]
+          ) {
+            return STOCK_REG_SUB_COLUMNS.map((sc) =>
+              String(stock[sc.dataKey as keyof Stock] ?? "")
+            );
+          }
+          if (selectedColumns[colKey] && colKey !== STOCK_REGISTER_GROUP_KEY) {
+            if (colKey === "displaySerialNo") return String(idx + 1);
+            return String(stock[colKey as keyof Stock] ?? "");
+          }
+          return [];
+        })
+        .filter((cellData) => cellData !== undefined);
+    });
+
+    const columnStyles: any = {};
+    let currentPdfColIndex = 0;
+    columnOrder
+      .filter((colKey) => selectedColumns[colKey])
+      .forEach((outerColKey) => {
+        if (outerColKey === STOCK_REGISTER_GROUP_KEY) {
+          STOCK_REG_SUB_COLUMNS.forEach(() => {
+            columnStyles[currentPdfColIndex++] = { halign: "center" };
+          });
+        } else {
+          columnStyles[currentPdfColIndex++] = {
+            halign: ["quantity", "price", "displaySerialNo"].includes(
+              outerColKey
+            )
+              ? "center"
+              : "left",
+          };
+        }
+      });
+
+    let startY = 10;
+    const margin = 10;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const availableWidth = pageWidth - margin * 2;
+
+    const drawManualHeader = (
+      text: string | undefined,
+      yPos: number,
+      isBold = false,
+      isCentered = true,
+      colSpan = 1,
+      splitCols?: number
+    ): number => {
+      if (
+        !text &&
+        !(
+          splitCols &&
+          colSpan === 2 &&
+          columnAliases.nameOfCenter &&
+          columnAliases.stockRegNameAndVolNo
+        )
+      )
+        return yPos; // check added for splitCols
+      doc.setFont("helvetica", isBold ? "bold" : "normal");
+      doc.setFontSize(isBold ? 9 : 8);
+      const textHeight = 7; // mm
+
+      if (
+        splitCols &&
+        colSpan === 2 &&
+        columnAliases.nameOfCenter &&
+        columnAliases.stockRegNameAndVolNo
+      ) {
+        const firstColWidth = availableWidth / 2;
+        const secondColWidth = availableWidth / 2;
+        doc.text(
+          columnAliases.nameOfCenter,
+          margin + firstColWidth / 2,
+          yPos + textHeight / 2 + 1.5,
+          { align: "center", maxWidth: firstColWidth - 4 }
+        );
+        doc.text(
+          columnAliases.stockRegNameAndVolNo,
+          margin + firstColWidth + secondColWidth / 2,
+          yPos + textHeight / 2 + 1.5,
+          { align: "center", maxWidth: secondColWidth - 4 }
+        );
+      } else if (text) {
+        // Added check for text
+        doc.text(
+          text,
+          isCentered ? pageWidth / 2 : margin + 2,
+          yPos + textHeight / 2 + 1.5,
+          {
+            align: isCentered ? "center" : "left",
+            maxWidth: availableWidth - 4,
+          }
+        );
+      }
+      yPos += textHeight + 1;
+      return yPos;
+    };
+
+    startY = drawManualHeader(columnAliases.annexure, startY, true, true);
+    if (columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo) {
+      if (columnAliases.nameOfCenter && columnAliases.stockRegNameAndVolNo) {
+        startY = drawManualHeader(undefined, startY, false, true, 2, 2);
+      } else if (columnAliases.nameOfCenter) {
+        startY = drawManualHeader(
+          columnAliases.nameOfCenter,
+          startY,
+          false,
+          true
+        );
+      } else if (columnAliases.stockRegNameAndVolNo) {
+        startY = drawManualHeader(
+          columnAliases.stockRegNameAndVolNo,
+          startY,
+          false,
+          true
+        );
+      }
+    }
+    startY = drawManualHeader(
+      columnAliases.statementOfVerification,
+      startY,
+      true,
+      true
+    );
+    startY += 2;
+
+    (doc as any).autoTable({
+      head: head,
+      body: body,
+      startY: startY,
+      theme: "grid",
+      headStyles: {
+        fillColor: [230, 230, 230],
+        textColor: 20,
+        fontStyle: "bold",
+        halign: "center",
+        valign: "middle",
+      },
+      columnStyles: columnStyles,
+      didDrawPage: (hookData: any) => {
+        const pageCount = doc.internal.pages.length - 1;
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${hookData.pageNumber} of ${pageCount}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - margin / 2,
+          { align: "center" }
+        );
+      },
+    });
+    doc.save(
+      `Stock_Report_${selectedYear || "AllYears"}_${pageSize.toUpperCase()}.pdf`
+    );
+  };
+
+  const handlePrintTable = () => {
+    window.print();
+  };
+
+  const draggableColumnsForReorder = columnOrder.filter(
+    (colKey) =>
+      selectedColumns[colKey] &&
+      ![
+        "annexure",
+        "nameOfCenter",
+        "stockRegNameAndVolNo",
+        "statementOfVerification",
+      ].includes(colKey)
+  );
+
+  return (
+    <>
+      <Navbar />
+      <style>{`
+        /* ... (print styles as before) ... */
+        @media print {
+            body { margin: 0; padding: 0; }
+            body * { visibility: hidden; box-shadow: none !important; }
+            .printable-area, .printable-area * { visibility: visible; }
+            .printable-area {
+              position: absolute !important; left: 0; top: 0; width: 100%;
+              margin: 0 !important; padding: 0 !important;
+              overflow: visible !important; max-height: none !important;
+            }
+            #stockReportTable {
+              font-size: 8pt !important; border-collapse: collapse !important;
+              width: 100% !important; table-layout: fixed !important;
+            }
+            #stockReportTable th, #stockReportTable td {
+              padding: 3px !important; border: 1px solid black !important;
+              word-wrap: break-word !important; overflow-wrap: break-word !important;
+              min-width: 0 !important; 
+            }
+            #stockReportTable thead tr th {
+                background-color: #e2e8f0 !important; 
+                -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
+            }
+            #stockReportTable thead tr.bg-white th { 
+                background-color: white !important;
+                -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
+            }
+            .no-print { display: none !important; }
+            @page { size: landscape; margin: 0.5in; }
+          }
+      `}</style>
+      <div className="flex flex-col lg:flex-row gap-6 p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
+        <div className="lg:w-1/3 space-y-4 no-print overflow-y-auto max-h-[calc(100vh-100px)] p-4">
+          <h1 className="text-2xl font-bold text-blue-700 mb-1 text-center lg:text-left">
+            Report Generation
+          </h1>
+          <FilterDropdown year={selectedYear} onYearChange={handleYearChange} />
+          <ColumnSelection
+            selectedColumns={selectedColumns}
+            onToggleColumn={handleColumnSelection}
+            allPossibleColumnsForSelection={ALL_SELECTABLE_COLUMNS as string[]}
+          />
+          <ColumnReorder
+            draggableColumnOrder={draggableColumnsForReorder}
+            columnAliases={columnAliases}
+            moveColumn={moveColumn}
+            onAliasChange={handleAliasChange}
+            onAliasChangeForSpecialHeader={handleAliasChangeForSpecialHeader}
+          />
+        </div>
+        <div className="lg:w-2/3 flex flex-col">
+          <div className="flex-grow overflow-y-auto max-h-[calc(100vh-160px)] printable-area p-2">
+            <StockTable
+              stocks={stocks}
+              columnOrder={columnOrder}
+              selectedColumns={selectedColumns}
+              columnAliases={columnAliases}
+              annexureText={columnAliases.annexure}
+              nameOfCenterText={columnAliases.nameOfCenter}
+              stockRegNameAndVolNoText={columnAliases.stockRegNameAndVolNo}
+              statementOfVerificationText={
+                columnAliases.statementOfVerification
+              }
+            />
+          </div>
+          <div className="mt-auto pt-4 no-print">
+            <ExportButtons
+              onExportExcel={exportToExcel}
+              onExportPDF={exportToPDF}
+              onPrintTable={handlePrintTable}
+              hasData={
+                stocks.length > 0 && draggableColumnsForReorder.length > 0
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default ReportGeneration;

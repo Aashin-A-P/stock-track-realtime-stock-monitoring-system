@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:16.2
@@ -37,6 +39,8 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - uploads-data:/app/dist/uploads
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -62,18 +66,21 @@ services:
       - "8008:80"
     depends_on:
       - backend
+    volumes:
+      - uploads-data:/usr/share/nginx/html/uploads
     restart: unless-stopped
     healthcheck:
-        test: ["CMD", "nginx", "-t"]
-        interval: 30s
-        timeout: 10s
-        retries: 3
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     deploy:
       resources:
         limits:
-          memory: 256M 
+          memory: 256M
         reservations:
           memory: 128M
 
 volumes:
   postgres-data:
+  uploads-data: {}
