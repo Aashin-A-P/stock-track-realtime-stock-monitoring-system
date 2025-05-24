@@ -90,59 +90,108 @@ export const getPieChartAnalysis = async (req: Request, res: Response) => {
   }
 }
 
-export const getAllYearPieChartAnalysis = async (req: Request, res: Response) => {
+export const getAllYearPieChartAnalysis = async (
+  req: Request,
+  res: Response
+) => {
   try {
     // Fetch total amount allocated for each budget
     const budgetsData = await db
       .select({
         budget_id: budgetsTable.budgetId,
         budget_name: budgetsTable.budgetName,
-        total_amount: sql<number>`sum(${budgetsTable.amount})`
+        total_amount: budgetsTable.amount,
       })
       .from(budgetsTable)
-      .groupBy(budgetsTable.budgetId, budgetsTable.budgetName);
+      .groupBy(budgetsTable.budgetId, budgetsTable.budgetName); // Grouping ensures we get one row per budget_id
 
     if (!budgetsData || budgetsData.length === 0) {
-      return res.status(404).json({ error: 'No budget data found' });
+      return res.status(404).json({ error: "No budget data found" });
     }
 
-    // Fetch total amount spent for each budget
+    // Fetch total amount spent for each budget (across all time)
     const totalSpentData = await db
       .select({
         budget_id: categoryWiseBudgetsTable.budgetId,
-        total_spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`
+        total_spent:
+          sql<number>`sum(${categoryWiseBudgetsTable.amount})`.mapWith(Number),
       })
       .from(categoryWiseBudgetsTable)
       .groupBy(categoryWiseBudgetsTable.budgetId);
 
-    // Fetch category-wise spending data for each budget
+    // Fetch category-wise spending data for each budget (across all time)
     const categorySpentData = await db
       .select({
         budget_id: categoryWiseBudgetsTable.budgetId,
         category: categoriesTable.categoryName,
-        spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`,
+        spent: sql<number>`sum(${categoryWiseBudgetsTable.amount})`.mapWith(
+          Number
+        ),
       })
       .from(categoryWiseBudgetsTable)
-      .leftJoin(categoriesTable, eq(categoryWiseBudgetsTable.categoryId, categoriesTable.categoryId))
-      .leftJoin(budgetsTable, eq(categoryWiseBudgetsTable.budgetId, budgetsTable.budgetId))
+      .leftJoin(
+        categoriesTable,
+        eq(categoryWiseBudgetsTable.categoryId, categoriesTable.categoryId)
+      )
       .groupBy(categoryWiseBudgetsTable.budgetId, categoriesTable.categoryName);
 
+    // Fetch monthly spending data for each budget across ALL years
+    const allYearsMonthlySpentData = await db
+      .select({
+        budget_id: categoryWiseBudgetsTable.budgetId,
+        month:
+          sql<number>`EXTRACT(MONTH FROM ${categoryWiseBudgetsTable.createdAt})`.mapWith(
+            Number
+          ),
+        total_spent_for_month:
+          sql<number>`sum(${categoryWiseBudgetsTable.amount})`.mapWith(Number),
+      })
+      .from(categoryWiseBudgetsTable)
+      // No YEAR filter, so it sums for each month across all years
+      .groupBy(
+        categoryWiseBudgetsTable.budgetId,
+        sql`EXTRACT(MONTH FROM ${categoryWiseBudgetsTable.createdAt})`
+      );
+
     // Construct response data
-    const responseData = budgetsData.map(budget => {
-      const totalSpent = totalSpentData.find(spent => spent.budget_id === budget.budget_id)?.total_spent || 0;
-      const categorySpent = categorySpentData.filter(spent => spent.budget_id === budget.budget_id);
+    const responseData = budgetsData.map((budget) => {
+      const totalSpent =
+        totalSpentData.find((spent) => spent.budget_id === budget.budget_id)
+          ?.total_spent || 0;
+      const categorySpent = categorySpentData
+        .filter((spent) => spent.budget_id === budget.budget_id)
+        .map((cs) => ({
+          category: cs.category || "Uncategorized",
+          spent: cs.spent,
+        }));
+
+      // Initialize an array for 12 months of spending
+      const monthlySpentArray = Array(12).fill(0);
+
+      // Populate monthlySpentArray for the current budget
+      allYearsMonthlySpentData
+        .filter((spent) => spent.budget_id === budget.budget_id)
+        .forEach((monthlyRecord) => {
+          // monthlyRecord.month is 1-indexed (e.g., 1 for Jan, 12 for Dec)
+          const monthIndex = monthlyRecord.month - 1;
+          if (monthIndex >= 0 && monthIndex < 12) {
+            monthlySpentArray[monthIndex] +=
+              monthlyRecord.total_spent_for_month || 0;
+          }
+        });
 
       return {
         budgetName: budget.budget_name,
-        totalBudget: budget.total_amount,
+        totalBudget: Number(budget.total_amount), 
         totalSpent,
+        monthlySpent: monthlySpentArray,
         categorySpent,
       };
     });
 
     res.json(responseData);
   } catch (error) {
-    console.error(error);
+    console.error("Error in getAllYearPieChartAnalysis:", error);
     res.status(500).json({ error: 'Something went wrong' });
   }
 }
