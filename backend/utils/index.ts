@@ -3,6 +3,7 @@ import multer, { StorageEngine, FileFilterCallback } from "multer";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import jwt from "jsonwebtoken";
+import fs from "fs";
 
 export type User = {
   userId: number;
@@ -34,9 +35,14 @@ export const generateUserToken = ({ user, privileges }: TokenData) => {
 };
 
 // Upload Image Starts
+const UPLOAD_DESTINATION_IN_CONTAINER = "/app/dist/uploads";
+
 const storage: StorageEngine = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "./uploads");
+    if (!fs.existsSync(UPLOAD_DESTINATION_IN_CONTAINER)) {
+      fs.mkdirSync(UPLOAD_DESTINATION_IN_CONTAINER, { recursive: true });
+    }
+    cb(null, UPLOAD_DESTINATION_IN_CONTAINER); 
   },
   filename: (req, file, cb) => {
     const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
@@ -72,7 +78,5 @@ const upload = multer({
 
 // Utility function for single file upload
 export const uploadSingleImage = (fieldName: string) => {
-  const uploadedRes = upload.single(fieldName);
-  console.log("Uploaded Res", uploadedRes);
-  return uploadedRes;
+  return upload.single(fieldName);
 };
