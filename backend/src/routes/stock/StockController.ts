@@ -129,7 +129,7 @@ export const searchStock = async (req: Request, res: Response) => {
     };
 
     const columnType = columnTypes[column as string];
-
+    console.log(column);
     if (!columnType) {
       return res.status(400).send("Invalid column name");
     }
@@ -447,10 +447,12 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       from_address: "string",
       to_address: "string",
       remarks: "string",
+      invoice_id:"number",
     };
 
     const columnType = columnTypes[column as string]; // columnType is declared but not used after this.
     // The whereClause logic below does not use columnType.
+    console.log(column,columnType);
     if (!columnType) {
       return res.status(400).send("Invalid column name");
     }
@@ -473,6 +475,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
       from_address: invoiceTable.fromAddress,
       to_address: invoiceTable.toAddress,
       remarks: productsTable.remarks,
+      invoice_id: productsTable.invoiceId,
     };
 
     const columnRef = columnMapping[column as string];
@@ -482,10 +485,16 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
 
     // Build the WHERE clause for filtering
     let whereClause = sql`true`;
-    if (query && query !== "") {
-      // Using 'query' directly as typedQuery and columnType were not used for type-specific conditions
-      whereClause = sql`${columnRef} ILIKE ${"%" + query + "%"}`;
-    }
+if (query && query !== "") {
+  if (columnType === "string") {
+    whereClause = sql`${columnRef} ILIKE ${"%" + query + "%"}`;
+  } else if (columnType === "number") {
+    whereClause = sql`${columnRef} = ${query}`;
+  } else {
+    return res.status(400).send("Unsupported column type for filtering");
+  }
+}
+
 
     // Get the total number of records matching the filter
     const totalRecordsQuery = await db

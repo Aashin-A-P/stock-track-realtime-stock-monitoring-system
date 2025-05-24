@@ -295,8 +295,8 @@ const InvoiceDetailsPage: React.FC = () => {
         // This function needs to handle grouping, GST fields, and locationRangeMappings
         const uiProducts = await convertProductData(
           rawProductData.products,
-          baseUrl,
-          headers
+          // baseUrl,
+          // headers
         );
         setProducts(uiProducts);
 
