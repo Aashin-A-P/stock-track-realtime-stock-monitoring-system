@@ -26,6 +26,8 @@ export interface Product {
 
 
 export interface RawFetchedProductItem {
+  locationName: string;
+  statusDescription: string;
   productId: number; 
   productVolPageSerial: string; 
   productName: string;
@@ -35,10 +37,11 @@ export interface RawFetchedProductItem {
   statusId: number;
   categoryId: number;
   gstAmount: string | number; 
-  productPrice: string | number;
+  actualAmount: string | number;
   remarks?: string;
   transferLetter?: string;
   volNo?: string;
   pageNo?: string;
   serialNo?: string;
+  categoryName:string;
 }
