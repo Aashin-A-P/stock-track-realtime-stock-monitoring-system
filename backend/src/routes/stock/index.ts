@@ -12,6 +12,7 @@ import { addCategory, deleteCategory, searchCategory, showCategories, showCatego
 import { logger } from '../../middlewares/logMiddleware';
 import { createProductSchema } from '../../db/schemas/productsSchema';
 import { addStock, deleteStock, getAllStock, getPaginatedProducts, handleInvoiceWithProducts, searchStock, updateStock, getProductById, getReportData } from './StockController';
+import { hasPrivilege,loadUserPrivileges } from '../../middlewares/privilegeMiddleware';
 
 const router = Router();
 
@@ -72,20 +73,20 @@ router.get('/category/', verifyToken, logger, showCategories);
 // // stocks route
 // @ts-ignore
 // router.get("/search", verifyToken, logger, searchStock); // This line was commented out, keeping it as is.
-router.get("/details", verifyToken, logger, getPaginatedProducts);
+router.get("/details", verifyToken,loadUserPrivileges,hasPrivilege('read_stock'), logger, getPaginatedProducts);
 // @ts-ignore
-router.post('/submit', verifyToken, logger, handleInvoiceWithProducts);
+router.post('/submit', verifyToken, loadUserPrivileges,hasPrivilege('create_stock'), logger, handleInvoiceWithProducts);
 // @ts-ignore
-router.post('/add', verifyToken, validateData(createProductSchema), logger, addStock);
+router.post('/add', verifyToken,loadUserPrivileges, hasPrivilege('create_stock'),validateData(createProductSchema), logger, addStock);
 // @ts-ignore
 router.get('/report', logger, getReportData); // Added logger here. Note: verifyToken was not present.
 // @ts-ignore
-router.delete("/:productId", verifyToken, logger, deleteStock);
+router.delete("/:productId", verifyToken,loadUserPrivileges,hasPrivilege('delete_stock'), logger, deleteStock);
 // @ts-ignore
-router.put("/:productId", verifyToken, validateData(createProductSchema), logger, updateStock);
+router.put("/:productId", verifyToken,loadUserPrivileges,hasPrivilege('update_stock'), validateData(createProductSchema), logger, updateStock);
 // @ts-ignore
-router.get("/:productId", verifyToken, logger, getProductById);
+router.get("/:productId", verifyToken,loadUserPrivileges, hasPrivilege('read_stock'), logger, getProductById);
 // @ts-ignore
-router.get('/', verifyToken, logger, getAllStock);
+router.get('/', verifyToken,loadUserPrivileges, hasPrivilege('read_stock'), logger, getAllStock);
                                                             
 export default router;

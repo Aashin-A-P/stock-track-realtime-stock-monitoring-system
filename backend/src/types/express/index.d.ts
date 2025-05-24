@@ -7,6 +7,8 @@ declare global {
       cleanBody?: any;
       role: string;
       logMessages?: string[];
+      privileges?: string[];
+
     }
   }
 }

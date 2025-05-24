@@ -496,7 +496,6 @@ const AddProduct: React.FC = () => {
         totalAmount: invoiceDetails.totalAmount.toString(),
         budgetId: budgetId,
       };
-
       const invoiceRes = await fetch(`${baseUrl}/stock/invoice/add`, {
         method: "POST",
         headers: fetchedHeaders,
@@ -504,11 +503,27 @@ const AddProduct: React.FC = () => {
       });
 
       if (!invoiceRes.ok) {
-        const errorData = await invoiceRes.text();
-        toast.error(`Failed to add invoice: ${errorData}`);
+        let errorMessage = "Failed to add invoice.";
+
+        try {
+          const errorData = await invoiceRes.json();
+          if (invoiceRes.status === 403 && errorData?.error) {
+            errorMessage = errorData.error; // Shows: "Access denied: Missing privilege 'xyz'"
+          } else if (errorData?.error) {
+            errorMessage = `Failed to add invoice: ${errorData.error}`;
+          }
+        } catch (e) {
+          const errorText = await invoiceRes.text();
+          if (errorText) {
+            errorMessage = `Failed to add invoice: ${errorText}`;
+          }
+        }
+
+        toast.error(errorMessage);
         setLoading(false);
         return;
       }
+
       const { invoice } = await invoiceRes.json();
       const invoiceId = invoice.invoiceId;
 
@@ -554,20 +569,34 @@ const AddProduct: React.FC = () => {
               remarks: product.remark,
               budgetId: budgetId,
             };
-
-            const res = await fetch(`${baseUrl}/stock/add`, {
-              method: "POST",
-              headers: fetchedHeaders,
-              body: JSON.stringify(singleProductData),
-            });
-            if (!res.ok) {
-              const errorText = await res.text();
-              throw new Error(
-                `Failed to add product unit ${individualProductVolPageSerial}: ${errorText}`
-              );
-            }
-            return res.json();
+        const res = await fetch(`${baseUrl}/stock/add`, {
+            method: "POST",
+            headers: fetchedHeaders,
+            body: JSON.stringify(singleProductData),
           });
+
+          if (!res.ok) {
+            let errorMessage = `Failed to add product unit ${individualProductVolPageSerial}.`;
+
+            try {
+              const errorData = await res.json();
+              if (res.status === 403 && errorData?.error) {
+                errorMessage = `Access denied: ${errorData.error}`;
+              } else if (errorData?.error) {
+                errorMessage = `${errorMessage} ${errorData.error}`;
+              }
+            } catch {
+              const errorText = await res.text();
+              if (errorText) {
+                errorMessage = `${errorMessage} ${errorText}`;
+              }
+            }
+
+            throw new Error(errorMessage);
+          }
+
+          return res.json();})
+
           await Promise.all(productAddPromises);
         }
       }
