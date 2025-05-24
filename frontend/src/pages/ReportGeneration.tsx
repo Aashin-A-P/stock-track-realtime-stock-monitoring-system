@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "../components/Navbar";
 import * as ExcelJS from "exceljs";
 import jsPDF from "jspdf";
-import "jspdf-autotable"; // Ensure this is imported for jsPDF typings
+import autoTable from 'jspdf-autotable';
 import { DndProvider, useDrag, useDrop, DropTargetMonitor } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import YearDropdown from "../components/YearDropdown";
@@ -1357,7 +1357,7 @@ const ReportGeneration: React.FC = () => {
     );
     startY += 2;
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: head,
       body: body,
       startY: startY,
