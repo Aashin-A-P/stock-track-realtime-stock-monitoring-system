@@ -13,14 +13,17 @@ import {
 } from "./userManagementController";
 import { verifyToken } from "../../middlewares/authMiddleware";
 import { logger } from "../../middlewares/logMiddleware";
+import { hasPrivilege,loadUserPrivileges } from "../../middlewares/privilegeMiddleware";
 
 const router = Router();
 
 router.get("/", verifyToken, getAllUsers);
-router.get("/:userId", verifyToken, getUser);
+router.get("/:userId", verifyToken,hasPrivilege('read_user'), getUser);
 router.post(
   "/register",
   verifyToken,
+  loadUserPrivileges,
+  hasPrivilege('create_user'),
   validateData(createUserSchema),
   logger,
   registerUser
@@ -28,10 +31,12 @@ router.post(
 router.put(
   "/:userId",
   verifyToken,
+  loadUserPrivileges,
+  hasPrivilege('update_user'),
   validateData(updateUserSchema),
   logger,
   updateUser
 );
-router.delete("/:userId", verifyToken, logger, deleteUser);
+router.delete("/:userId", verifyToken,loadUserPrivileges, hasPrivilege('delete_user'),logger, deleteUser);
 
 export default router;

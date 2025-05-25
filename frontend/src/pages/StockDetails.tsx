@@ -160,9 +160,9 @@ const StockDetails = () => {
       productVolPageSerial: product.productVolPageSerial,
       productName: product.productName,
       productDescription: product.productDescription,
-      transferLetter: product.transferLetter,
+      transferLetter: product.transferLetter || '',
       gstAmount: product.gstAmount, // remains as string; will convert on save
-      productImage: product.productImage,
+      productImage: product.productImage  || '',
       // Use a fallback of 0 if not found so that the API receives a valid number
       locationId: locations.find((loc) => loc.locationName === product.locationName)?.locationId ?? 0,
       categoryId: categories.find((cat) => cat.categoryName === product.categoryName)?.categoryId ?? 0,
@@ -220,6 +220,8 @@ const StockDetails = () => {
         productPrice: Number(updatedProduct.productPrice),
         gstAmount: Number(updatedProduct.gstAmount),
         invoiceId:invoice.invoiceId,
+        productImage: updatedProduct.productImage || '', // Ensure string
+        transferLetter: updatedProduct.transferLetter || '',
       };
 
       console.log(JSON.stringify(productToSave, null, 2));

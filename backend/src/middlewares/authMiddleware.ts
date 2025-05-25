@@ -23,6 +23,8 @@ export function verifyToken(req: Request, res: Response, next: NextFunction) {
     
     req.userId = decoded.userId;
     req.role = decoded.role;
+    req.privileges = decoded.privileges || [];
+
     next();
   } catch (e) {
 
