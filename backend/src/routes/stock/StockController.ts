@@ -658,6 +658,8 @@ export const getReportData = async (req: Request, res: Response) => {
         invoiceNo: invoiceTable.invoiceNo,
         fromAddress: invoiceTable.fromAddress,
         toAddress: invoiceTable.toAddress,
+        purchaseOrderDate: invoiceTable.PODate,
+        invoiceDate: invoiceTable.invoiceDate,
         stockName: productsTable.productName,
         stockDescription: productsTable.productDescription,
         location: locationTable.locationName,
@@ -665,6 +667,8 @@ export const getReportData = async (req: Request, res: Response) => {
         stockId: productsTable.productVolPageSerial,
         productImage: productsTable.productImage,
         transferLetter: productsTable.transferLetter,
+        basePrice: productsTable.productPrice, // Base price without GST
+        gstAmount: productsTable.gstAmount, // GST amount
         price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
         status: statusTable.statusDescription,
         remarks: productsTable.remarks,
