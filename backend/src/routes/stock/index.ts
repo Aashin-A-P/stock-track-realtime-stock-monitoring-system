@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addInvoice, deleteInvoice, showInvoice, showInvoices, updateInvoice } from './InvoiceController';
+import { addInvoice, deleteAllProductsByInvoiceId, deleteInvoice, showInvoice, showInvoices, updateInvoice } from './InvoiceController';
 import { validateData } from '../../middlewares/validationMiddleware';
 import { createInvoiceSchema } from '../../db/schemas/invoicesSchema';
 import { verifyToken } from '../../middlewares/authMiddleware';
@@ -11,7 +11,7 @@ import { createCategorySchema } from '../../db/schemas/categoriesSchema';
 import { addCategory, deleteCategory, searchCategory, showCategories, showCategory, updateCategory } from './CategoriesController';
 import { logger } from '../../middlewares/logMiddleware';
 import { createProductSchema } from '../../db/schemas/productsSchema';
-import { addStock, deleteStock, getAllStock, getPaginatedProducts, handleInvoiceWithProducts, searchStock, updateStock, getProductById, getReportData } from './StockController';
+import { addStock, deleteStock, getAllStock, getPaginatedProducts, handleInvoiceWithProducts, getProductById, getReportData, updateStock } from './StockController';
 import { hasPrivilege,loadUserPrivileges } from '../../middlewares/privilegeMiddleware';
 
 const router = Router();
@@ -25,6 +25,8 @@ router.get('/invoice/:id', verifyToken, logger, showInvoice);
 router.put('/invoice/:id', verifyToken, validateData(createInvoiceSchema), logger, updateInvoice);
 // @ts-ignore
 router.delete('/invoice/:id', verifyToken, logger, deleteInvoice);
+// @ts-ignore
+router.delete('/invoice/products/:id', verifyToken, logger, deleteAllProductsByInvoiceId);
 router.get('/invoice/', verifyToken, logger, showInvoices);
 
 // // Location Routes
@@ -83,7 +85,7 @@ router.get('/report', logger, getReportData); // Added logger here. Note: verify
 // @ts-ignore
 router.delete("/:productId", verifyToken,loadUserPrivileges,hasPrivilege('delete_stock'), logger, deleteStock);
 // @ts-ignore
-router.put("/:productId", verifyToken,loadUserPrivileges,hasPrivilege('update_stock'), validateData(createProductSchema), logger, updateStock);
+router.put("/:productId",verifyToken,loadUserPrivileges,hasPrivilege("update_stock"),validateData(createProductSchema),logger,updateStock);
 // @ts-ignore
 router.get("/:productId", verifyToken,loadUserPrivileges, hasPrivilege('read_stock'), logger, getProductById);
 // @ts-ignore

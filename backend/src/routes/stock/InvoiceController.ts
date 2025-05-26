@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { db } from "../../db/index";
 import { desc, eq } from "drizzle-orm";
 import { invoiceTable } from "../../db/schemas/invoicesSchema";
+import { Product } from '../../../../.history/frontend/src/types/index_20250526101116';
+import { productsTable } from "../../db/schemas/productsSchema";
 
 export const addInvoice = async (req: Request, res: Response) => {
   try {
@@ -166,5 +168,29 @@ export const deleteInvoice = async (req: Request, res: Response) => {
     console.error(error);
     req.logMessages = ["Error deleting invoice", (error as Error).message];
     res.status(500).send("Failed to delete invoice");
+  }
+};
+
+
+// function to delete all the products associated with an invoice
+export const deleteAllProductsByInvoiceId = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    console.log("Delete Products Id invoice : ", id);
+
+    const result = await db
+      .delete(productsTable)
+      .where(eq(productsTable.invoiceId, Number(id)));
+
+    if (result.rowCount === 0) {
+      return res.status(404).send("No products found for this invoice");
+    }
+
+    req.logMessages = [`All products for invoice ID ${id} deleted successfully`];
+    res.status(200).json({ message: "All products deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    req.logMessages = ["Error deleting products by invoice ID", (error as Error).message];
+    res.status(500).send("Failed to delete products by invoice ID");
   }
 };

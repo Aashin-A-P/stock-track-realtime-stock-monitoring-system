@@ -12,7 +12,7 @@ import { Product, RangeMapping, FetchErrorResponse } from "../types";
 
 const InvoiceDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const authTokenFromContext  = useAuth().token || localStorage.getItem("token");
+  const authTokenFromContext = useAuth().token || localStorage.getItem("token");
   const { id: invoiceIdFromParams } = useParams<{ id: string }>();
 
   useEffect(() => {
@@ -74,7 +74,7 @@ const InvoiceDetailsPage: React.FC = () => {
     const unitPriceWithGst =
       (parseFloat(product.price.toString()) || 0) +
       (parseFloat(product.gstAmount.toString()) || 0);
-    const quantity = parseInt(product.quantity.toString(), 10) || 0;
+    const quantity = parseInt(product.quantity.toString(), 10) || 0; // Use product.quantity
     return acc + unitPriceWithGst * quantity;
   }, 0);
 
@@ -84,7 +84,6 @@ const InvoiceDetailsPage: React.FC = () => {
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-  // Consistent header generation
   const apiHeadersForFetchMetadata = useMemo(() => {
     const headers: Record<string, string> = {};
     if (authTokenFromContext) {
@@ -103,7 +102,6 @@ const InvoiceDetailsPage: React.FC = () => {
     return headers;
   }, [authTokenFromContext]);
 
-  // Centralized API error handler
   const handleApiError = useCallback(
     (error: any, contextMessage: string = "An operation failed") => {
       console.error(contextMessage, error);
@@ -129,7 +127,6 @@ const InvoiceDetailsPage: React.FC = () => {
     [navigate]
   );
 
-  // Helper for parsing API error responses from direct fetch calls
   const parseDirectFetchError = async (
     response: Response,
     defaultMessage: string
@@ -168,7 +165,7 @@ const InvoiceDetailsPage: React.FC = () => {
   useEffect(() => {
     if (!invoiceIdFromParams) {
       toast.error("Invoice ID is missing.");
-      navigate(-1); // Go back to previous page
+      navigate(-1);
       return;
     }
 
@@ -176,7 +173,6 @@ const InvoiceDetailsPage: React.FC = () => {
       setLoading(true);
       setInitialLoadComplete(false);
       try {
-        // Fetch Invoice Details
         const fetchedInvoiceData = await fetchMetadata(
           baseUrl,
           "stock/invoice/id",
@@ -213,31 +209,34 @@ const InvoiceDetailsPage: React.FC = () => {
           budgetName: budgetName,
         });
 
-        // Fetch Products for this invoice using full query string as key
         const productQuery = `?page=1&pageSize=-1&column=invoice_id&query=${invoiceIdFromParams}`;
-        const rawProductData = await fetch(`${baseUrl}/stock/details${productQuery}`, {
-          method: "GET",
-          headers: getDirectFetchHeaders(),
-        }).then((res) => {
-          if (!res.ok) {
-            throw new Error(
-              `Failed to fetch products for invoice ${invoiceIdFromParams}`
-            );
+        const rawProductDataResponse = await fetch(
+          `${baseUrl}/stock/details${productQuery}`,
+          {
+            method: "GET",
+            headers: getDirectFetchHeaders(),
           }
-          return res.json();
-        })
+        );
+
+        if (!rawProductDataResponse.ok) {
+          const error = await parseDirectFetchError(
+            rawProductDataResponse,
+            `Failed to fetch products for invoice ${invoiceIdFromParams}`
+          );
+          throw error;
+        }
+        const rawProductData = await rawProductDataResponse.json();
 
         if (!rawProductData || !rawProductData.products) {
           console.warn(
             "No products found for this invoice or invalid product data structure."
           );
-          setProducts([]); 
+          setProducts([]);
         } else {
           const uiProducts = await convertProductData(rawProductData.products);
           setProducts(uiProducts);
         }
 
-        // Fetch metadata for dropdowns
         const [
           budgetListData,
           locationListData,
@@ -307,6 +306,7 @@ const InvoiceDetailsPage: React.FC = () => {
     navigate,
     handleApiError,
     apiHeadersForFetchMetadata,
+    getDirectFetchHeaders,
   ]);
 
   const handleProductChange = (index: number, field: string, value: any) => {
@@ -347,12 +347,32 @@ const InvoiceDetailsPage: React.FC = () => {
       ["pageNo", "volNo", "quantity"].includes(field) &&
       productToUpdate.quantity > 0
     ) {
-      productToUpdate.productVolPageSerial = `${
-        productToUpdate.volNo || "N/A"
-      }-${productToUpdate.pageNo || "N/A"}-[1-${
-        productToUpdate.quantity || "N/A"
-      }]`;
-    } else if (field === "serialNo") {
+      if (productToUpdate.quantity > 1) {
+        productToUpdate.productVolPageSerial = `${
+          productToUpdate.volNo || "N/A"
+        }-${productToUpdate.pageNo || "N/A"}-[1-${
+          productToUpdate.quantity || "N/A"
+        }]`;
+      } else if (
+        productToUpdate.quantity === 1 &&
+        productToUpdate.locationRangeMappings.length > 0 &&
+        productToUpdate.locationRangeMappings[0].range
+      ) {
+        const singleUnitSerial =
+          parseRange(productToUpdate.locationRangeMappings[0].range)[0] ||
+          productToUpdate.serialNo ||
+          "N/A";
+        productToUpdate.productVolPageSerial = `${
+          productToUpdate.volNo || "N/A"
+        }-${productToUpdate.pageNo || "N/A"}-${singleUnitSerial}`;
+      } else {
+        productToUpdate.productVolPageSerial = `${
+          productToUpdate.volNo || "N/A"
+        }-${productToUpdate.pageNo || "N/A"}-${
+          productToUpdate.serialNo || "N/A"
+        }`;
+      }
+    } else if (field === "serialNo" && productToUpdate.quantity <= 1) {
       productToUpdate.productVolPageSerial = `${
         productToUpdate.volNo || "N/A"
       }-${productToUpdate.pageNo || "N/A"}-${
@@ -368,7 +388,6 @@ const InvoiceDetailsPage: React.FC = () => {
     setInvoiceDetails((prev) => ({ ...prev, [field]: value }));
   };
 
-  // --- addNewLocation/Status/CategoryForProduct (POST requests, use direct fetch) ---
   const addNewItemGeneric = async (
     endpoint: string,
     payload: object,
@@ -481,7 +500,7 @@ const InvoiceDetailsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!initialLoadComplete) {
-      toast.warn("Data is still loading.");
+      toast.warn("Data is still loading. Please wait.");
       return;
     }
     if (!invoiceDetails.invoiceNo.trim()) {
@@ -493,10 +512,16 @@ const InvoiceDetailsPage: React.FC = () => {
       return;
     }
     if (!isEquals) {
-      toast.error("Invoice total does not match products total.");
+      toast.error(
+        "Invoice total does not match products total. Please verify amounts."
+      );
       return;
     }
-    // Product specific validations (copied and adapted from AddProduct, ensure consistency)
+    if (products.length === 0) {
+      toast.error("Please add at least one product to the invoice.");
+      return;
+    }
+
     for (let i = 0; i < products.length; i++) {
       const product = products[i];
       const productLabel = `Product ${i + 1} (${
@@ -505,32 +530,66 @@ const InvoiceDetailsPage: React.FC = () => {
 
       if (!product.productName.trim()) {
         toast.error(`Product name is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (!product.volNo.trim()) {
         toast.error(`Volume Number is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (!product.pageNo.trim()) {
         toast.error(`Page Number is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (!product.category) {
         toast.error(`Category is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (!product.Status) {
         toast.error(`Status is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (product.quantity <= 0) {
         toast.error(`Quantity for ${productLabel} must be greater than 0.`);
-        setLoading(false);
+        return;
+      }
+      if (product.price < 0) {
+        toast.error(`Price for ${productLabel} cannot be negative.`);
+        return;
+      }
+      if (product.gstInputValue < 0) {
+        toast.error(`GST Value for ${productLabel} cannot be negative.`);
+        return;
+      }
+      if (
+        !product.locationRangeMappings ||
+        product.locationRangeMappings.length === 0
+      ) {
+        toast.error(
+          `Location/range mapping is required for ${productLabel}. Please ensure each product has at least one location and serial range defined.`
+        );
+        return;
+      }
+
+      let totalQuantityInMappings = 0;
+      for (const mapping of product.locationRangeMappings) {
+        if (
+          !mapping.location ||
+          !mapping.location.trim() ||
+          !mapping.range ||
+          !mapping.range.trim()
+        ) {
+          toast.error(
+            `Incomplete location or range in mapping for ${productLabel}. Each mapping needs a valid location and a range string (e.g., "1-5" or "1,2,3").`
+          );
+          return;
+        }
+        totalQuantityInMappings += parseRange(mapping.range).length;
+      }
+
+      if (totalQuantityInMappings !== product.quantity) {
+        toast.error(
+          `Mapped quantity (${totalQuantityInMappings}) in location/range details does not match the total quantity (${product.quantity}) for ${productLabel}. Please correct the ranges or the total quantity.`
+        );
         return;
       }
     }
@@ -544,7 +603,9 @@ const InvoiceDetailsPage: React.FC = () => {
         apiHeadersForFetchMetadata
       );
       if (!budgetMeta?.budgets?.[0]?.budgetId)
-        throw new Error("Budget not found or invalid.");
+        throw new Error(
+          `Budget '${invoiceDetails.budgetName}' not found or invalid data.`
+        );
       const budgetId = budgetMeta.budgets[0].budgetId;
 
       const updatedInvoicePayload = {
@@ -554,7 +615,7 @@ const InvoiceDetailsPage: React.FC = () => {
         totalAmount: invoiceDetails.totalAmount.toString(),
         budgetId: budgetId,
       };
-      delete (updatedInvoicePayload as any).budgetName; // budgetName is for UI only
+      delete (updatedInvoicePayload as any).budgetName;
 
       const invoiceUpdateRes = await fetch(
         `${baseUrl}/stock/invoice/${invoiceIdFromParams}`,
@@ -571,15 +632,13 @@ const InvoiceDetailsPage: React.FC = () => {
         );
       toast.success("Invoice details updated!");
 
-      // Re-sync products: Delete all existing for this invoice, then add current ones
       const deleteProductsRes = await fetch(
-        `${baseUrl}/stock/products/by-invoice/${invoiceIdFromParams}`,
+        `${baseUrl}/stock/invoice/products/${invoiceIdFromParams}`,
         {
           method: "DELETE",
           headers: getDirectFetchHeaders(),
         }
       );
-      // 404 is okay if no products existed. Other errors are problematic.
       if (!deleteProductsRes.ok && deleteProductsRes.status !== 404) {
         throw await parseDirectFetchError(
           deleteProductsRes,
@@ -588,8 +647,8 @@ const InvoiceDetailsPage: React.FC = () => {
       }
       console.log(
         deleteProductsRes.status === 404
-          ? "No existing products to clear."
-          : "Existing products cleared."
+          ? "No existing products to clear for this invoice."
+          : "Existing products for this invoice cleared."
       );
 
       for (const product of products) {
@@ -608,9 +667,9 @@ const InvoiceDetailsPage: React.FC = () => {
           ),
         ]);
         if (!statusMeta?.statusId)
-          throw new Error(`Status ID error: ${product.Status}`);
+          throw new Error(`Status ID not found for: ${product.Status}`);
         if (!categoryMeta?.categoryId)
-          throw new Error(`Category ID error: ${product.category}`);
+          throw new Error(`Category ID not found for: ${product.category}`);
 
         for (const mapping of product.locationRangeMappings!) {
           const locationMeta = await fetchMetadata(
@@ -620,42 +679,44 @@ const InvoiceDetailsPage: React.FC = () => {
             apiHeadersForFetchMetadata
           );
           if (!locationMeta?.locationId)
-            throw new Error(`Location ID error: ${mapping.location}`);
+            throw new Error(`Location ID not found for: ${mapping.location}`);
 
-          const unitNumbers = parseRange(mapping.range);
+          const unitNumbers = parseRange(mapping.range); // e.g., "1-3" -> [1,2,3]
           const productAddPromises = unitNumbers.map(async (unitNo) => {
             const singleProductData = {
-              productVolPageSerial: `${product.volNo}-${product.pageNo}-${unitNo}`,
+              productVolPageSerial: `${product.volNo}-${product.pageNo}-${unitNo}`, // Unique serial for each unit
               productName: product.productName,
               productDescription: product.productDescription,
               locationId: locationMeta.locationId,
               statusId: statusMeta.statusId,
               gstAmount: product.gstAmount,
-              productImage: product.productImage,
+              productImage: product.productImage || "",
               invoiceId: parseInt(invoiceIdFromParams!),
               categoryId: categoryMeta.categoryId,
               productPrice: product.price,
-              transferLetter: product.transferLetter,
+              transferLetter: product.transferLetter || "",
               remarks: product.remark,
               budgetId: budgetId,
             };
-            const addProdRes = await fetch(`${baseUrl}/stock/${product.productId}`, {
-              method: "PUT",
+            const addProdRes = await fetch(`${baseUrl}/stock/add`, {
+              method: "POST",
               headers: getDirectFetchHeaders(),
               body: JSON.stringify(singleProductData),
             });
             if (!addProdRes.ok)
               throw await parseDirectFetchError(
                 addProdRes,
-                `Failed to add product ${singleProductData.productVolPageSerial}`
+                `Failed to add product unit ${singleProductData.productVolPageSerial}`
               );
             return addProdRes.json();
           });
           await Promise.all(productAddPromises);
         }
       }
-      toast.success("Products updated/re-added successfully!");
-      navigate(-1); // Go back to previous page after successful save
+      toast.success(
+        "Products updated/re-added successfully based on detailed mappings!"
+      );
+      navigate("/stocks");
     } catch (error: any) {
       handleApiError(error, "Failed to save changes");
     } finally {
@@ -674,6 +735,8 @@ const InvoiceDetailsPage: React.FC = () => {
         const end = parseInt(endStr, 10);
         if (!isNaN(start) && !isNaN(end) && start <= end) {
           for (let i = start; i <= end; i++) result.push(i);
+        } else if (!isNaN(start) && isNaN(end) && startStr === part) {
+          result.push(start);
         }
       } else {
         const num = parseInt(part, 10);
@@ -728,7 +791,7 @@ const InvoiceDetailsPage: React.FC = () => {
           />
           {products.map((product, index) => (
             <ProductCard
-              key={product.productVolPageSerial || index} // Prefer a stable unique ID
+              key={product.productVolPageSerial || index}
               index={index}
               product={product}
               categories={categories}

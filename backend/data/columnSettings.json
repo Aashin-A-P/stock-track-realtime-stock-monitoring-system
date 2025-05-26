@@ -15,7 +15,12 @@
     "fromAddress": false,
     "toAddress": false,
     "status": false,
-    "staff": false
+    "staff": false,
+    "custom_excess_1748248099539": true,
+    "custom_shortage_1748248117972": true,
+    "custom_stockidformater_1748248217758": false,
+    "custom_stock_identification_1748248258089": false,
+    "custom_stock_identify_1748248620525": true
   },
   "columnOrder": [
     "displaySerialNo",
@@ -33,7 +38,12 @@
     "fromAddress",
     "toAddress",
     "status",
-    "staff"
+    "staff",
+    "custom_excess_1748248099539",
+    "custom_shortage_1748248117972",
+    "custom_stockidformater_1748248217758",
+    "custom_stock_identification_1748248258089",
+    "custom_stock_identify_1748248620525"
   ],
   "columnAliases": {
     "annexure": "ANNEXURE - I",
@@ -56,5 +66,48 @@
     "toAddress": "To Address",
     "status": "Status",
     "staff": "Staff"
-  }
+  },
+  "customColumns": [
+    {
+      "id": "custom_excess_1748248099539",
+      "displayName": "Excess",
+      "type": "static",
+      "sourceColumns": [],
+      "staticValue": "NIL"
+    },
+    {
+      "id": "custom_shortage_1748248117972",
+      "displayName": "SHORTAGE",
+      "type": "static",
+      "sourceColumns": [],
+      "staticValue": "NIL"
+    },
+    {
+      "id": "custom_stockidformater_1748248217758",
+      "displayName": "stockIdformater",
+      "type": "static",
+      "sourceColumns": [],
+      "staticValue": "MIT/IT/"
+    },
+    {
+      "id": "custom_stock_identification_1748248258089",
+      "displayName": "Stock Identification",
+      "type": "concatenation",
+      "sourceColumns": [
+        "stockId",
+        "custom_stockidformater_1748248217758"
+      ],
+      "separator": " "
+    },
+    {
+      "id": "custom_stock_identify_1748248620525",
+      "displayName": "Stock Identify",
+      "type": "concatenation",
+      "sourceColumns": [
+        "custom_stockidformater_1748248217758",
+        "stockId"
+      ],
+      "separator": " \"\""
+    }
+  ]
 }
