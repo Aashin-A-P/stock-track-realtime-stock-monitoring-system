@@ -84,3 +84,4 @@ uploads/
 *.sw?
 drizzle/
 .qodo
+.hintrc
