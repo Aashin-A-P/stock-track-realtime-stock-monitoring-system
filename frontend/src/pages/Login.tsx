@@ -54,6 +54,12 @@ const Login: React.FC = () => {
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white bg-opacity-70"
               placeholder="Enter your username"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  // move cursor to password input
+                  document.getElementById("password")?.focus();
+                }
+              }}
               required
             />
           </div>
@@ -70,6 +76,11 @@ const Login: React.FC = () => {
               onChange={handleChange}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white bg-opacity-70"
               placeholder="Enter your password"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleLogin(e);
+                }
+              }}
               required
             />
           </div>

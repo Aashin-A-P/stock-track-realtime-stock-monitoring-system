@@ -22,6 +22,7 @@ import {
   LinearScale,
   Title, // Import Title if you plan to use it
 } from "chart.js";
+import { toast } from "react-toastify";
 
 ChartJS.register(
   ArcElement,
@@ -39,8 +40,12 @@ const Dashboard: React.FC = () => {
   const { token, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && !token) {
-      // Ensure auth loading is complete before redirecting
+    if (!authLoading && !token && !localStorage.getItem("token")) {
+      // If auth loading is complete and no token, redirect to login
+      toast.error("You need to log in to access the dashboard.");
+      localStorage.removeItem("token");
+      localStorage.removeItem("username"); 
+      localStorage.removeItem("role"); 
       navigate("/login");
     }
   }, [token, authLoading, navigate]);

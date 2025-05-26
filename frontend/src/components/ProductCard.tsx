@@ -244,12 +244,12 @@ const ProductCard = ({
             htmlFor={`serialNo-${index}`}
             className="block text-sm font-medium text-gray-700 mb-1"
           >
-            Product Serial No (Optional)
+            Serial No
           </label>
           <input
             id={`serialNo-${index}`}
             type="text"
-            placeholder="Product Serial No"
+            placeholder="Serial No"
             value={product.serialNo}
             onChange={(e) =>
               handleProductChange(index, "serialNo", e.target.value)

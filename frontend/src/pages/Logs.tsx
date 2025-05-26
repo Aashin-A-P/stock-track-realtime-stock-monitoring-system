@@ -16,7 +16,7 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
 const Logs: React.FC = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const token = localStorage.getItem("token") || "";
 
   useEffect(() => {
     if (!token) {
@@ -136,7 +136,6 @@ const Logs: React.FC = () => {
           </div>
         ) : (
           <>
-            <Navbar />
             <div className="text-gray-500 mt-4">No logs found.</div>
           </>
         )}

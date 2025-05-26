@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { uploadImageAndGetURL } from "../utils";
+import { uploadImageAndGetURL, fetchMetadata } from "../utils";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { toast } from "react-toastify";
+import { FetchErrorResponse } from "../types";
 
 // Data types as returned by your backend
 type Product = {
@@ -11,13 +13,14 @@ type Product = {
   productName: string;
   productDescription: string;
   transferLetter?: string;
-  gstAmount: string; // API returns as string
+  gstAmount: string;
   productImage: string;
   locationName: string;
   categoryName: string;
   remarks: string;
   status: string;
   productPrice: number;
+  invoiceId: number;
 };
 
 type Invoice = {
@@ -25,32 +28,30 @@ type Invoice = {
   invoiceNo: string;
   fromAddress: string;
   toAddress: string;
-  totalAmount: string; // API expecting as string
+  totalAmount: string;
   PODate?: string;
   invoiceDate: string;
   invoiceImage: string;
   budgetName?: string;
 };
 
-// Dropdown option types – adjust property names per your API
 type LocationOption = { locationId: number; locationName: string };
 type StatusOption = { statusId: number; statusDescription: string };
 type CategoryOption = { categoryId: number; categoryName: string };
 
-// Editing types: we use strings for numeric fields so that clearing an input leaves it empty.
 type EditProduct = {
   productId: number;
   productVolPageSerial: string;
   productName: string;
   productDescription: string;
   transferLetter?: string;
-  gstAmount: string; // will convert on save
+  gstAmount: string;
   productImage: string;
   locationId: number;
   categoryId: number;
   statusId: number;
   remarks: string;
-  productPrice: string; 
+  productPrice: string;
   invoiceId: number;
 };
 
@@ -65,51 +66,154 @@ const StockDetails = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [updatedProduct, setUpdatedProduct] = useState<EditProduct | null>(null);
+  const [updatedProduct, setUpdatedProduct] = useState<EditProduct | null>(
+    null
+  );
 
-  // Dropdown option states
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   const baseURL = import.meta.env.VITE_API_BASE_URL;
-  const fetchHeaders = {
-    "Content-Type": "application/json",
-    Authorization: localStorage.getItem("token") || "",
+
+  const authTokenFromContext = localStorage.getItem("token");
+
+  const apiHeadersForFetchMetadata = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (authTokenFromContext) {
+      headers["Authorization"] = `${authTokenFromContext}`;
+    }
+    return headers;
+  }, [authTokenFromContext]);
+
+  const getDirectFetchHeaders = useCallback(() => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authTokenFromContext) {
+      headers["Authorization"] = `${authTokenFromContext}`;
+    }
+    return headers;
+  }, [authTokenFromContext]);
+
+  // Centralized API error handler
+  const handleApiError = useCallback(
+    (error: any, contextMessage: string = "An operation failed") => {
+      console.error(contextMessage, error);
+      if (error && typeof error === "object" && "message" in error) {
+        const err = error as FetchErrorResponse;
+        toast.error(err.message || contextMessage);
+        if (err.isAuthError || err.status === 401) {
+          toast.info("Session expired or invalid. Redirecting to login.");
+          navigate("/login");
+        } else if (err.isAccessDenied) {
+          toast.warn(
+            "Access Denied: You don't have permission for this action."
+          );
+        }
+      } else if (typeof error === "string") {
+        toast.error(error);
+      } else {
+        toast.error(
+          `${contextMessage}: ${error?.toString() || "Unknown error"}`
+        );
+      }
+    },
+    [navigate]
+  );
+
+  // Helper for parsing API error responses from direct fetch calls
+  const parseDirectFetchError = async (
+    response: Response,
+    defaultMessage: string
+  ): Promise<FetchErrorResponse> => {
+    let errorBody: any = null;
+    let errorMessageFromServer = defaultMessage;
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        errorBody = await response.json();
+        errorMessageFromServer =
+          errorBody.message || errorBody.error || JSON.stringify(errorBody);
+      } else {
+        const text = await response.text();
+        if (text.trim()) errorMessageFromServer = text;
+      }
+    } catch (e) {
+      /* Ignored parsing error, used default */
+    }
+
+    let finalMessage = `${defaultMessage}: ${response.status} ${response.statusText}. ${errorMessageFromServer}`;
+    if (response.status === 403)
+      finalMessage = `Access Denied: ${errorMessageFromServer}`;
+    else if (response.status === 401)
+      finalMessage = `Authentication Failed: ${errorMessageFromServer}`;
+
+    return {
+      status: response.status,
+      message: finalMessage,
+      body: errorBody,
+      isAccessDenied: response.status === 403,
+      isAuthError: response.status === 401,
+    };
   };
 
-  // Fetch dropdown options
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const locRes = await fetch(`${baseURL}/stock/locations`, { headers: fetchHeaders });
-        const locData = await locRes.json();
-        setLocations(locData.locations); // expecting objects with locationId & locationName
+        const [locData, statusData, catData] = await Promise.all([
+          fetchMetadata(
+            baseURL,
+            "stock/locations",
+            "",
+            apiHeadersForFetchMetadata
+          ),
+          fetchMetadata(
+            baseURL,
+            "stock/status",
+            "",
+            apiHeadersForFetchMetadata
+          ),
+          fetchMetadata(
+            baseURL,
+            "stock/category",
+            "",
+            apiHeadersForFetchMetadata
+          ),
+        ]);
 
-        const statusRes = await fetch(`${baseURL}/stock/status`, { headers: fetchHeaders });
-        const statusData = await statusRes.json();
-        setStatuses(statusData.statuses); // expecting objects with statusId & statusDescription
-
-        const catRes = await fetch(`${baseURL}/stock/category`, { headers: fetchHeaders });
-        const catData = await catRes.json();
-        setCategories(catData.categories); // expecting objects with categoryId & categoryName
-
+        if (locData?.locations) setLocations(locData.locations);
+        if (statusData?.statuses) setStatuses(statusData.statuses);
+        if (catData?.categories) setCategories(catData.categories);
       } catch (error) {
-        console.error("Error fetching dropdown options", error);
+        handleApiError(error, "Error fetching dropdown options");
       }
     };
-    fetchOptions();
-  }, [baseURL]);
+    if (authTokenFromContext) fetchOptions();
+  }, [
+    baseURL,
+    authTokenFromContext,
+    handleApiError,
+    apiHeadersForFetchMetadata,
+  ]);
 
-  // Fetch stock details from backend
   useEffect(() => {
     const fetchData = async () => {
+      if (!stockId) {
+        handleApiError("Stock ID is missing.", "Invalid request");
+        navigate("/stocks");
+        return;
+      }
       setLoading(true);
       try {
-        const response = await fetch(`${baseURL}/stock/${stockId}`, { headers: fetchHeaders });
-        const data = await response.json();
-        if (response.ok) {
-          // console.log("Stock Details:", JSON.stringify(data, null, 2));
+        const data = await fetchMetadata(
+          baseURL,
+          "stock/id",
+          stockId,
+          apiHeadersForFetchMetadata
+        );
+
+        if (data && data.product && data.invoice) {
           setProduct(data.product);
           setInvoice({
             ...data.invoice,
@@ -117,41 +221,52 @@ const StockDetails = () => {
             budgetName: data.invoice.budgetName || "",
           });
         } else {
-          console.error("Error fetching stock details:", data.message);
+          throw new Error(
+            "Failed to fetch stock details or data is incomplete."
+          );
         }
       } catch (error) {
-        console.error("Error fetching stock details:", error);
+        handleApiError(error, "Error fetching stock details");
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [stockId, baseURL]);
+    if (authTokenFromContext) fetchData();
+  }, [
+    stockId,
+    baseURL,
+    authTokenFromContext,
+    handleApiError,
+    navigate,
+    apiHeadersForFetchMetadata,
+  ]);
 
   const handleBack = () => {
     navigate("/stocks");
   };
 
   const handleImageClick = (imageUrl: string) => {
-    if (!imageUrl.trim()) {
+    if (!imageUrl?.trim()) {
       console.warn("No valid image URL found.");
       return;
     }
     let fullUrl = imageUrl;
     if (!imageUrl.startsWith("http")) {
-      fullUrl = `${baseURL}${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
+      fullUrl = `${baseURL}${
+        imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`
+      }`;
     }
     try {
       const newWindow = window.open(fullUrl, "_blank");
       if (!newWindow) {
-        console.warn("Popup blocked or failed to open the image.");
+        toast.warn("Popup blocked or failed to open the image.");
       }
     } catch (error) {
+      toast.error("Error opening image.");
       console.error("Error opening image:", error);
     }
   };
 
-  // When entering edit mode for the product, prepopulate editing state.
   const handleEditClick = () => {
     if (!product || !invoice) return;
     setIsEditing(true);
@@ -160,20 +275,24 @@ const StockDetails = () => {
       productVolPageSerial: product.productVolPageSerial,
       productName: product.productName,
       productDescription: product.productDescription,
-      transferLetter: product.transferLetter || '',
-      gstAmount: product.gstAmount, // remains as string; will convert on save
-      productImage: product.productImage  || '',
-      // Use a fallback of 0 if not found so that the API receives a valid number
-      locationId: locations.find((loc) => loc.locationName === product.locationName)?.locationId ?? 0,
-      categoryId: categories.find((cat) => cat.categoryName === product.categoryName)?.categoryId ?? 0,
-      statusId: statuses.find((s) => s.statusDescription === product.status)?.statusId ?? 0,
+      transferLetter: product.transferLetter || "",
+      gstAmount: product.gstAmount,
+      productImage: product.productImage || "",
+      locationId:
+        locations.find((loc) => loc.locationName === product.locationName)
+          ?.locationId ?? 0,
+      categoryId:
+        categories.find((cat) => cat.categoryName === product.categoryName)
+          ?.categoryId ?? 0,
+      statusId:
+        statuses.find((s) => s.statusDescription === product.status)
+          ?.statusId ?? 0,
       remarks: product.remarks,
       productPrice: product.productPrice.toString(),
-      invoiceId: invoice.invoiceId, 
+      invoiceId: product.invoiceId || invoice.invoiceId,
     });
   };
 
-  // Update editing state for product fields
   const handleProductChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     field: keyof EditProduct
@@ -184,131 +303,162 @@ const StockDetails = () => {
     }
   };
 
-  // Image upload handlers
-  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProductImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (file && updatedProduct) {
       try {
-        const imageUrl = await uploadImageAndGetURL(file, e);
+        const imageUrl = await uploadImageAndGetURL(file, e); // Assuming uploadImageAndGetURL handles toasts
         setUpdatedProduct({ ...updatedProduct, productImage: imageUrl });
       } catch (error) {
-        console.error("Error uploading product image:", error);
+        handleApiError(error, "Error uploading product image");
       }
     }
   };
 
-  const handleTransferLetterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTransferLetterUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (file && updatedProduct) {
       try {
-        const imageUrl = await uploadImageAndGetURL(file, e);
+        const imageUrl = await uploadImageAndGetURL(file, e); // Assuming uploadImageAndGetURL handles toasts
         setUpdatedProduct({ ...updatedProduct, transferLetter: imageUrl });
       } catch (error) {
-        console.error("Error uploading transfer letter:", error);
+        handleApiError(error, "Error uploading transfer letter");
       }
     }
   };
 
-  // Save product changes: convert numeric strings to numbers and merge IDs back to names
   const handleSaveChanges = async () => {
     if (!updatedProduct || !invoice) return;
     setLoading(true);
     try {
-      // Convert string values to numbers using Number(…)
       const productToSave = {
         ...updatedProduct,
         productPrice: Number(updatedProduct.productPrice),
         gstAmount: Number(updatedProduct.gstAmount),
-        invoiceId:invoice.invoiceId,
-        productImage: updatedProduct.productImage || '', // Ensure string
-        transferLetter: updatedProduct.transferLetter || '',
+        invoiceId: updatedProduct.invoiceId || invoice.invoiceId, // Ensure invoiceId is present
+        productImage: updatedProduct.productImage || "",
+        transferLetter: updatedProduct.transferLetter || "",
       };
 
-      console.log(JSON.stringify(productToSave, null, 2));
+      const prodRes = await fetch(
+        `${baseURL}/stock/${productToSave.productId}`,
+        {
+          method: "PUT",
+          headers: getDirectFetchHeaders(),
+          body: JSON.stringify(productToSave),
+        }
+      );
 
-      // Send product update
-      const prodRes = await fetch(`${baseURL}/stock/${productToSave.productId}`, {
-        method: "PUT",
-        headers: fetchHeaders,
-        body: JSON.stringify(productToSave),
-      });
-      const prodData = await prodRes.json();
       if (!prodRes.ok) {
-        throw new Error(prodData.message || "Failed to update product");
+        throw await parseDirectFetchError(prodRes, "Failed to update product");
       }
+      // const prodData = await prodRes.json(); // Not strictly needed if only confirming success
 
-      // Merge back to full Product shape using our dropdown options
       const updatedProductFinal: Product = {
         productId: productToSave.productId,
         productVolPageSerial: productToSave.productVolPageSerial,
         productName: productToSave.productName,
         productDescription: productToSave.productDescription,
         transferLetter: productToSave.transferLetter,
-        gstAmount: productToSave.gstAmount.toString(), // convert number back to string for Product type
+        gstAmount: productToSave.gstAmount.toString(),
         productImage: productToSave.productImage,
         locationName:
-          locations.find((loc) => loc.locationId === productToSave.locationId)?.locationName ||
+          locations.find((loc) => loc.locationId === productToSave.locationId)
+            ?.locationName ||
           product?.locationName ||
           "",
         categoryName:
-          categories.find((cat) => cat.categoryId === productToSave.categoryId)?.categoryName ||
+          categories.find((cat) => cat.categoryId === productToSave.categoryId)
+            ?.categoryName ||
           product?.categoryName ||
           "",
         remarks: productToSave.remarks,
         status:
-          statuses.find((s) => s.statusId === productToSave.statusId)?.statusDescription ||
+          statuses.find((s) => s.statusId === productToSave.statusId)
+            ?.statusDescription ||
           product?.status ||
           "",
         productPrice: productToSave.productPrice,
+        invoiceId: productToSave.invoiceId,
       };
 
       setProduct(updatedProductFinal);
       setIsEditing(false);
+      toast.success("Product updated successfully!");
     } catch (error) {
-      console.error("Error updating stock details:", error);
+      handleApiError(error, "Error updating stock details");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className=" text-center text-blue-700">
-    <LoadingSpinner />
-    Loading Stocks...
-  </div>;
+  if (loading && !product)
+    return (
+      <div className=" text-center text-blue-700">
+        <LoadingSpinner />
+        Loading Stock Details...
+      </div>
+    );
   if (!product || !invoice) {
     return (
-      <div className="text-center text-red-500">
-        Error: Unable to fetch stock or invoice details.
-      </div>
+      <>
+        <Navbar />
+        <div className="p-6 max-w-5xl mx-auto text-center text-red-500">
+          Error: Unable to fetch stock or invoice details. Please try again or
+          contact support.
+          <button
+            onClick={handleBack}
+            className="mt-4 text-white bg-blue-600 px-4 py-2 rounded shadow hover:bg-blue-700"
+          >
+            Go Back
+          </button>
+        </div>
+      </>
     );
   }
 
-  // For display purposes, use the inline product editing state if available.
-  const productData: EditProduct =
+  const productDataForDisplay: EditProduct =
     isEditing && updatedProduct
       ? updatedProduct
       : {
-        // For display only; dropdown IDs will be determined when editing starts.
-        productId: product.productId,
-        productVolPageSerial: product.productVolPageSerial,
-        productName: product.productName,
-        productDescription: product.productDescription,
-        transferLetter: product.transferLetter,
-        gstAmount: product.gstAmount,
-        productImage: product.productImage,
-        locationId: 0,
-        categoryId: 0,
-        statusId: 0,
-        remarks: product.remarks,
-        productPrice: product.productPrice.toString(),
-        invoiceId:0,
-      };
+          productId: product.productId,
+          productVolPageSerial: product.productVolPageSerial,
+          productName: product.productName,
+          productDescription: product.productDescription,
+          transferLetter: product.transferLetter,
+          gstAmount: product.gstAmount,
+          productImage: product.productImage,
+          locationId:
+            locations.find((l) => l.locationName === product.locationName)
+              ?.locationId || 0,
+          categoryId:
+            categories.find((c) => c.categoryName === product.categoryName)
+              ?.categoryId || 0,
+          statusId:
+            statuses.find((s) => s.statusDescription === product.status)
+              ?.statusId || 0,
+          remarks: product.remarks,
+          productPrice: product.productPrice.toString(),
+          invoiceId: product.invoiceId,
+        };
 
-  // Compute computed total amount display only if base amount is entered.
-  const baseAmount = productData.productPrice === "" ? 0 : Number(productData.productPrice);
-  const gst = productData.gstAmount === "" ? 0 : Number(productData.gstAmount);
+  const baseAmount =
+    productDataForDisplay.productPrice === ""
+      ? 0
+      : Number(productDataForDisplay.productPrice);
+  const gst =
+    productDataForDisplay.gstAmount === ""
+      ? 0
+      : Number(productDataForDisplay.gstAmount);
   const computedTotal = baseAmount + gst;
-  const computedTotalDisplay = productData.productPrice === "" ? "" : formatAmount(computedTotal);
+  const computedTotalDisplay =
+    productDataForDisplay.productPrice === ""
+      ? ""
+      : formatAmount(computedTotal);
 
   return (
     <>
@@ -324,84 +474,84 @@ const StockDetails = () => {
           Stock Details
         </h1>
 
-        {/* Product Details Section */}
         <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-          <h3 className="text-xl font-medium text-gray-700 mb-4">Product Details</h3>
+          <h3 className="text-xl font-medium text-gray-700 mb-4">
+            Product Details
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Read-only fields */}
             <div>
               <label className="font-semibold">Product ID: </label>
-              <span>{productData.productId}</span>
+              <span>{productDataForDisplay.productId}</span>
             </div>
             <div>
               <label className="font-semibold">Vol/Page Serial: </label>
-              <span>{productData.productVolPageSerial}</span>
+              <span>{productDataForDisplay.productVolPageSerial}</span>
             </div>
-            {/* Editable text fields */}
             <div>
               <label className="font-semibold">Product Name: </label>
               {isEditing ? (
                 <input
                   type="text"
-                  value={productData.productName}
+                  value={productDataForDisplay.productName}
                   onChange={(e) => handleProductChange(e, "productName")}
                   className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               ) : (
-                <span>{productData.productName}</span>
+                <span>{productDataForDisplay.productName}</span>
               )}
             </div>
             <div>
               <label className="font-semibold">Description: </label>
               {isEditing ? (
                 <textarea
-                  value={productData.productDescription}
+                  value={productDataForDisplay.productDescription}
                   onChange={(e) => handleProductChange(e, "productDescription")}
                   className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               ) : (
-                <span>{productData.productDescription}</span>
+                <span>{productDataForDisplay.productDescription}</span>
               )}
             </div>
             <div>
               <label className="font-semibold">Base Amount: </label>
-              {isEditing ? (
-                <input
-                  type="number"
-                  value={productData.productPrice}
-                  onChange={(e) => handleProductChange(e, "productPrice")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                formatAmount(Number(productData.productPrice))
+              {formatAmount(Number(productDataForDisplay.productPrice))}
+              {isEditing && (
+                <div className={"text-sm text-gray-500 mt-1"}>
+                  <Link
+                    to={`/invoice/${productDataForDisplay.invoiceId}`}
+                    className="text-blue-600 underline pl-2"
+                  >
+                    Click to edit Base Amount via invoice
+                  </Link>
+                </div>
               )}
             </div>
             <div>
               <label className="font-semibold">GST Amount: </label>
-              {isEditing ? (
-                <input
-                  type="number"
-                  value={productData.gstAmount}
-                  onChange={(e) => handleProductChange(e, "gstAmount")}
-                  className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              ) : (
-                formatAmount(Number(productData.gstAmount))
+              {formatAmount(Number(productDataForDisplay.gstAmount))}
+              {isEditing && (
+                <div className={"text-sm text-gray-500 mt-1"}>
+                  <Link
+                    to={`/invoice/${productDataForDisplay.invoiceId}`}
+                    className="text-blue-600 underline pl-2"
+                  >
+                    Click to edit gst amount via invoice
+                  </Link>
+                </div>
               )}
             </div>
             <div>
               <label className="font-semibold">Total Amount: </label>
               <span>{computedTotalDisplay}</span>
             </div>
-            {/* Dropdown for Location */}
             <div>
               <label className="font-semibold">Location: </label>
-              {isEditing ? (
+              {isEditing && updatedProduct ? (
                 <select
-                  value={updatedProduct ? updatedProduct.locationId : ""}
+                  value={updatedProduct.locationId}
                   onChange={(e) =>
                     setUpdatedProduct({
-                      ...updatedProduct!,
+                      ...updatedProduct,
                       locationId: Number(e.target.value),
                     })
                   }
@@ -418,15 +568,14 @@ const StockDetails = () => {
                 <span>{product.locationName}</span>
               )}
             </div>
-            {/* Dropdown for Category */}
             <div>
               <label className="font-semibold">Category: </label>
-              {isEditing ? (
+              {isEditing && updatedProduct ? (
                 <select
-                  value={updatedProduct ? updatedProduct.categoryId : ""}
+                  value={updatedProduct.categoryId}
                   onChange={(e) =>
                     setUpdatedProduct({
-                      ...updatedProduct!,
+                      ...updatedProduct,
                       categoryId: Number(e.target.value),
                     })
                   }
@@ -443,15 +592,14 @@ const StockDetails = () => {
                 <span>{product.categoryName}</span>
               )}
             </div>
-            {/* Dropdown for Status */}
             <div>
               <label className="font-semibold">Status: </label>
-              {isEditing ? (
+              {isEditing && updatedProduct ? (
                 <select
-                  value={updatedProduct ? updatedProduct.statusId : ""}
+                  value={updatedProduct.statusId}
                   onChange={(e) =>
                     setUpdatedProduct({
-                      ...updatedProduct!,
+                      ...updatedProduct,
                       statusId: Number(e.target.value),
                     })
                   }
@@ -472,26 +620,25 @@ const StockDetails = () => {
               <label className="font-semibold">Remarks: </label>
               {isEditing ? (
                 <textarea
-                  value={productData.remarks}
+                  value={productDataForDisplay.remarks}
                   onChange={(e) => handleProductChange(e, "remarks")}
                   className="border p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               ) : (
-                <span>{productData.remarks || "-"}</span>
+                <span>{productDataForDisplay.remarks || "-"}</span>
               )}
             </div>
-            {/* Product Image */}
             <div>
               <label className="font-semibold">Product Image: </label>
               {isEditing ? (
                 <>
-                  {productData.productImage && (
+                  {productDataForDisplay.productImage && (
                     <div className="mb-2">
                       <img
                         src={
-                          productData.productImage.startsWith("http")
-                            ? productData.productImage
-                            : `${baseURL}${productData.productImage}`
+                          productDataForDisplay.productImage.startsWith("http")
+                            ? productDataForDisplay.productImage
+                            : `${baseURL}${productDataForDisplay.productImage}`
                         }
                         alt="Product"
                         className="w-32 h-32 object-cover"
@@ -509,31 +656,37 @@ const StockDetails = () => {
                     htmlFor="productImageInput"
                     className="cursor-pointer inline-block p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
-                    {productData.productImage
+                    {productDataForDisplay.productImage
                       ? "Change Product Image"
                       : "Upload Product Image"}
                   </label>
                 </>
-              ) : productData.productImage ? (
-                <button onClick={() => handleImageClick(productData.productImage)} className="text-blue-600 underline">
+              ) : productDataForDisplay.productImage ? (
+                <button
+                  onClick={() =>
+                    handleImageClick(productDataForDisplay.productImage)
+                  }
+                  className="text-blue-600 underline"
+                >
                   View Image
                 </button>
               ) : (
                 <span className="text-gray-500">No Image Available</span>
               )}
             </div>
-            {/* Transfer Letter */}
             <div>
               <label className="font-semibold">Transfer Letter: </label>
               {isEditing ? (
                 <>
-                  {productData.transferLetter && (
+                  {productDataForDisplay.transferLetter && (
                     <div className="mb-2">
                       <img
                         src={
-                          productData.transferLetter.startsWith("http")
-                            ? productData.transferLetter
-                            : `${baseURL}${productData.transferLetter}`
+                          productDataForDisplay.transferLetter.startsWith(
+                            "http"
+                          )
+                            ? productDataForDisplay.transferLetter
+                            : `${baseURL}${productDataForDisplay.transferLetter}`
                         }
                         alt="Transfer Letter"
                         className="w-32 h-32 object-cover"
@@ -551,13 +704,20 @@ const StockDetails = () => {
                     htmlFor="transferLetterInput"
                     className="cursor-pointer inline-block p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
-                    {productData.transferLetter
+                    {productDataForDisplay.transferLetter
                       ? "Change Transfer Letter"
                       : "Upload Transfer Letter"}
                   </label>
                 </>
-              ) : productData.transferLetter ? (
-                <button onClick={() => handleImageClick(productData?.transferLetter || "")} className="text-blue-600 underline">
+              ) : productDataForDisplay.transferLetter ? (
+                <button
+                  onClick={() =>
+                    handleImageClick(
+                      productDataForDisplay?.transferLetter || ""
+                    )
+                  }
+                  className="text-blue-600 underline"
+                >
                   View Transfer Letter
                 </button>
               ) : (
@@ -565,14 +725,14 @@ const StockDetails = () => {
               )}
             </div>
           </div>
-          {/* Product Edit/Save Button */}
-          <div className="text-center">
+          <div className="text-center mt-6">
             {isEditing ? (
               <button
                 onClick={handleSaveChanges}
-                className="text-white bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700"
+                disabled={loading}
+                className="text-white bg-green-600 px-6 py-2 rounded shadow hover:bg-green-700 disabled:opacity-50"
               >
-                Save Changes
+                {loading ? "Saving..." : "Save Changes"}
               </button>
             ) : (
               <button
@@ -585,9 +745,10 @@ const StockDetails = () => {
           </div>
         </div>
 
-        {/* Invoice Details Section (Read-Only) */}
         <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
-          <h3 className="text-xl font-medium text-gray-700 mb-4">Invoice Details</h3>
+          <h3 className="text-xl font-medium text-gray-700 mb-4">
+            Invoice Details
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-semibold">Invoice ID: </label>
@@ -611,16 +772,19 @@ const StockDetails = () => {
             </div>
             <div>
               <label className="font-semibold">PO Date: </label>
-              <span>{invoice.PODate || "-"}</span>
+              <span>{invoice.PODate?.split("T")[0] || "-"}</span>
             </div>
             <div>
               <label className="font-semibold">Invoice Date: </label>
-              <span>{invoice.invoiceDate}</span>
+              <span>{invoice.invoiceDate?.split("T")[0]}</span>
             </div>
             <div>
               <label className="font-semibold">Invoice Image: </label>
               {invoice.invoiceImage ? (
-                <button onClick={() => handleImageClick(invoice.invoiceImage)} className="text-blue-600 underline">
+                <button
+                  onClick={() => handleImageClick(invoice.invoiceImage)}
+                  className="text-blue-600 underline"
+                >
                   View Invoice Image
                 </button>
               ) : (

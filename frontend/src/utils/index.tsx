@@ -22,73 +22,135 @@ const defaultProduct: Product = {
   gstAmount: 0,
 };
 
+interface FetchErrorResponse {
+  status: number; // HTTP status code, or 0 for network errors
+  message: string; // User-friendly error message
+  body?: any; // The raw error body from the server (JSON object or text)
+  isAccessDenied?: boolean; // True if status is 403
+  isAuthError?: boolean; // True if status is 401
+  isNetworkError?: boolean; // True if it's a network/fetch-level error
+}
+
 export const fetchMetadata = async (
   baseUrl: string,
   endpoint: string,
-  key: string | number,
+  key: string | number, 
   headers?: Record<string, string>
 ): Promise<any> => {
-  const defaultHeaders = {
-    Authorization: localStorage.getItem("token") || "",
+  const token =
+    typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
+  const defaultHeaders: Record<string, string> = {
     "Content-Type": "application/json",
   };
+  if (token) {
+    defaultHeaders["Authorization"] = `${token}`;
+  }
   const requestHeaders = { ...defaultHeaders, ...headers };
 
   let url = `${baseUrl}/${endpoint}`;
+
+  // Determine how to use the 'key'
   if (
     endpoint.endsWith("/id") &&
     (typeof key === "number" ||
       (typeof key === "string" && key.trim() !== "" && !isNaN(Number(key))))
   ) {
-    url = `${baseUrl}/${endpoint}/${key}`;
+    // Endpoint expects an ID in the path, and key is a valid ID
+    url = `${baseUrl}/${endpoint.replace("/id", "")}/${key}`; // More robust replacement
   } else if (typeof key === "string" && key.trim() !== "") {
+    // Key is a non-empty string, use as a query parameter
     url = `${baseUrl}/${endpoint}?query=${encodeURIComponent(key)}`;
-  } else if (typeof key === "number" && !endpoint.endsWith("/id")) {
+  } else if (typeof key === "number") {
+    // Key is a number, use as a query parameter (if not an /id endpoint handled above)
     url = `${baseUrl}/${endpoint}?query=${key}`;
-  } else if (
-    typeof key === "string" &&
-    key.trim() === "" &&
-    !endpoint.endsWith("/id")
-  ) {
-    url = `${baseUrl}/${endpoint}`;
   } else if (
     (!key || (typeof key === "string" && key.trim() === "")) &&
     endpoint.endsWith("/id")
   ) {
-    console.error(`Invalid or empty key for ID lookup on endpoint ${endpoint}`);
-    return Promise.reject(`Invalid key for ID lookup on endpoint ${endpoint}`);
+    // Invalid: /id endpoint requires a key
+    const errorMessage = `Invalid or empty key for ID lookup on endpoint ${endpoint}`;
+    console.error(errorMessage);
+    return Promise.reject({
+      status: 400, // Bad Request
+      message: errorMessage,
+      isNetworkError: false,
+    } as FetchErrorResponse);
   }
 
   try {
     const res = await fetch(url, { headers: requestHeaders });
+
     if (!res.ok) {
-      const errorText = await res
-        .text()
-        .catch(() => "Could not read error response.");
-      console.error(
-        `Error fetching ${endpoint} with key ${key}: ${res.status} ${res.statusText}`,
-        errorText
-      );
-      return Promise.reject(
-        `Error fetching ${endpoint} for "${key}": ${res.status} ${
-          res.statusText
-        }. Details: ${errorText.substring(0, 150)}`
-      );
+      let errorBody: any = null;
+      let errorMessageFromServer = "Error response from server.";
+
+      // Try to parse error body
+      try {
+        // Prefer JSON, but fallback to text
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          errorBody = await res.json();
+        } else {
+          errorBody = await res.text();
+        }
+
+        // Extract a more specific message if available
+        if (typeof errorBody === "object" && errorBody !== null) {
+          errorMessageFromServer =
+            errorBody.message || errorBody.error || JSON.stringify(errorBody);
+        } else if (typeof errorBody === "string" && errorBody.trim() !== "") {
+          errorMessageFromServer = errorBody;
+        }
+      } catch (e) {
+        // Failed to parse error body, use a generic message
+        errorMessageFromServer = "Could not parse error response body.";
+        console.warn("Failed to parse error response body:", e);
+      }
+
+      const finalErrorMessage = `Request failed: ${res.status} ${res.statusText}. ${errorMessageFromServer}`;
+      const errorResponse: FetchErrorResponse = {
+        status: res.status,
+        message: finalErrorMessage,
+        body: errorBody,
+      };
+
+      if (res.status === 401) {
+        errorResponse.message = `Authentication failed. Please log in again. (Server: ${errorMessageFromServer})`;
+        errorResponse.isAuthError = true;
+      } else if (res.status === 403) {
+        errorResponse.message = `Access Denied: You do not have permission for this action. (Server: ${errorMessageFromServer})`;
+        errorResponse.isAccessDenied = true;
+      } else if (res.status === 404) {
+        errorResponse.message = `Resource not found at ${url}. (Server: ${errorMessageFromServer})`;
+      }
+
+      console.error(`HTTP error ${res.status} for ${url}:`, errorResponse);
+      return Promise.reject(errorResponse);
     }
+
     if (res.status === 204) {
-      return Promise.resolve(null);
+      return null;
     }
+
     return res.json();
-  } catch (error) {
+  } catch (error: any) {
+    // This catches network errors (e.g., DNS, CORS, server unreachable) or if fetch itself throws
     console.error(
-      `Network or other error fetching ${endpoint} with key ${key}:`,
+      `Network or client-side error fetching ${endpoint} with key ${key}:`,
       error
     );
-    return Promise.reject(
-      `Network error or invalid response for ${endpoint} with key "${key}"`
-    );
+    const networkErrorResponse: FetchErrorResponse = {
+      status: 0, // Indicate network or client-side error
+      message: `Network error or client-side issue: ${
+        error.message || "Failed to fetch"
+      }`,
+      body: error.toString(),
+      isNetworkError: true,
+    };
+    return Promise.reject(networkErrorResponse);
   }
 };
+
 
 export const uploadImageAndGetURL = async (
   file: File,

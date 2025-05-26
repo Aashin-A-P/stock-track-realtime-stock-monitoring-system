@@ -20,7 +20,7 @@ const BudgetList: React.FC = () => {
   const { token } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<Boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchBudgets = async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
 import { confirmAlert } from "react-confirm-alert";
@@ -8,23 +8,26 @@ import { useNavigate } from "react-router-dom";
 import { fetchMetadata } from "../utils";
 import InvoiceCard from "../components/InvoiceCard";
 import ProductCard from "../components/ProductCard";
-import { Product, RangeMapping } from "../types";
+import { Product, RangeMapping, FetchErrorResponse } from "../types";
 
 const AddProduct: React.FC = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token: authTokenFromContext, isLoading: isAuthLoading } = useAuth();
 
   useEffect(() => {
-    if (!token) {
+    // local storage check for auth token
+    if (!authTokenFromContext && !localStorage.getItem("token") && !isAuthLoading) {
+      toast.info("Session expired or invalid. Redirecting to login.");
       navigate("/login");
+      return;
     }
-  }, [token, navigate]);
+  }, [authTokenFromContext]);
 
   const defaultProduct: Product = {
     pageNo: "",
     volNo: "",
     serialNo: "",
-    productVolPageSerial: "", 
+    productVolPageSerial: "",
     productName: "",
     productDescription: "",
     transferLetter: "",
@@ -74,6 +77,119 @@ const AddProduct: React.FC = () => {
   }, 0);
   const isEquals = Math.abs(invoiceTotalPrice - productTotalPrice) < 0.01;
 
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  const apiHeadersForFetchMetadata = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (authTokenFromContext) {
+      headers["Authorization"] = `${authTokenFromContext}`;
+    }
+    return headers;
+  }, [authTokenFromContext]);
+
+  // Headers for direct fetch calls (POSTs)
+  const getDirectFetchHeaders = useCallback(() => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authTokenFromContext) {
+      headers["Authorization"] = `${authTokenFromContext}`;
+    }
+    return headers;
+  }, [authTokenFromContext]);
+
+  const handleApiError = (
+    error: any,
+    contextMessage: string = "An operation failed"
+  ) => {
+    console.error(contextMessage, error);
+    if (error && typeof error === "object" && "message" in error) {
+      const err = error as FetchErrorResponse;
+      toast.error(err.message || contextMessage);
+      if (err.isAuthError || err.status === 401) {
+        toast.info("Session expired or invalid. Redirecting to login.");
+        navigate("/login");
+      } else if (err.isAccessDenied) {
+        toast.warn("Access Denied: You don't have permission for this action.");
+      }
+    } else if (typeof error === "string") {
+      toast.error(error);
+    } else {
+      toast.error(`${contextMessage}: ${error?.toString() || "Unknown error"}`);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // For "get all" type endpoints, pass "" as key.
+        // fetchMetadata handles merging apiHeadersForFetchMetadata with its defaults.
+        const [budgetData, locationData, statusData, categoryData] =
+          await Promise.all([
+            fetchMetadata(baseUrl, "funds", "", apiHeadersForFetchMetadata),
+            fetchMetadata(
+              baseUrl,
+              "stock/locations",
+              "",
+              apiHeadersForFetchMetadata
+            ),
+            fetchMetadata(
+              baseUrl,
+              "stock/status",
+              "",
+              apiHeadersForFetchMetadata
+            ),
+            fetchMetadata(
+              baseUrl,
+              "stock/category",
+              "",
+              apiHeadersForFetchMetadata
+            ),
+          ]);
+
+        if (budgetData?.budgets) {
+          setBudgets(
+            budgetData.budgets
+              .map((b: { budgetName: string }) => b.budgetName)
+              .sort()
+          );
+        }
+        if (locationData?.locations) {
+          setLocations(
+            locationData.locations
+              .map((loc: { locationName: string }) => loc.locationName)
+              .sort()
+          );
+        }
+        if (statusData?.statuses) {
+          setStatuses(
+            statusData.statuses
+              .map(
+                (rem: { statusDescription: string }) => rem.statusDescription
+              )
+              .sort()
+          );
+        }
+        if (categoryData?.categories) {
+          setCategories(
+            categoryData.categories
+              .map((cat: { categoryName: string }) => cat.categoryName)
+              .sort()
+          );
+        }
+      } catch (error) {
+        handleApiError(error, "Failed to load essential data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (authTokenFromContext) {
+      fetchData();
+    }
+  }, [baseUrl, authTokenFromContext, navigate, apiHeadersForFetchMetadata]);
+
   const handleProductChange = (index: number, field: string, value: any) => {
     const updatedProducts = [...products];
     const productToUpdate = { ...updatedProducts[index] };
@@ -99,18 +215,15 @@ const AddProduct: React.FC = () => {
         break;
     }
 
-    // Recalculate gstAmount if price, gstInputType, or gstInputValue changed
     if (["price", "gstInputType", "gstInputValue"].includes(field)) {
       if (productToUpdate.gstInputType === "percentage") {
         productToUpdate.gstAmount =
           (productToUpdate.price * productToUpdate.gstInputValue) / 100;
       } else {
-        // 'fixed'
         productToUpdate.gstAmount = productToUpdate.gstInputValue;
       }
     }
 
-    // Update productVolPageSerial (placeholder for batch, individual IDs generated on submit)
     if (
       ["pageNo", "volNo"].includes(field) ||
       (field === "quantity" && productToUpdate.quantity > 0)
@@ -126,10 +239,44 @@ const AddProduct: React.FC = () => {
     setProducts(updatedProducts);
   };
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
-  const fetchedHeaders = {
-    "Content-Type": "application/json",
-    Authorization: localStorage.getItem("token") || "",
+  const handleInvoiceChange = (field: string, value: string | number) => {
+    setInvoiceDetails((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Helper for parsing API error responses from direct fetch calls
+  const parseDirectFetchError = async (
+    response: Response,
+    defaultMessage: string
+  ) => {
+    let errorBody: any = null;
+    let errorMessageFromServer = defaultMessage;
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        errorBody = await response.json();
+        errorMessageFromServer =
+          errorBody.message || errorBody.error || JSON.stringify(errorBody);
+      } else {
+        const text = await response.text();
+        if (text.trim()) errorMessageFromServer = text;
+      }
+    } catch (e) {
+      /* Ignore parsing error, use default */
+    }
+
+    let finalMessage = `${defaultMessage}: ${errorMessageFromServer}`;
+    if (response.status === 403) {
+      finalMessage = `Access Denied: ${errorMessageFromServer}`;
+    } else if (response.status === 401) {
+      finalMessage = `Authentication Failed: ${errorMessageFromServer}`;
+    }
+    return {
+      status: response.status,
+      message: finalMessage,
+      body: errorBody,
+      isAccessDenied: response.status === 403,
+      isAuthError: response.status === 401,
+    };
   };
 
   const addNewLocationForProduct = async (
@@ -140,20 +287,21 @@ const AddProduct: React.FC = () => {
       toast.error("New location name and staff incharge cannot be empty.");
       return;
     }
+    setLoading(true);
     try {
       const res = await fetch(baseUrl + "/stock/location/add", {
         method: "POST",
-        headers: fetchedHeaders,
+        headers: getDirectFetchHeaders(),
         body: JSON.stringify(newLocation),
       });
       if (!res.ok) {
-        throw new Error(`Error adding location: ${res.statusText}`);
+        const error = await parseDirectFetchError(res, "Error adding location");
+        throw error;
       }
       const addedLocationName = newLocation.locationName;
       setLocations((prev) => [...prev, addedLocationName].sort());
       toast.success("Location added successfully!");
 
-      // Update the specific product's mapping
       const updatedProducts = [...products];
       const productToUpdate = { ...updatedProducts[productIndex] };
       const mappings = [...(productToUpdate.locationRangeMappings || [])];
@@ -166,10 +314,11 @@ const AddProduct: React.FC = () => {
         updatedProducts[productIndex] = productToUpdate;
         setProducts(updatedProducts);
       }
-      setNewLocation({ locationName: "", staffIncharge: "" }); // Reset form
+      setNewLocation({ locationName: "", staffIncharge: "" });
     } catch (error) {
-      toast.error("Failed to add location");
-      console.error("Failed to add location:", error);
+      handleApiError(error, "Failed to add location");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -178,28 +327,29 @@ const AddProduct: React.FC = () => {
       toast.error("New status description cannot be empty.");
       return;
     }
+    setLoading(true);
     try {
       const res = await fetch(baseUrl + "/stock/status/add", {
         method: "POST",
-        headers: fetchedHeaders,
+        headers: getDirectFetchHeaders(),
         body: JSON.stringify({ statusDescription: newStatus }),
       });
       if (!res.ok) {
-        throw new Error(`Error adding status: ${res.statusText}`);
+        const error = await parseDirectFetchError(res, "Error adding status");
+        throw error;
       }
       const addedStatus = newStatus;
       setStatuses((prev) => [...prev, addedStatus].sort());
       toast.success("Status added successfully!");
-
-      // Update the specific product's status
       const updatedProducts = products.map((p, idx) =>
         idx === productIndex ? { ...p, Status: addedStatus } : p
       );
       setProducts(updatedProducts);
-      setNewStatus(""); // Reset form
+      setNewStatus("");
     } catch (error) {
-      toast.error("Failed to add status");
-      console.error("Failed to add status:", error);
+      handleApiError(error, "Failed to add status");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -208,103 +358,36 @@ const AddProduct: React.FC = () => {
       toast.error("New category name cannot be empty.");
       return;
     }
+    setLoading(true);
     try {
       const res = await fetch(baseUrl + "/stock/category/add", {
         method: "POST",
-        headers: fetchedHeaders,
+        headers: getDirectFetchHeaders(),
         body: JSON.stringify({ categoryName: newCategory }),
       });
       if (!res.ok) {
-        throw new Error(`Error adding category: ${res.statusText}`);
+        const error = await parseDirectFetchError(res, "Error adding category");
+        throw error;
       }
       const addedCategory = newCategory;
       setCategories((prev) => [...prev, addedCategory].sort());
       toast.success("Category added successfully!");
-
-      // Update the specific product's category
       const updatedProducts = products.map((p, idx) =>
         idx === productIndex ? { ...p, category: addedCategory } : p
       );
       setProducts(updatedProducts);
-      setNewCategory(""); // Reset form
+      setNewCategory("");
     } catch (error) {
-      toast.error("Failed to add category");
-      console.error("Failed to add category:", error);
+      handleApiError(error, "Failed to add category");
+    } finally {
+      setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [budgetRes, locationRes, statusRes, categoryRes] =
-          await Promise.all([
-            fetch(baseUrl + "/funds", { headers: fetchedHeaders }),
-            fetch(baseUrl + "/stock/locations", { headers: fetchedHeaders }),
-            fetch(baseUrl + "/stock/status", { headers: fetchedHeaders }),
-            fetch(baseUrl + "/stock/category", { headers: fetchedHeaders }),
-          ]);
-
-        if (!budgetRes.ok)
-          throw new Error(`Error fetching Budgets: ${budgetRes.statusText}`);
-        const budgetData = await budgetRes.json();
-        setBudgets(
-          budgetData.budgets
-            .map((b: { budgetName: string }) => b.budgetName)
-            .sort()
-        );
-
-        if (!locationRes.ok)
-          throw new Error(
-            `Error fetching locations: ${locationRes.statusText}`
-          );
-        const locationData = await locationRes.json();
-        setLocations(
-          locationData.locations
-            .map((loc: { locationName: string }) => loc.locationName)
-            .sort()
-        );
-
-        if (!statusRes.ok)
-          throw new Error(`Error fetching Statuses: ${statusRes.statusText}`);
-        const statusData: {
-          statuses: { statusId: number; statusDescription: string }[];
-        } = await statusRes.json();
-        setStatuses(
-          statusData.statuses.map((rem) => rem.statusDescription).sort()
-        );
-
-        if (!categoryRes.ok)
-          throw new Error(`Error fetching category: ${categoryRes.statusText}`);
-        const categoryData: {
-          categories: { categoryId: number; categoryName: string }[];
-        } = await categoryRes.json();
-        setCategories(
-          categoryData.categories.map((cat) => cat.categoryName).sort()
-        );
-      } catch (error) {
-        console.error("Failed to fetch initial data:", error);
-        toast.error("Failed to load essential data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [baseUrl, token]); // Removed fetchedHeaders from deps as token covers its Authorization part
-
-  const handleInvoiceChange = (field: string, value: string | number) => {
-    setInvoiceDetails((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    // Basic Validations
     if (!invoiceDetails.invoiceNo.trim()) {
       toast.error("Invoice Number is required");
-      setLoading(false);
       return;
     }
     if (
@@ -312,63 +395,50 @@ const AddProduct: React.FC = () => {
       invoiceDetails.invoiceDate &&
       new Date(invoiceDetails.PODate) > new Date(invoiceDetails.invoiceDate)
     ) {
-      toast.error("Purchase Order Date must be before or same as Invoice Date");
-      setLoading(false);
+      toast.error("PO Date must be before or same as Invoice Date");
       return;
     }
     if (!invoiceDetails.budgetName) {
       toast.error("Budget Name is required");
-      setLoading(false);
       return;
     }
     if (products.length === 0) {
       toast.error("Please add at least one product.");
-      setLoading(false);
       return;
     }
     if (!isEquals) {
-      toast.error(
-        "Invoice total amount does not match the sum of product total prices. Please check."
-      );
-      setLoading(false);
+      toast.error("Invoice total does not match products total.");
       return;
     }
 
-    // Product specific validations
+    // Product specific validations (condensed)
     for (let i = 0; i < products.length; i++) {
       const product = products[i];
       const productLabel = `Product ${i + 1} (${
         product.productName || "Unnamed"
       })`;
-
       if (!product.productName.trim()) {
-        toast.error(`Product name is required for ${productLabel}.`);
-        setLoading(false);
+        toast.error(`Name is required for ${productLabel}.`);
         return;
       }
       if (!product.volNo.trim()) {
-        toast.error(`Volume Number is required for ${productLabel}.`);
-        setLoading(false);
+        toast.error(`Volume No. is required for ${productLabel}.`);
         return;
       }
       if (!product.pageNo.trim()) {
-        toast.error(`Page Number is required for ${productLabel}.`);
-        setLoading(false);
+        toast.error(`Page No. is required for ${productLabel}.`);
         return;
       }
       if (!product.category) {
         toast.error(`Category is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (!product.Status) {
         toast.error(`Status is required for ${productLabel}.`);
-        setLoading(false);
         return;
       }
       if (product.quantity <= 0) {
-        toast.error(`Quantity for ${productLabel} must be greater than 0.`);
-        setLoading(false);
+        toast.error(`Quantity for ${productLabel} must be > 0.`);
         return;
       }
       if (product.price < 0) {
@@ -381,175 +451,93 @@ const AddProduct: React.FC = () => {
         setLoading(false);
         return;
       }
-
       if (
         !product.locationRangeMappings ||
         product.locationRangeMappings.length === 0
       ) {
-        toast.error(
-          `At least one location and serial range mapping is required for ${productLabel}.`
-        );
-        setLoading(false);
+        toast.error(`Location/range mapping is required for ${productLabel}.`);
         return;
       }
-      // Range validation
-      const totalQuantity = product.quantity;
-      const assignedNumbers = new Set<number>();
-      for (const mapping of product.locationRangeMappings) {
-        if (!mapping.location) {
-          toast.error(
-            `Location is required for all range mappings in ${productLabel}.`
-          );
-          setLoading(false);
-          return;
-        }
-        if (!mapping.range.trim()) {
-          toast.error(
-            `Serial range is required for all range mappings in ${productLabel}.`
-          );
-          setLoading(false);
-          return;
-        }
-
-        const rangeItems = mapping.range.split(",").map((x) => x.trim());
-        for (const item of rangeItems) {
-          if (item.includes("-")) {
-            const bounds = item.split("-");
-            if (bounds.length !== 2) {
-              toast.error(`Invalid range format '${item}' in ${productLabel}.`);
-              setLoading(false);
-              return;
-            }
-            const start = parseInt(bounds[0], 10);
-            const end = parseInt(bounds[1], 10);
-            if (
-              isNaN(start) ||
-              isNaN(end) ||
-              start > end ||
-              start < 1 ||
-              end > totalQuantity
-            ) {
-              toast.error(
-                `Range '${item}' in ${productLabel} is out of bounds (1-${totalQuantity}).`
-              );
-              setLoading(false);
-              return;
-            }
-            for (let k = start; k <= end; k++) {
-              if (assignedNumbers.has(k)) {
-                toast.error(
-                  `Duplicate assignment for unit ${k} in ${productLabel}.`
-                );
-                setLoading(false);
-                return;
-              }
-              assignedNumbers.add(k);
-            }
-          } else {
-            const num = parseInt(item, 10);
-            if (isNaN(num) || num < 1 || num > totalQuantity) {
-              toast.error(
-                `Number '${item}' in ${productLabel} is out of bounds (1-${totalQuantity}).`
-              );
-              setLoading(false);
-              return;
-            }
-            if (assignedNumbers.has(num)) {
-              toast.error(
-                `Duplicate assignment for unit ${num} in ${productLabel}.`
-              );
-              setLoading(false);
-              return;
-            }
-            assignedNumbers.add(num);
-          }
-        }
-      }
-      if (assignedNumbers.size !== totalQuantity) {
+      const totalQuantityInMappings = product.locationRangeMappings.reduce(
+        (sum, mapping) => sum + parseRange(mapping.range).length,
+        0
+      );
+      if (totalQuantityInMappings !== product.quantity) {
         toast.error(
-          `Range mappings for ${productLabel} do not cover all ${totalQuantity} units.`
+          `Mapped quantity (${totalQuantityInMappings}) does not match total quantity (${product.quantity}) for ${productLabel}.`
         );
-        setLoading(false);
         return;
       }
     }
 
+    setLoading(true);
     try {
+      // 1. Fetch Budget ID
       const budgetMeta = await fetchMetadata(
         baseUrl,
         "funds/search",
-        invoiceDetails.budgetName
+        invoiceDetails.budgetName,
+        apiHeadersForFetchMetadata
       );
-      if (
-        !budgetMeta ||
-        !budgetMeta.budgets ||
-        budgetMeta.budgets.length === 0
-      ) {
-        toast.error("Budget not found or invalid budget data.");
-        setLoading(false);
-        return;
+      if (!budgetMeta?.budgets?.[0]?.budgetId) {
+        throw new Error(
+          `Budget '${invoiceDetails.budgetName}' not found or invalid data.`
+        );
       }
       const budgetId = budgetMeta.budgets[0].budgetId;
 
+      // 2. Add Invoice
       const parsedInvoiceData = {
         ...invoiceDetails,
-        totalAmount: invoiceDetails.totalAmount.toString(),
+        totalAmount: invoiceDetails.totalAmount.toString(), // Ensure string for API
         budgetId: budgetId,
       };
       const invoiceRes = await fetch(`${baseUrl}/stock/invoice/add`, {
         method: "POST",
-        headers: fetchedHeaders,
+        headers: getDirectFetchHeaders(),
         body: JSON.stringify(parsedInvoiceData),
       });
-
       if (!invoiceRes.ok) {
-        let errorMessage = "Failed to add invoice.";
-
-        try {
-          const errorData = await invoiceRes.json();
-          if (invoiceRes.status === 403 && errorData?.error) {
-            errorMessage = errorData.error; // Shows: "Access denied: Missing privilege 'xyz'"
-          } else if (errorData?.error) {
-            errorMessage = `Failed to add invoice: ${errorData.error}`;
-          }
-        } catch (e) {
-          const errorText = await invoiceRes.text();
-          if (errorText) {
-            errorMessage = `Failed to add invoice: ${errorText}`;
-          }
-        }
-
-        toast.error(errorMessage);
-        setLoading(false);
-        return;
+        const error = await parseDirectFetchError(
+          invoiceRes,
+          "Failed to add invoice"
+        );
+        throw error; 
       }
-
       const { invoice } = await invoiceRes.json();
       const invoiceId = invoice.invoiceId;
 
+      // 3. Add Products
       for (const product of products) {
         const [statusMeta, categoryMeta] = await Promise.all([
-          fetchMetadata(baseUrl, "stock/status/search", product.Status),
-          fetchMetadata(baseUrl, "stock/category/search", product.category),
+          fetchMetadata(
+            baseUrl,
+            "stock/status/search",
+            product.Status,
+            apiHeadersForFetchMetadata
+          ),
+          fetchMetadata(
+            baseUrl,
+            "stock/category/search",
+            product.category,
+            apiHeadersForFetchMetadata
+          ),
         ]);
 
-        if (!statusMeta || !statusMeta.statusId)
-          throw new Error(`Status metadata not found for: ${product.Status}`);
-        if (!categoryMeta || !categoryMeta.categoryId)
-          throw new Error(
-            `Category metadata not found for: ${product.category}`
-          );
+        if (!statusMeta?.statusId)
+          throw new Error(`Status ID not found for: ${product.Status}`);
+        if (!categoryMeta?.categoryId)
+          throw new Error(`Category ID not found for: ${product.category}`);
 
         for (const mapping of product.locationRangeMappings!) {
           const locationMeta = await fetchMetadata(
             baseUrl,
             "stock/location/search",
-            mapping.location
+            mapping.location,
+            apiHeadersForFetchMetadata
           );
-          if (!locationMeta || !locationMeta.locationId)
-            throw new Error(
-              `Location metadata not found for: ${mapping.location}`
-            );
+          if (!locationMeta?.locationId)
+            throw new Error(`Location ID not found for: ${mapping.location}`);
 
           const unitNumbers = parseRange(mapping.range);
           const productAddPromises = unitNumbers.map(async (unitNo) => {
@@ -569,34 +557,20 @@ const AddProduct: React.FC = () => {
               remarks: product.remark,
               budgetId: budgetId,
             };
-        const res = await fetch(`${baseUrl}/stock/add`, {
-            method: "POST",
-            headers: fetchedHeaders,
-            body: JSON.stringify(singleProductData),
-          });
-
-          if (!res.ok) {
-            let errorMessage = `Failed to add product unit ${individualProductVolPageSerial}.`;
-
-            try {
-              const errorData = await res.json();
-              if (res.status === 403 && errorData?.error) {
-                errorMessage = `Access denied: ${errorData.error}`;
-              } else if (errorData?.error) {
-                errorMessage = `${errorMessage} ${errorData.error}`;
-              }
-            } catch {
-              const errorText = await res.text();
-              if (errorText) {
-                errorMessage = `${errorMessage} ${errorText}`;
-              }
+            const prodRes = await fetch(`${baseUrl}/stock/add`, {
+              method: "POST",
+              headers: getDirectFetchHeaders(),
+              body: JSON.stringify(singleProductData),
+            });
+            if (!prodRes.ok) {
+              const error = await parseDirectFetchError(
+                prodRes,
+                `Failed to add product unit ${individualProductVolPageSerial}`
+              );
+              throw error; // This will be FetchErrorResponse-like
             }
-
-            throw new Error(errorMessage);
-          }
-
-          return res.json();})
-
+            return prodRes.json();
+          });
           await Promise.all(productAddPromises);
         }
       }
@@ -613,9 +587,9 @@ const AddProduct: React.FC = () => {
         budgetName: "",
       });
       setProducts([]);
-    } catch (err: any) {
-      console.error("Transaction failed overall:", err);
-      toast.error(`An error occurred: ${err.message}`);
+      navigate("/dashboard");
+    } catch (error: any) {
+      handleApiError(error, "Transaction failed");
     } finally {
       setLoading(false);
     }
@@ -663,8 +637,7 @@ const AddProduct: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
           Add New Stock / Products
         </h2>
-        <form onSubmit={handleSubmit}>
-          {" "}
+        <form onSubmit={handleSubmit} noValidate>
           <InvoiceCard
             handleInvoiceChange={handleInvoiceChange}
             invoiceDetails={invoiceDetails}
@@ -672,7 +645,7 @@ const AddProduct: React.FC = () => {
           />
           {products.map((product, index) => (
             <ProductCard
-              key={index}
+              key={index} // Consider using a more stable key if products can be reordered, e.g., a unique temp ID
               index={index}
               product={product}
               categories={categories}
@@ -682,8 +655,8 @@ const AddProduct: React.FC = () => {
               newLocation={newLocation}
               newStatus={newStatus}
               handleProductChange={handleProductChange}
-              addNewCategory={addNewCategoryForProduct} 
-              addNewLocation={addNewLocationForProduct} 
+              addNewCategory={addNewCategoryForProduct}
+              addNewLocation={addNewLocationForProduct}
               addNewStatus={addNewStatusForProduct}
               setNewCategory={setNewCategory}
               setNewLocation={setNewLocation}
@@ -694,7 +667,7 @@ const AddProduct: React.FC = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-3">
             <button
               type="button"
-              onClick={() => setProducts([...products, { ...defaultProduct }])} // Spread defaultProduct for a fresh object
+              onClick={() => setProducts([...products, { ...defaultProduct }])}
               className="bg-gray-700 text-white px-4 py-2 rounded shadow hover:bg-black transition-all duration-200 w-full sm:w-auto"
               title="Add another product to this invoice"
             >
@@ -718,7 +691,7 @@ const AddProduct: React.FC = () => {
             <button
               type="submit"
               className={`bg-blue-600 text-white px-6 py-2.5 rounded shadow hover:bg-blue-700 transition-all duration-200 w-full sm:w-auto ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
+                loading || !isEquals ? "opacity-50 cursor-not-allowed" : ""
               }`}
               title="Submit the entire invoice with all products"
               disabled={loading || !isEquals}

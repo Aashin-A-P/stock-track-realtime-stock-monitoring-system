@@ -668,7 +668,7 @@ const ReportGeneration: React.FC = () => {
   const { token } = useAuth();
 
   useEffect(() => {
-    if (!token) navigate("/login");
+    if (!token && !localStorage.getItem("token")) navigate("/login");
   }, [token, navigate]);
 
   const [stocks, setStocks] = useState<Stock[]>([]);

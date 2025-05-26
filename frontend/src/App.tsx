@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 
 import Dashboard from "./pages/Dashboard";
@@ -20,6 +20,8 @@ import InvoiceDetails from "./pages/InvoiceDetails";
 import CreateBudget from "./pages/CreateBudget";
 import EditBudget from "./pages/EditBudget";
 import BudgetList from "./pages/BudgetList";
+import NotFoundPage from "./pages/NotFoundPage";
+import CreditsPage from "./pages/CreditsPage";
 
 const App = () => {
   return (
@@ -27,7 +29,7 @@ const App = () => {
       <AuthProvider>
         <ToastContainer
           position="top-center"
-          autoClose={5000} // Close after 5 seconds
+          autoClose={3000}
           hideProgressBar={false}
           newestOnTop
           closeOnClick
@@ -41,6 +43,7 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/credits" element={<CreditsPage />} />
               {/* protected routes */}
               <Route path="/" element={<Dashboard />} />
               <Route path="/addstock" element={<Addstock />} />
@@ -56,8 +59,8 @@ const App = () => {
               <Route path="/reportgeneration" element={<ReportGeneration />} />
               <Route path="/users/create" element={<CreateUserPage />} />
               <Route path="/invoice/:id" element={<InvoiceDetails />} />
-              {/* Default Route */}
-              <Route path="*" element={<Navigate to="/login" />} />
+              {/* Fallback for any unmatched routes (404 page) */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </BrowserRouter>
         </DashboardProvider>

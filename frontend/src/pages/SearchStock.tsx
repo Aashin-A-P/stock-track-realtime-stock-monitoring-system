@@ -31,7 +31,7 @@ const SearchStock: React.FC = () => {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!token) {
+    if (!token && !localStorage.getItem("token")) {
       navigate("/login");
     }
   }, [token, navigate]);

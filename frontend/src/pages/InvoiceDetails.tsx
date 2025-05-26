@@ -1,5 +1,4 @@
-// src/pages/InvoiceDetailsPage.tsx (or your preferred path)
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
 import { confirmAlert } from "react-confirm-alert";
@@ -9,18 +8,19 @@ import { useNavigate, useParams } from "react-router-dom";
 import { convertProductData, fetchMetadata } from "../utils";
 import InvoiceCard from "../components/InvoiceCard";
 import ProductCard from "../components/ProductCard";
-import { Product, RangeMapping } from "../types";
+import { Product, RangeMapping, FetchErrorResponse } from "../types";
 
 const InvoiceDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const authTokenFromContext  = useAuth().token || localStorage.getItem("token");
   const { id: invoiceIdFromParams } = useParams<{ id: string }>();
 
   useEffect(() => {
-    if (!token) {
+    if (!authTokenFromContext) {
+      toast.error("You must be logged in to access this page.");
       navigate("/login");
     }
-  }, [token, navigate]);
+  }, [authTokenFromContext, navigate]);
 
   const defaultProduct: Product = {
     pageNo: "",
@@ -82,6 +82,233 @@ const InvoiceDetailsPage: React.FC = () => {
     ? Math.abs(invoiceTotalPrice - productTotalPrice) < 0.01
     : true;
 
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  // Consistent header generation
+  const apiHeadersForFetchMetadata = useMemo(() => {
+    const headers: Record<string, string> = {};
+    if (authTokenFromContext) {
+      headers["Authorization"] = `${authTokenFromContext}`;
+    }
+    return headers;
+  }, [authTokenFromContext]);
+
+  const getDirectFetchHeaders = useCallback(() => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authTokenFromContext) {
+      headers["Authorization"] = `${authTokenFromContext}`;
+    }
+    return headers;
+  }, [authTokenFromContext]);
+
+  // Centralized API error handler
+  const handleApiError = useCallback(
+    (error: any, contextMessage: string = "An operation failed") => {
+      console.error(contextMessage, error);
+      if (error && typeof error === "object" && "message" in error) {
+        const err = error as FetchErrorResponse;
+        toast.error(err.message || contextMessage);
+        if (err.isAuthError || err.status === 401) {
+          toast.info("Session expired or invalid. Redirecting to login.");
+          navigate("/login");
+        } else if (err.isAccessDenied) {
+          toast.warn(
+            "Access Denied: You don't have permission for this action."
+          );
+        }
+      } else if (typeof error === "string") {
+        toast.error(error);
+      } else {
+        toast.error(
+          `${contextMessage}: ${error?.toString() || "Unknown error"}`
+        );
+      }
+    },
+    [navigate]
+  );
+
+  // Helper for parsing API error responses from direct fetch calls
+  const parseDirectFetchError = async (
+    response: Response,
+    defaultMessage: string
+  ): Promise<FetchErrorResponse> => {
+    let errorBody: any = null;
+    let errorMessageFromServer = defaultMessage;
+    try {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        errorBody = await response.json();
+        errorMessageFromServer =
+          errorBody.message || errorBody.error || JSON.stringify(errorBody);
+      } else {
+        const text = await response.text();
+        if (text.trim()) errorMessageFromServer = text;
+      }
+    } catch (e) {
+      /* Ignore parsing error, use default */
+    }
+
+    let finalMessage = `${defaultMessage}: ${errorMessageFromServer}`;
+    if (response.status === 403)
+      finalMessage = `Access Denied: ${errorMessageFromServer}`;
+    else if (response.status === 401)
+      finalMessage = `Authentication Failed: ${errorMessageFromServer}`;
+
+    return {
+      status: response.status,
+      message: finalMessage,
+      body: errorBody,
+      isAccessDenied: response.status === 403,
+      isAuthError: response.status === 401,
+    };
+  };
+
+  useEffect(() => {
+    if (!invoiceIdFromParams) {
+      toast.error("Invoice ID is missing.");
+      navigate(-1); // Go back to previous page
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true);
+      setInitialLoadComplete(false);
+      try {
+        // Fetch Invoice Details
+        const fetchedInvoiceData = await fetchMetadata(
+          baseUrl,
+          "stock/invoice/id",
+          invoiceIdFromParams,
+          apiHeadersForFetchMetadata
+        );
+        if (!fetchedInvoiceData || !fetchedInvoiceData.invoice) {
+          throw new Error("Invoice data not found or invalid response.");
+        }
+
+        let budgetName = "";
+        if (fetchedInvoiceData.invoice.budgetId) {
+          try {
+            const budgetMetaData = await fetchMetadata(
+              baseUrl,
+              "funds/id",
+              fetchedInvoiceData.invoice.budgetId,
+              apiHeadersForFetchMetadata
+            );
+            budgetName = budgetMetaData?.budget?.budgetName || "";
+          } catch (budgetError) {
+            console.warn(
+              `Could not fetch budget details for budgetId: ${fetchedInvoiceData.invoice.budgetId}`,
+              budgetError
+            );
+          }
+        }
+
+        setInvoiceDetails({
+          ...fetchedInvoiceData.invoice,
+          invoiceDate:
+            fetchedInvoiceData.invoice.invoiceDate?.split("T")[0] || "",
+          PODate: fetchedInvoiceData.invoice.PODate?.split("T")[0] || "",
+          budgetName: budgetName,
+        });
+
+        // Fetch Products for this invoice using full query string as key
+        const productQuery = `?page=1&pageSize=-1&column=invoice_id&query=${invoiceIdFromParams}`;
+        const rawProductData = await fetch(`${baseUrl}/stock/details${productQuery}`, {
+          method: "GET",
+          headers: getDirectFetchHeaders(),
+        }).then((res) => {
+          if (!res.ok) {
+            throw new Error(
+              `Failed to fetch products for invoice ${invoiceIdFromParams}`
+            );
+          }
+          return res.json();
+        })
+
+        if (!rawProductData || !rawProductData.products) {
+          console.warn(
+            "No products found for this invoice or invalid product data structure."
+          );
+          setProducts([]); 
+        } else {
+          const uiProducts = await convertProductData(rawProductData.products);
+          setProducts(uiProducts);
+        }
+
+        // Fetch metadata for dropdowns
+        const [
+          budgetListData,
+          locationListData,
+          statusListData,
+          categoryListData,
+        ] = await Promise.all([
+          fetchMetadata(baseUrl, "funds", "", apiHeadersForFetchMetadata),
+          fetchMetadata(
+            baseUrl,
+            "stock/locations",
+            "",
+            apiHeadersForFetchMetadata
+          ),
+          fetchMetadata(
+            baseUrl,
+            "stock/status",
+            "",
+            apiHeadersForFetchMetadata
+          ),
+          fetchMetadata(
+            baseUrl,
+            "stock/category",
+            "",
+            apiHeadersForFetchMetadata
+          ),
+        ]);
+
+        if (budgetListData?.budgets)
+          setBudgets(
+            budgetListData.budgets
+              .map((b: { budgetName: string }) => b.budgetName)
+              .sort()
+          );
+        if (locationListData?.locations)
+          setLocations(
+            locationListData.locations
+              .map((loc: { locationName: string }) => loc.locationName)
+              .sort()
+          );
+        if (statusListData?.statuses)
+          setStatuses(
+            statusListData.statuses
+              .map((s: { statusDescription: string }) => s.statusDescription)
+              .sort()
+          );
+        if (categoryListData?.categories)
+          setCategories(
+            categoryListData.categories
+              .map((c: { categoryName: string }) => c.categoryName)
+              .sort()
+          );
+
+        setInitialLoadComplete(true);
+      } catch (error: any) {
+        handleApiError(error, "Failed to load invoice data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (authTokenFromContext) {
+      fetchData();
+    }
+  }, [
+    invoiceIdFromParams,
+    baseUrl,
+    authTokenFromContext,
+    navigate,
+    handleApiError,
+    apiHeadersForFetchMetadata,
+  ]);
+
   const handleProductChange = (index: number, field: string, value: any) => {
     const updatedProducts = [...products];
     const productToUpdate = { ...updatedProducts[index] };
@@ -126,25 +353,61 @@ const InvoiceDetailsPage: React.FC = () => {
         productToUpdate.quantity || "N/A"
       }]`;
     } else if (field === "serialNo") {
-      productToUpdate.productVolPageSerial =
-        // if individual serial no matters more than range for a single quantity item
-        `${productToUpdate.volNo || "N/A"}-${productToUpdate.pageNo || "N/A"}-${
-          productToUpdate.serialNo || "N/A"
-        }`;
+      productToUpdate.productVolPageSerial = `${
+        productToUpdate.volNo || "N/A"
+      }-${productToUpdate.pageNo || "N/A"}-${
+        productToUpdate.serialNo || "N/A"
+      }`;
     }
 
     updatedProducts[index] = productToUpdate;
     setProducts(updatedProducts);
   };
 
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
-  const getFetchedHeaders = () => ({
-    // Use a function to get fresh token
-    "Content-Type": "application/json",
-    Authorization: localStorage.getItem("token") || "",
-  });
+  const handleInvoiceChange = (field: string, value: string | number) => {
+    setInvoiceDetails((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const addNewLocationForProduct = async (
+  // --- addNewLocation/Status/CategoryForProduct (POST requests, use direct fetch) ---
+  const addNewItemGeneric = async (
+    endpoint: string,
+    payload: object,
+    itemName: string,
+    setItemsState: React.Dispatch<React.SetStateAction<string[]>>,
+    resetInputState?: () => void,
+    updateProductState?: (addedItemName: string) => void
+  ) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${baseUrl}${endpoint}`, {
+        method: "POST",
+        headers: getDirectFetchHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const error = await parseDirectFetchError(
+          res,
+          `Error adding ${itemName}`
+        );
+        throw error;
+      }
+
+      const addedItemName =
+        (payload as any).locationName ||
+        (payload as any).statusDescription ||
+        (payload as any).categoryName;
+      setItemsState((prev) => [...prev, addedItemName].sort());
+      toast.success(`${itemName} added successfully!`);
+      if (updateProductState) updateProductState(addedItemName);
+      if (resetInputState) resetInputState();
+    } catch (error: any) {
+      handleApiError(error, `Failed to add ${itemName}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addNewLocationForProduct = (
     productIndex: number,
     mappingIndex: number
   ) => {
@@ -152,253 +415,85 @@ const InvoiceDetailsPage: React.FC = () => {
       toast.error("New location name and staff incharge cannot be empty.");
       return;
     }
-    try {
-      const res = await fetch(baseUrl + "/stock/location/add", {
-        method: "POST",
-        headers: getFetchedHeaders(),
-        body: JSON.stringify(newLocation),
-      });
-      if (!res.ok) throw new Error(`Error adding location: ${res.statusText}`);
-
-      const addedLocationName = newLocation.locationName;
-      setLocations((prev) => [...prev, addedLocationName].sort());
-      toast.success("Location added successfully!");
-
-      const updatedProducts = [...products];
-      const productToUpdate = { ...updatedProducts[productIndex] };
-      const mappings = [...(productToUpdate.locationRangeMappings || [])];
-      if (mappings[mappingIndex]) {
-        mappings[mappingIndex] = {
-          ...mappings[mappingIndex],
-          location: addedLocationName,
-        };
-        productToUpdate.locationRangeMappings = mappings;
-        updatedProducts[productIndex] = productToUpdate;
-        setProducts(updatedProducts);
+    addNewItemGeneric(
+      "/stock/location/add",
+      newLocation,
+      "Location",
+      setLocations,
+      () => setNewLocation({ locationName: "", staffIncharge: "" }),
+      (addedLocationName) => {
+        const updatedProducts = [...products];
+        const productToUpdate = { ...updatedProducts[productIndex] };
+        const mappings = [...(productToUpdate.locationRangeMappings || [])];
+        if (mappings[mappingIndex]) {
+          mappings[mappingIndex] = {
+            ...mappings[mappingIndex],
+            location: addedLocationName,
+          };
+          productToUpdate.locationRangeMappings = mappings;
+          updatedProducts[productIndex] = productToUpdate;
+          setProducts(updatedProducts);
+        }
       }
-      setNewLocation({ locationName: "", staffIncharge: "" });
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add location");
-    }
+    );
   };
 
-  const addNewStatusForProduct = async (productIndex: number) => {
+  const addNewStatusForProduct = (productIndex: number) => {
     if (!newStatus.trim()) {
       toast.error("New status description cannot be empty.");
       return;
     }
-    try {
-      const res = await fetch(baseUrl + "/stock/status/add", {
-        method: "POST",
-        headers: getFetchedHeaders(),
-        body: JSON.stringify({ statusDescription: newStatus }),
-      });
-      if (!res.ok) throw new Error(`Error adding status: ${res.statusText}`);
-
-      const addedStatus = newStatus;
-      setStatuses((prev) => [...prev, addedStatus].sort());
-      toast.success("Status added successfully!");
-
-      const updatedProducts = products.map((p, idx) =>
-        idx === productIndex ? { ...p, Status: addedStatus } : p
-      );
-      setProducts(updatedProducts);
-      setNewStatus("");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add status");
-    }
+    addNewItemGeneric(
+      "/stock/status/add",
+      { statusDescription: newStatus },
+      "Status",
+      setStatuses,
+      () => setNewStatus(""),
+      (addedStatus) => {
+        const updatedProducts = products.map((p, idx) =>
+          idx === productIndex ? { ...p, Status: addedStatus } : p
+        );
+        setProducts(updatedProducts);
+      }
+    );
   };
 
-  const addNewCategoryForProduct = async (productIndex: number) => {
+  const addNewCategoryForProduct = (productIndex: number) => {
     if (!newCategory.trim()) {
       toast.error("New category name cannot be empty.");
       return;
     }
-    try {
-      const res = await fetch(baseUrl + "/stock/category/add", {
-        method: "POST",
-        headers: getFetchedHeaders(),
-        body: JSON.stringify({ categoryName: newCategory }),
-      });
-      if (!res.ok) throw new Error(`Error adding category: ${res.statusText}`);
-
-      const addedCategory = newCategory;
-      setCategories((prev) => [...prev, addedCategory].sort());
-      toast.success("Category added successfully!");
-
-      const updatedProducts = products.map((p, idx) =>
-        idx === productIndex ? { ...p, category: addedCategory } : p
-      );
-      setProducts(updatedProducts);
-      setNewCategory("");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add category");
-    }
-  };
-
-  useEffect(() => {
-    if (!invoiceIdFromParams) {
-      toast.error("Invoice ID is missing.");
-      navigate("/invoices"); // Or some other appropriate page
-      return;
-    }
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const headers = getFetchedHeaders();
-        // Fetch Invoice Details
-        const invoiceRes = await fetch(
-          `${baseUrl}/stock/invoice/${invoiceIdFromParams}`,
-          { headers }
+    addNewItemGeneric(
+      "/stock/category/add",
+      { categoryName: newCategory },
+      "Category",
+      setCategories,
+      () => setNewCategory(""),
+      (addedCategory) => {
+        const updatedProducts = products.map((p, idx) =>
+          idx === productIndex ? { ...p, category: addedCategory } : p
         );
-        if (!invoiceRes.ok)
-          throw new Error(
-            `Error fetching Invoice: ${invoiceRes.statusText} (${invoiceRes.status})`
-          );
-        const fetchedInvoiceData = await invoiceRes.json();
-
-        // Fetch associated Budget Name if budgetId is present
-        let budgetName = "";
-        if (fetchedInvoiceData.invoice.budgetId) {
-          const budgetMetaRes = await fetch(
-            `${baseUrl}/funds/${fetchedInvoiceData.invoice.budgetId}`,
-            { headers }
-          );
-          if (budgetMetaRes.ok) {
-            const budgetMetaData = await budgetMetaRes.json();
-            budgetName = budgetMetaData.budget?.budgetName || "";
-          } else {
-            console.warn(
-              `Could not fetch budget details for budgetId: ${fetchedInvoiceData.invoice.budgetId}`
-            );
-          }
-        }
-
-        setInvoiceDetails({
-          ...fetchedInvoiceData.invoice,
-          invoiceDate:
-            fetchedInvoiceData.invoice.invoiceDate?.split("T")[0] || "", // Format date
-          PODate: fetchedInvoiceData.invoice.PODate?.split("T")[0] || "", // Format date
-          budgetName: budgetName, // Set fetched budget name
-        });
-
-        // Fetch Products for this invoice
-        const productUrl = `${baseUrl}/stock/details?page=1&pageSize=-1&column=invoice_id&query=${invoiceIdFromParams}`;
-        const productRes = await fetch(productUrl, { headers });
-        if (!productRes.ok)
-          throw new Error(
-            `Error fetching Products: ${productRes.statusText} (${productRes.status})`
-          );
-        const rawProductData = await productRes.json();
-
-        // Convert raw product data to UI product structure
-        // This function needs to handle grouping, GST fields, and locationRangeMappings
-        const uiProducts = await convertProductData(
-          rawProductData.products,
-          // baseUrl,
-          // headers
-        );
-        setProducts(uiProducts);
-
-        // Fetch metadata for dropdowns
-        const [budgetListRes, locationListRes, statusListRes, categoryListRes] =
-          await Promise.all([
-            fetch(baseUrl + "/funds", { headers }),
-            fetch(baseUrl + "/stock/locations", { headers }),
-            fetch(baseUrl + "/stock/status", { headers }),
-            fetch(baseUrl + "/stock/category", { headers }),
-          ]);
-
-        if (!budgetListRes.ok) throw new Error("Failed to fetch budgets");
-        const budgetListData = await budgetListRes.json();
-        setBudgets(
-          budgetListData.budgets
-            .map((b: { budgetName: string }) => b.budgetName)
-            .sort()
-        );
-
-        if (!locationListRes.ok) throw new Error("Failed to fetch locations");
-        const locationListData = await locationListRes.json();
-        setLocations(
-          locationListData.locations
-            .map((loc: { locationName: string }) => loc.locationName)
-            .sort()
-        );
-
-        if (!statusListRes.ok) throw new Error("Failed to fetch statuses");
-        const statusListData = await statusListRes.json();
-        setStatuses(
-          statusListData.statuses
-            .map((s: { statusDescription: string }) => s.statusDescription)
-            .sort()
-        );
-
-        if (!categoryListRes.ok) throw new Error("Failed to fetch categories");
-        const categoryListData = await categoryListRes.json();
-        setCategories(
-          categoryListData.categories
-            .map((c: { categoryName: string }) => c.categoryName)
-            .sort()
-        );
-
-        setInitialLoadComplete(true);
-      } catch (error: any) {
-        console.error("Failed to fetch data:", error);
-        toast.error(`Failed to load data: ${error.message}`);
-      } finally {
-        setLoading(false);
+        setProducts(updatedProducts);
       }
-    };
-
-    fetchData();
-  }, [invoiceIdFromParams, baseUrl, navigate]); // Removed token from deps as getFetchedHeaders handles it
-
-  const handleInvoiceChange = (field: string, value: string | number) => {
-    setInvoiceDetails((prev) => ({ ...prev, [field]: value }));
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!initialLoadComplete) {
-      toast.warn("Data is still loading. Please wait.");
+      toast.warn("Data is still loading.");
       return;
     }
-    setLoading(true);
-    const headers = getFetchedHeaders();
-
-    // Validations (similar to AddProduct)
     if (!invoiceDetails.invoiceNo.trim()) {
       toast.error("Invoice Number is required");
-      setLoading(false);
-      return;
-    }
-    if (
-      invoiceDetails.PODate &&
-      invoiceDetails.invoiceDate &&
-      new Date(invoiceDetails.PODate) > new Date(invoiceDetails.invoiceDate)
-    ) {
-      toast.error("Purchase Order Date must be before or same as Invoice Date");
-      setLoading(false);
       return;
     }
     if (!invoiceDetails.budgetName) {
       toast.error("Budget Name is required");
-      setLoading(false);
-      return;
-    }
-    if (products.length === 0 && invoiceDetails.totalAmount > 0) {
-      // Allow empty products if amount is 0 (e.g. correcting an empty invoice)
-      toast.error(
-        "Please add at least one product if invoice amount is greater than zero."
-      );
-      setLoading(false);
       return;
     }
     if (!isEquals) {
-      toast.error(
-        "Invoice total amount does not match the sum of product total prices. Please check."
-      );
-      setLoading(false);
+      toast.error("Invoice total does not match products total.");
       return;
     }
     // Product specific validations (copied and adapted from AddProduct, ensure consistency)
@@ -440,64 +535,62 @@ const InvoiceDetailsPage: React.FC = () => {
       }
     }
 
+    setLoading(true);
     try {
       const budgetMeta = await fetchMetadata(
         baseUrl,
         "funds/search",
         invoiceDetails.budgetName,
-        headers
+        apiHeadersForFetchMetadata
       );
-      if (
-        !budgetMeta ||
-        !budgetMeta.budgets ||
-        budgetMeta.budgets.length === 0
-      ) {
-        toast.error("Budget not found or invalid budget data.");
-        setLoading(false);
-        return;
-      }
+      if (!budgetMeta?.budgets?.[0]?.budgetId)
+        throw new Error("Budget not found or invalid.");
       const budgetId = budgetMeta.budgets[0].budgetId;
 
       const updatedInvoicePayload = {
         ...invoiceDetails,
-        invoiceDate: invoiceDetails.invoiceDate || null, 
+        invoiceDate: invoiceDetails.invoiceDate || null,
         PODate: invoiceDetails.PODate || null,
         totalAmount: invoiceDetails.totalAmount.toString(),
         budgetId: budgetId,
       };
-      delete (updatedInvoicePayload as any).budgetName;
+      delete (updatedInvoicePayload as any).budgetName; // budgetName is for UI only
 
       const invoiceUpdateRes = await fetch(
         `${baseUrl}/stock/invoice/${invoiceIdFromParams}`,
         {
           method: "PUT",
-          headers,
+          headers: getDirectFetchHeaders(),
           body: JSON.stringify(updatedInvoicePayload),
         }
       );
-      if (!invoiceUpdateRes.ok) {
-        const errorData = await invoiceUpdateRes.text();
-        throw new Error(`Failed to update invoice: ${errorData}`);
-      }
-      toast.success("Invoice details updated successfully!");
+      if (!invoiceUpdateRes.ok)
+        throw await parseDirectFetchError(
+          invoiceUpdateRes,
+          "Failed to update invoice"
+        );
+      toast.success("Invoice details updated!");
 
+      // Re-sync products: Delete all existing for this invoice, then add current ones
       const deleteProductsRes = await fetch(
         `${baseUrl}/stock/products/by-invoice/${invoiceIdFromParams}`,
         {
           method: "DELETE",
-          headers,
+          headers: getDirectFetchHeaders(),
         }
       );
-      if (!deleteProductsRes.ok) {
-        if (deleteProductsRes.status !== 404) {
-          const errorData = await deleteProductsRes.text();
-          console.warn(
-            `Could not delete existing products (or no products to delete): ${errorData}`
-          );
-        }
-      } else {
-        console.log("Existing products for invoice cleared.");
+      // 404 is okay if no products existed. Other errors are problematic.
+      if (!deleteProductsRes.ok && deleteProductsRes.status !== 404) {
+        throw await parseDirectFetchError(
+          deleteProductsRes,
+          "Failed to clear existing products"
+        );
       }
+      console.log(
+        deleteProductsRes.status === 404
+          ? "No existing products to clear."
+          : "Existing products cleared."
+      );
 
       for (const product of products) {
         const [statusMeta, categoryMeta] = await Promise.all([
@@ -505,35 +598,34 @@ const InvoiceDetailsPage: React.FC = () => {
             baseUrl,
             "stock/status/search",
             product.Status,
-            headers
+            apiHeadersForFetchMetadata
           ),
           fetchMetadata(
             baseUrl,
             "stock/category/search",
             product.category,
-            headers
+            apiHeadersForFetchMetadata
           ),
         ]);
-        if (!statusMeta || !statusMeta.statusId)
-          throw new Error(`Status metadata error for: ${product.Status}`);
-        if (!categoryMeta || !categoryMeta.categoryId)
-          throw new Error(`Category metadata error for: ${product.category}`);
+        if (!statusMeta?.statusId)
+          throw new Error(`Status ID error: ${product.Status}`);
+        if (!categoryMeta?.categoryId)
+          throw new Error(`Category ID error: ${product.category}`);
 
         for (const mapping of product.locationRangeMappings!) {
           const locationMeta = await fetchMetadata(
             baseUrl,
             "stock/location/search",
             mapping.location,
-            headers
+            apiHeadersForFetchMetadata
           );
-          if (!locationMeta || !locationMeta.locationId)
-            throw new Error(`Location metadata error for: ${mapping.location}`);
+          if (!locationMeta?.locationId)
+            throw new Error(`Location ID error: ${mapping.location}`);
 
           const unitNumbers = parseRange(mapping.range);
           const productAddPromises = unitNumbers.map(async (unitNo) => {
-            const individualProductVolPageSerial = `${product.volNo}-${product.pageNo}-${unitNo}`;
             const singleProductData = {
-              productVolPageSerial: individualProductVolPageSerial,
+              productVolPageSerial: `${product.volNo}-${product.pageNo}-${unitNo}`,
               productName: product.productName,
               productDescription: product.productDescription,
               locationId: locationMeta.locationId,
@@ -547,28 +639,25 @@ const InvoiceDetailsPage: React.FC = () => {
               remarks: product.remark,
               budgetId: budgetId,
             };
-            const res = await fetch(`${baseUrl}/stock/add`, {
-              // Add to existing invoice
-              method: "POST",
-              headers,
+            const addProdRes = await fetch(`${baseUrl}/stock/${product.productId}`, {
+              method: "PUT",
+              headers: getDirectFetchHeaders(),
               body: JSON.stringify(singleProductData),
             });
-            if (!res.ok) {
-              const errorText = await res.text();
-              throw new Error(
-                `Failed to add product unit ${individualProductVolPageSerial}: ${errorText}`
+            if (!addProdRes.ok)
+              throw await parseDirectFetchError(
+                addProdRes,
+                `Failed to add product ${singleProductData.productVolPageSerial}`
               );
-            }
-            return res.json();
+            return addProdRes.json();
           });
           await Promise.all(productAddPromises);
         }
       }
       toast.success("Products updated/re-added successfully!");
-      navigate("/invoices");
-    } catch (err: any) {
-      console.error("Transaction failed overall:", err);
-      toast.error(`An error occurred: ${err.message}`);
+      navigate(-1); // Go back to previous page after successful save
+    } catch (error: any) {
+      handleApiError(error, "Failed to save changes");
     } finally {
       setLoading(false);
     }
@@ -598,7 +687,7 @@ const InvoiceDetailsPage: React.FC = () => {
     confirmAlert({
       title: "Confirm to remove",
       message:
-        "Are you sure you want to remove this product from the list? This will be saved on submit.",
+        "Are you sure you want to remove this product from the list? Changes will be saved on submit.",
       buttons: [
         {
           label: "Yes",
@@ -631,16 +720,15 @@ const InvoiceDetailsPage: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
           Edit Invoice & Products
         </h2>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <InvoiceCard
             handleInvoiceChange={handleInvoiceChange}
             invoiceDetails={invoiceDetails}
             budgets={budgets}
           />
-
           {products.map((product, index) => (
             <ProductCard
-              key={product.productVolPageSerial || index} // Use a more stable key if available from convertProductData
+              key={product.productVolPageSerial || index} // Prefer a stable unique ID
               index={index}
               product={product}
               categories={categories}
@@ -659,7 +747,6 @@ const InvoiceDetailsPage: React.FC = () => {
               handleClose={handleCloseProduct}
             />
           ))}
-
           <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-3">
             <button
               type="button"
@@ -669,7 +756,6 @@ const InvoiceDetailsPage: React.FC = () => {
             >
               Add Product to List
             </button>
-
             <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <div className="p-2 rounded-lg shadow-md text-gray-800 font-semibold text-sm bg-white">
                 Invoice Total: ₹{Number(invoiceTotalPrice).toFixed(2)}
@@ -683,11 +769,10 @@ const InvoiceDetailsPage: React.FC = () => {
                 {isEquals ? "✅ Matches" : "❌ Mismatch"}
               </div>
             </div>
-
             <button
               type="submit"
               className={`bg-blue-600 text-white px-6 py-2.5 rounded shadow hover:bg-blue-700 transition-all duration-200 w-full sm:w-auto ${
-                loading || !initialLoadComplete
+                loading || !initialLoadComplete || !isEquals
                   ? "opacity-50 cursor-not-allowed"
                   : ""
               }`}

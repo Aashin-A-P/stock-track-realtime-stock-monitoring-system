@@ -43,7 +43,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ budgetId, initialData }) => {
         throw new Error(`Failed to ${budgetId ? "update" : "create"} budget`);
       }
 
-      navigate("/budget-dashboard");
+      navigate("/budgetform");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {

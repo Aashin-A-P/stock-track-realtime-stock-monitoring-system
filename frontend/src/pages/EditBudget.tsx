@@ -8,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const EditBudget: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { token } = useAuth();
+  const token = localStorage.getItem("token") || "";
   const [initialData, setInitialData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +18,7 @@ const EditBudget: React.FC = () => {
         const response = await fetch(`${API_URL}/funds/${id}`, {
           headers: {
             Authorization: `${token}`,
+            "Content-Type": "application/json",
           },
         });
 

@@ -3,7 +3,17 @@ export interface RangeMapping {
   location: string;
 }
 
+export interface FetchErrorResponse {
+  status: number;
+  message: string;
+  body?: any;
+  isAccessDenied?: boolean;
+  isAuthError?: boolean;
+  isNetworkError?: boolean;
+}
+
 export interface Product {
+  productId?: number;
   pageNo: string;
   volNo: string;
   serialNo: string;
