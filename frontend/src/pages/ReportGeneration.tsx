@@ -12,9 +12,6 @@ import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-// ======================
-// Constants for Stock Register Group
-// ======================
 const STOCK_REGISTER_GROUP_KEY = "stockRegisterGroup";
 const STOCK_REG_SUB_COLUMNS = [
   {
@@ -34,21 +31,20 @@ const STOCK_REG_SUB_COLUMNS = [
   },
 ];
 
-// ======================
-// Interfaces & Types
-// ======================
 interface Stock {
-  serialNo: string; // Part of stockId, used for sub-column
-  volNo: string; // Part of stockId, used for sub-column
-  pageNo: string; // Part of stockId, used for sub-column
+  serialNo: string;
+  volNo: string;
+  pageNo: string;
   stockName: string;
   stockDescription: string;
-  stockId: string;
-  location: string;
-  quantity: number;
-  basePrice: number;
-  gstAmount: number;
-  price: number;
+  stockId: string; // Representative stockId
+  locations: string[]; // Array of location names
+  staffs: string[]; // Array of staff names
+  usage: string[]; // Array of "location - staff - count: X" strings
+  quantity: number; // Summed quantity
+  basePrice: number; // Representative base price
+  gstAmount: number; // Representative GST amount
+  price: number; // Summed price (basePrice + gstAmount) * quantity_of_group
   remarks: string;
   budgetName: string;
   categoryName?: string;
@@ -58,7 +54,6 @@ interface Stock {
   purchaseOrderDate: string;
   invoiceDate: string;
   status?: string;
-  staff?: string;
   annexure?: string;
   nameOfCenter?: string;
   stockRegNameAndVolNo?: string;
@@ -70,7 +65,7 @@ interface SelectedColumns {
 }
 
 interface ColumnAliases {
-  [key: string]: string; // Aliases for BASE columns only
+  [key: string]: string;
 }
 
 interface DragItem {
@@ -78,7 +73,6 @@ interface DragItem {
   type: string;
 }
 
-// Types for Excel column definitions
 interface ExcelSubColumnInfo {
   id: (typeof STOCK_REG_SUB_COLUMNS)[number]["id"];
   defaultHeader: (typeof STOCK_REG_SUB_COLUMNS)[number]["defaultHeader"];
@@ -89,21 +83,19 @@ interface ExcelSubColumnInfo {
 interface ExcelMainColumnInfo {
   id: string;
   defaultHeader: string;
-  dataKey: keyof Stock | "displaySerialNo" | string; // string for custom column IDs
+  dataKey: keyof Stock | "displaySerialNo" | string;
 }
 type ActualExcelColumnInfo = ExcelSubColumnInfo | ExcelMainColumnInfo;
 
-// --- Custom Column Interfaces ---
 interface CustomColumnDefinition {
-  id: string; // Unique ID, e.g., "custom_col_1678886400000"
+  id: string;
   displayName: string;
   type: "concatenation" | "arithmetic" | "static";
-  sourceColumns?: string[]; // IDs of source columns (ONLY for concatenation)
-  separator?: string; // For concatenation
-  arithmeticExpression?: string; // For arithmetic
-  staticValue?: string | number; // For static
+  sourceColumns?: string[];
+  separator?: string;
+  arithmeticExpression?: string;
+  staticValue?: string | number;
 }
-// --- END Custom Column Interfaces ---
 
 const formatColumnKeyForDisplay = (
   key: string,
@@ -122,9 +114,6 @@ const formatColumnKeyForDisplay = (
     .replace(/^./, (str) => str.toUpperCase());
 };
 
-// ======================
-// Filter Dropdown Component
-// ======================
 interface FilterDropdownProps {
   year: number;
   onYearChange: (year: number, startDate: string, endDate: string) => void;
@@ -158,9 +147,6 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   );
 };
 
-// ======================
-// Column Selection Component
-// ======================
 interface ColumnSelectionProps {
   selectedColumns: SelectedColumns;
   onToggleColumn: (column: string) => void;
@@ -211,9 +197,6 @@ const ColumnSelection: React.FC<ColumnSelectionProps> = ({
   );
 };
 
-// ======================
-// Draggable Column Component
-// ======================
 interface DraggableColumnProps {
   columnKey: string;
   index: number;
@@ -302,9 +285,6 @@ const DraggableColumn: React.FC<DraggableColumnProps> = ({
   );
 };
 
-// ======================
-// Column Reorder & Rename Component
-// ======================
 interface ColumnReorderProps {
   draggableColumnOrder: string[];
   columnAliases: Record<string, string>;
@@ -411,9 +391,6 @@ const ColumnReorder: React.FC<ColumnReorderProps> = ({
   );
 };
 
-// ======================
-// Add Custom Column Modal Component
-// ======================
 interface AddCustomColumnModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -431,19 +408,12 @@ const AddCustomColumnModal: React.FC<AddCustomColumnModalProps> = ({
 }) => {
   const [displayName, setDisplayName] = useState("");
   const [type, setType] = useState<CustomColumnDefinition["type"]>("static");
-
-  // For Arithmetic
   const [arithmeticExpression, setArithmeticExpression] = useState<string>("");
-
-  // For Concatenation
   const [concatOrderSources, setConcatOrderSources] = useState<string[]>([]);
   const [currentConcatSourceToAdd, setCurrentConcatSourceToAdd] =
     useState<string>("");
   const [separator, setSeparator] = useState(" ");
-
-  // For Static
   const [staticValue, setStaticValue] = useState<string | number>("");
-
   const [showAvailableVars, setShowAvailableVars] = useState(false);
 
   const resetForm = () => {
@@ -734,9 +704,6 @@ const AddCustomColumnModal: React.FC<AddCustomColumnModalProps> = ({
   );
 };
 
-// ======================
-// Stock Table Component
-// ======================
 interface StockTableProps {
   stocks: Stock[];
   columnOrder: string[];
@@ -794,7 +761,7 @@ const StockTable: React.FC<StockTableProps> = ({
             id: colKey,
             header: getColumnEffectiveDisplayName(colKey),
             isSubColumn: false,
-            dataKeyForStock: colKey as keyof Stock,
+            dataKeyForStock: colKey as keyof Stock, // This will be used for direct access
           },
         ];
       }
@@ -878,8 +845,6 @@ const StockTable: React.FC<StockTableProps> = ({
           )}
 
           <tr className="bg-white main-header-row">
-            {" "}
-            {/* Changed bg-gray-200 to bg-white */}
             {columnOrder
               .filter((orderedColKey) => selectedColumns[orderedColKey])
               .map((orderedColKey) => {
@@ -908,8 +873,6 @@ const StockTable: React.FC<StockTableProps> = ({
           </tr>
           {isStockRegisterGroupSelected && (
             <tr className="bg-white sub-header-row">
-              {" "}
-              {/* Changed bg-gray-200 to bg-white */}
               {columnOrder
                 .filter((orderedColKey) => selectedColumns[orderedColKey])
                 .flatMap((orderedColKey) => {
@@ -931,7 +894,7 @@ const StockTable: React.FC<StockTableProps> = ({
         <tbody>
           {stocks.map((stock, idx) => (
             <tr
-              key={stock.stockId + idx}
+              key={stock.stockId + idx} // stockId might not be unique if not selected, use index
               className="hover:bg-gray-50 transition-colors"
             >
               {renderableColumns.map((rCol) => {
@@ -958,6 +921,7 @@ const StockTable: React.FC<StockTableProps> = ({
                       idx
                     );
                   } else {
+                    // For arrays like locations, staffs, usage, String() will comma-separate them.
                     cellValue = String(
                       stock[rCol.dataKeyForStock as keyof Stock] ?? ""
                     );
@@ -979,7 +943,11 @@ const StockTable: React.FC<StockTableProps> = ({
                         : "text-left"
                     } ${rCol.id === "stockDescription" ? "min-w-[200px]" : ""}`}
                   >
-                    {cellValue}
+                    {/* For arrays like usage, this will render them comma-separated if multiple items exist */}
+                    {/* If specific HTML formatting (like <br />) is needed, this part would need more logic */}
+                    {Array.isArray(cellValue)
+                      ? cellValue.join(", ")
+                      : cellValue}
                   </td>
                 );
               })}
@@ -991,9 +959,6 @@ const StockTable: React.FC<StockTableProps> = ({
   );
 };
 
-// ======================
-// Export Buttons
-// ======================
 interface ExportButtonsProps {
   onExportExcel: () => void;
   onExportPDF: (pageSize: "a4" | "a3" | "a2" | "letter" | "legal") => void;
@@ -1061,31 +1026,28 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
   );
 };
 
-// ======================
-// Main ReportGeneration Component
-// ======================
-// Explicit list of base columns for selection UI and default order
 const ALL_BASE_SELECTABLE_COLUMNS: string[] = [
   "displaySerialNo",
   STOCK_REGISTER_GROUP_KEY,
-  "stockId",
+  "stockId", // Representative stockId
   "stockName",
   "stockDescription",
-  "location",
-  "quantity",
-  "basePrice", // New
-  "gstAmount", // New
-  "price",
+  "locations", // Was "location"
+  "staffs", // Was "staff", now an array
+  "usage", // New array field
+  "quantity", // Summed
+  "basePrice", // Representative
+  "gstAmount", // Representative
+  "price", // Summed
   "remarks",
   "budgetName",
   "categoryName",
   "invoiceNo",
-  "purchaseOrderDate", // New
-  "invoiceDate", // New
+  "purchaseOrderDate",
+  "invoiceDate",
   "fromAddress",
   "toAddress",
   "status",
-  "staff",
 ];
 
 const ReportGeneration: React.FC = () => {
@@ -1121,13 +1083,11 @@ const ReportGeneration: React.FC = () => {
         );
         if (sourceIsCustomDef) {
           if (sourceIsCustomDef.id === customDef.id) {
-            // Direct self-reference
             console.error(
               `Cycle detected: ${customDef.displayName} directly references itself.`
             );
             return "CycleErr";
           }
-          // Basic check for indirect cycle involving this column
           if (
             sourceIsCustomDef.sourceColumns?.includes(customDef.id) ||
             (sourceIsCustomDef.type === "arithmetic" &&
@@ -1172,7 +1132,6 @@ const ReportGeneration: React.FC = () => {
             let match;
             const variableNamesInExpression = new Set<string>();
             while ((match = variableRegex.exec(expression)) !== null) {
-              // Avoid adding JS keywords or Math properties if they aren't column IDs
               if (
                 typeof Math[match[1] as keyof Math] === "undefined" &&
                 match[1] !== "Math"
@@ -1187,11 +1146,10 @@ const ReportGeneration: React.FC = () => {
 
             for (const varName of variableNamesInExpression) {
               const value = getSourceValue(varName);
-              // Check if varName is actually a defined column or if it's just some other identifier in the expression
               const isKnownColumn =
                 allCustomDefs.some((def) => def.id === varName) ||
                 STOCK_REG_SUB_COLUMNS.some((sc) => sc.id === varName) ||
-                ALL_BASE_SELECTABLE_COLUMNS.includes(varName) || // Check against base stock keys
+                ALL_BASE_SELECTABLE_COLUMNS.includes(varName) ||
                 varName === "displaySerialNo";
 
               if (isKnownColumn) {
@@ -1205,15 +1163,10 @@ const ReportGeneration: React.FC = () => {
                   );
                   argValues.push(NaN);
                 } else {
-                  const numericValue = parseFloat(String(value));
-                  argValues.push(isNaN(numericValue) ? value : numericValue); // Push original if not parsable, JS will handle type errors
+                  const numericValue = parseFloat(String(value)); // String(value) handles arrays by comma-separating
+                  argValues.push(isNaN(numericValue) ? value : numericValue);
                 }
                 argNames.push(varName);
-              } else {
-                // If it's not a known column, it might be an undefined variable in the user's expression
-                // Or it's a number / JS keyword which is fine.
-                // Let's assume if it's not a known column, it shouldn't be an argument for the function.
-                // The expression will be evaluated as is.
               }
             }
 
@@ -1229,9 +1182,9 @@ const ReportGeneration: React.FC = () => {
               if (typeof result === "number") {
                 if (isNaN(result)) return "Err:CalcNaN";
                 if (!isFinite(result)) return "Err:Infinite";
-                return parseFloat(result.toFixed(4)); // Format to 4 decimal places
+                return parseFloat(result.toFixed(4));
               }
-              return result; // Could be boolean from comparison etc.
+              return result;
             } catch (e: any) {
               console.error(
                 `Error evaluating expression for ${
@@ -1371,6 +1324,7 @@ const ReportGeneration: React.FC = () => {
         if (data.columnAliases) {
           Object.keys(data.columnAliases).forEach((key) => {
             if (initialColumnAliases.hasOwnProperty(key))
+              // Only update if it's a known alias key
               newAliases[key] = data.columnAliases[key];
           });
         }
@@ -1398,7 +1352,7 @@ const ReportGeneration: React.FC = () => {
   useEffect(() => {
     const getReportData = async () => {
       if (!token) return;
-      let url = `${API_URL}/stock/report`;
+      let url = `${API_URL}/stock/report`; // Ensure this matches your backend controller path
       if (startDate && endDate)
         url += `?startDate=${startDate}&endDate=${endDate}`;
       try {
@@ -1411,6 +1365,7 @@ const ReportGeneration: React.FC = () => {
         if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
         const rawApiData = await response.json();
+
         const processedData = (Array.isArray(rawApiData) ? rawApiData : []).map(
           (item: any): Stock => {
             const [vol = "", page = "", ser = ""] =
@@ -1419,9 +1374,11 @@ const ReportGeneration: React.FC = () => {
               stockId: item.stockId || "",
               stockName: item.stockName || "N/A",
               stockDescription: item.stockDescription || "",
-              location: item.location || "N/A",
+              locations: Array.isArray(item.locations) ? item.locations : [],
+              staffs: Array.isArray(item.staffs) ? item.staffs : [],
+              usage: Array.isArray(item.usage) ? item.usage : [],
               quantity: parseInt(item.quantity, 10) || 0,
-              basePrice: parseFloat(item.BasePrice) || 0,
+              basePrice: parseFloat(item.basePrice) || 0, // Corrected from item.BasePrice
               gstAmount: parseFloat(item.gstAmount) || 0,
               price: parseFloat(item.price) || 0,
               remarks: item.remarks || "",
@@ -1429,22 +1386,22 @@ const ReportGeneration: React.FC = () => {
               volNo: vol.trim(),
               pageNo: page.trim(),
               serialNo: ser.trim(),
-              categoryName: item.categoryName,
-              invoiceNo: item.invoiceNo,
-              fromAddress: item.fromAddress,
-              toAddress: item.toAddress,
+              categoryName: item.categoryName || undefined,
+              invoiceNo: item.invoiceNo || undefined,
+              fromAddress: item.fromAddress || undefined,
+              toAddress: item.toAddress || undefined,
               purchaseOrderDate: item.purchaseOrderDate
-                ? new Date(item.purchaseOrderDate).toISOString()
+                ? new Date(item.purchaseOrderDate).toISOString().split("T")[0] // Format as YYYY-MM-DD
                 : "",
               invoiceDate: item.invoiceDate
-                ? new Date(item.invoiceDate).toISOString()
+                ? new Date(item.invoiceDate).toISOString().split("T")[0] // Format as YYYY-MM-DD
                 : "",
-              status: item.status,
-              staff: item.staff,
-              annexure: item.annexure,
-              nameOfCenter: item.nameOfCenter,
-              stockRegNameAndVolNo: item.stockRegNameAndVolNo,
-              statementOfVerification: item.statementOfVerification,
+              status: item.status || undefined,
+              // These fields are for report headers, not typically in per-item data from this API
+              annexure: undefined, // Usually set via columnAliases
+              nameOfCenter: undefined,
+              stockRegNameAndVolNo: undefined,
+              statementOfVerification: undefined,
             };
           }
         );
@@ -1454,7 +1411,7 @@ const ReportGeneration: React.FC = () => {
         setStocks([]);
       }
     };
-    getReportData();
+    if (token) getReportData();
   }, [token, startDate, endDate]);
 
   const saveSettings = useCallback(
@@ -1642,12 +1599,11 @@ const ReportGeneration: React.FC = () => {
       if (style.value !== undefined) cell.value = style.value;
     };
 
-    // Special Headers (Annexure, Name of Center, etc.)
     if (columnAliases.annexure) {
       worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
       styleCell(worksheet.getCell(currentRowIdx, 1), {
         value: columnAliases.annexure,
-        font: { bold: true, size: 12, color: { argb: "FF000000" } },
+        font: { bold: true, size: 12 },
         alignment: { horizontal: "center", vertical: "middle" },
         fill: {
           type: "pattern",
@@ -1664,7 +1620,6 @@ const ReportGeneration: React.FC = () => {
         worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, midPoint);
         styleCell(worksheet.getCell(currentRowIdx, 1), {
           value: columnAliases.nameOfCenter,
-          font: { color: { argb: "FF000000" } },
           alignment: { horizontal: "center", vertical: "middle" },
           fill: {
             type: "pattern",
@@ -1680,7 +1635,6 @@ const ReportGeneration: React.FC = () => {
         );
         styleCell(worksheet.getCell(currentRowIdx, midPoint + 1), {
           value: columnAliases.stockRegNameAndVolNo,
-          font: { color: { argb: "FF000000" } },
           alignment: { horizontal: "center", vertical: "middle" },
           fill: {
             type: "pattern",
@@ -1692,7 +1646,6 @@ const ReportGeneration: React.FC = () => {
         worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
         styleCell(worksheet.getCell(currentRowIdx, 1), {
           value: columnAliases.nameOfCenter,
-          font: { color: { argb: "FF000000" } },
           alignment: { horizontal: "center", vertical: "middle" },
           fill: {
             type: "pattern",
@@ -1704,7 +1657,6 @@ const ReportGeneration: React.FC = () => {
         worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
         styleCell(worksheet.getCell(currentRowIdx, 1), {
           value: columnAliases.stockRegNameAndVolNo,
-          font: { color: { argb: "FF000000" } },
           alignment: { horizontal: "center", vertical: "middle" },
           fill: {
             type: "pattern",
@@ -1720,7 +1672,7 @@ const ReportGeneration: React.FC = () => {
       worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
       styleCell(worksheet.getCell(currentRowIdx, 1), {
         value: columnAliases.statementOfVerification,
-        font: { bold: true, size: 12, color: { argb: "FF000000" } },
+        font: { bold: true, size: 12 },
         alignment: { horizontal: "center", vertical: "middle" },
         fill: {
           type: "pattern",
@@ -1732,7 +1684,6 @@ const ReportGeneration: React.FC = () => {
       currentRowIdx++;
     }
 
-    // Main Table Headers
     const headerRow1Values: (string | null)[] = [];
     columnOrder
       .filter((colKey) => selectedColumns[colKey])
@@ -1750,7 +1701,7 @@ const ReportGeneration: React.FC = () => {
     r1.height = 25;
     r1.eachCell((cell) =>
       styleCell(cell, {
-        font: { bold: true, size: 9, color: { argb: "FF000000" } },
+        font: { bold: true, size: 9 },
         alignment: { horizontal: "center", vertical: "middle", wrapText: true },
         fill: {
           type: "pattern",
@@ -1796,7 +1747,7 @@ const ReportGeneration: React.FC = () => {
               worksheet.getCell(currentRowIdx, excelColForSub).value =
                 sc.defaultHeader;
               styleCell(worksheet.getCell(currentRowIdx, excelColForSub), {
-                font: { bold: true, size: 9, color: { argb: "FF000000" } },
+                font: { bold: true, size: 9 },
                 alignment: {
                   horizontal: "center",
                   vertical: "middle",
@@ -1811,14 +1762,13 @@ const ReportGeneration: React.FC = () => {
               excelColForSub++;
             });
           } else {
-            excelColForSub++;
+            excelColForSub++; // Increment even if not stock_register_group to keep columns aligned
           }
         });
       worksheet.getRow(currentRowIdx).height = 25;
       currentRowIdx++;
     }
 
-    // Data Rows
     stocks.forEach((stock, idx) => {
       const rowData = excelColumnsStructure.map((colInfo) => {
         if (
@@ -1837,7 +1787,9 @@ const ReportGeneration: React.FC = () => {
             stocks,
             idx
           );
-        return stock[colInfo.id as keyof Stock] ?? "";
+
+        const val = stock[colInfo.id as keyof Stock];
+        return Array.isArray(val) ? val.join(", ") : val ?? ""; // Join arrays for Excel
       });
       const dataRow = worksheet.addRow(rowData);
       dataRow.height = 18;
@@ -1845,7 +1797,7 @@ const ReportGeneration: React.FC = () => {
         const colInfo = excelColumnsStructure[colNum - 1];
         if (!colInfo) return;
         styleCell(cell, {
-          font: { size: 8, color: { argb: "FF000000" } },
+          font: { size: 8 },
           alignment: {
             vertical: "top",
             wrapText: true,
@@ -1873,16 +1825,15 @@ const ReportGeneration: React.FC = () => {
           } else {
             const customDef = customColumns.find((cc) => cc.id === colInfo.id);
             if (customDef && customDef.type === "arithmetic") {
-              cell.numFmt = "0.00##"; // Custom arithmetic results with up to 4 decimal places
+              cell.numFmt = "0.00##";
             } else {
-              cell.numFmt = "#,##0.####"; // General numbers
+              cell.numFmt = "#,##0.####";
             }
           }
         }
       });
     });
 
-    // Column Widths
     excelColumnsStructure.forEach((colInfo, i) => {
       const column = worksheet.getColumn(i + 1);
       let maxLength = colInfo.header.length;
@@ -1910,7 +1861,12 @@ const ReportGeneration: React.FC = () => {
                 stockIdx
               ) ?? ""
             );
-          else cellValueStr = String(stock[colInfo.id as keyof Stock] ?? "");
+          else {
+            const val = stock[colInfo.id as keyof Stock];
+            cellValueStr = Array.isArray(val)
+              ? val.join(", ")
+              : String(val ?? "");
+          }
         }
         if (cellValueStr.length > maxLength) maxLength = cellValueStr.length;
       });
@@ -1927,7 +1883,7 @@ const ReportGeneration: React.FC = () => {
     worksheet.pageSetup.orientation = "landscape";
     worksheet.pageSetup.fitToPage = true;
     worksheet.pageSetup.fitToWidth = 1;
-    worksheet.pageSetup.fitToHeight = 0;
+    worksheet.pageSetup.fitToHeight = 0; // Allow multiple pages vertically
     worksheet.pageSetup.margins = {
       left: 0.5,
       right: 0.5,
@@ -1983,13 +1939,17 @@ const ReportGeneration: React.FC = () => {
 
     if (isStockRegisterGroupSelected) {
       const dynamicHeadRow2: any[] = [];
+      // This logic needs to ensure that subheaders are only added under the STOCK_REGISTER_GROUP_KEY
+      // For PDF, autotable handles cell placement based on colSpans in previous rows
       columnOrder
         .filter((colKey) => selectedColumns[colKey])
         .forEach((colKey) => {
-          if (colKey === STOCK_REGISTER_GROUP_KEY)
+          if (colKey === STOCK_REGISTER_GROUP_KEY) {
             STOCK_REG_SUB_COLUMNS.forEach((sc) =>
               dynamicHeadRow2.push(sc.defaultHeader)
             );
+          }
+          // No 'else' needed here, as rowSpanned cells from headRow1 cover other columns
         });
       if (dynamicHeadRow2.length > 0) head.push(dynamicHeadRow2);
     }
@@ -2019,7 +1979,12 @@ const ReportGeneration: React.FC = () => {
                   ) ?? ""
                 )
               );
-            else rowData.push(String(stock[outerColKey as keyof Stock] ?? ""));
+            else {
+              const val = stock[outerColKey as keyof Stock];
+              rowData.push(
+                Array.isArray(val) ? val.join(", ") : String(val ?? "")
+              ); // Join arrays for PDF
+            }
           }
         });
       return rowData;
@@ -2153,7 +2118,7 @@ const ReportGeneration: React.FC = () => {
         fontStyle: "bold",
         halign: "center",
         valign: "middle",
-      }, // White background, black text
+      },
       columnStyles: columnStyles,
       didDrawPage: (hookData: any) => {
         const pageCount = (doc as any).internal.getNumberOfPages();
@@ -2205,16 +2170,8 @@ const ReportGeneration: React.FC = () => {
             .printable-area { position: absolute !important; left: 0; top: 0; width: 100%; margin: 0 !important; padding: 0 !important; overflow: visible !important; max-height: none !important; }
             #stockReportTable { font-size: 8pt !important; border-collapse: collapse !important; width: 100% !important; table-layout: fixed !important; }
             #stockReportTable th, #stockReportTable td { padding: 3px !important; border: 1px solid black !important; word-wrap: break-word !important; overflow-wrap: break-word !important; min-width: 0 !important; }
-            #stockReportTable thead tr.main-header-row th, #stockReportTable thead tr.sub-header-row th { /* Target specific header rows */
-                background-color: white !important; 
-                color: black !important; /* Ensure text is black */
-                -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
-            }
-            #stockReportTable thead tr.bg-white th { /* For annexure etc. if they use bg-white class explicitly */
-                background-color: white !important;
-                color: black !important;
-                -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
-            }
+            #stockReportTable thead tr.main-header-row th, #stockReportTable thead tr.sub-header-row th { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+            #stockReportTable thead tr.bg-white th { background-color: white !important; color: black !important; -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
             .no-print { display: none !important; }
             @page { size: landscape; margin: 0.5in; }
          }

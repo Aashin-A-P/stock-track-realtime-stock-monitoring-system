@@ -638,6 +638,55 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
+// Define a type for the raw data fetched from the database
+interface RawReportDataItem {
+  budgetName: string | null;
+  categoryName: string | null;
+  invoiceNo: string | null;
+  fromAddress: string | null;
+  toAddress: string | null;
+  purchaseOrderDate: string | null; // Assuming string date from DB
+  invoiceDate: string | null; // Assuming string date from DB
+  stockName: string | null;
+  stockDescription: string | null;
+  location: string | null;
+  staff: string | null;
+  stockId: string | null;
+  productImage: string | null;
+  transferLetter: string | null;
+  basePrice: string | null; // Comes as string from DB usually
+  gstAmount: string | null; // Comes as string from DB usually
+  price: string; // This will be (basePrice + gstAmount) per item, as string
+  status: string | null;
+  remarks: string | null;
+  quantity: string; // This will be '1' per item, as string
+}
+
+// Define a type for the processed/grouped report data
+interface ProcessedReportDataItem {
+  budgetName: string | null;
+  categoryName: string | null;
+  invoiceNo: string | null;
+  fromAddress: string | null;
+  toAddress: string | null;
+  purchaseOrderDate: string | null;
+  invoiceDate: string | null;
+  stockName: string | null;
+  stockDescription: string | null;
+  locations: string[];
+  staffs: string[];
+  usage: string[];
+  stockId: string | null; // Will take one from the group
+  productImage: string | null;
+  transferLetter: string | null;
+  basePrice: string | null;
+  gstAmount: string | null;
+  price: string; // Sum of all item prices in the group
+  status: string | null;
+  remarks: string | null;
+  quantity: string; // Sum of all item quantities in the group
+}
+
 export const getReportData = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
@@ -646,12 +695,14 @@ export const getReportData = async (req: Request, res: Response) => {
 
     if (startDate && endDate) {
       whereCondition = and(
-        gte(budgetsTable.startDate, startDate as string), // Ensure budgetTable.startDate is comparable
-        lte(budgetsTable.endDate, endDate as string) // Ensure budgetTable.endDate is comparable
+        gte(budgetsTable.startDate, startDate as string),
+        lte(budgetsTable.endDate, endDate as string)
       );
     }
 
-    const reportData = await db
+    // The SQL query remains largely the same.
+    // The 'price' and 'quantity' here are per individual item due to the granular GROUP BY.
+    const rawReportData: RawReportDataItem[] = await db
       .select({
         budgetName: budgetsTable.budgetName,
         categoryName: categoriesTable.categoryName,
@@ -662,17 +713,19 @@ export const getReportData = async (req: Request, res: Response) => {
         invoiceDate: invoiceTable.invoiceDate,
         stockName: productsTable.productName,
         stockDescription: productsTable.productDescription,
-        location: locationTable.locationName,
-        staff: locationTable.staffIncharge,
-        stockId: productsTable.productVolPageSerial,
+        location: locationTable.locationName, // Individual location
+        staff: locationTable.staffIncharge, // Individual staff
+        stockId: productsTable.productVolPageSerial, // Individual stock ID
         productImage: productsTable.productImage,
         transferLetter: productsTable.transferLetter,
-        basePrice: productsTable.productPrice, // Base price without GST
-        gstAmount: productsTable.gstAmount, // GST amount
-        price: sql<number>`SUM(${productsTable.gstAmount} + ${productsTable.productPrice})`, // Sum total price
+        basePrice: productsTable.productPrice,
+        gstAmount: productsTable.gstAmount,
+        // For each row (which is a unique product instance due to GROUP BY),
+        // price is its own price, and quantity is 1.
+        price: sql<string>`(${productsTable.productPrice} + ${productsTable.gstAmount})`,
         status: statusTable.statusDescription,
         remarks: productsTable.remarks,
-        quantity: sql<number>`COUNT(${productsTable.productId})`, // Count number of products
+        quantity: sql<string>`1`, // Each row from this query represents 1 item
       })
       .from(productsTable)
       .leftJoin(
@@ -689,27 +742,165 @@ export const getReportData = async (req: Request, res: Response) => {
         eq(productsTable.invoiceId, invoiceTable.invoiceId)
       )
       .leftJoin(budgetsTable, eq(invoiceTable.budgetId, budgetsTable.budgetId))
-      .where(whereCondition) // Apply the date range filter if present
+      .where(whereCondition)
       .groupBy(
+        // This group by ensures we get one row per unique stock item instance
         budgetsTable.budgetName,
         categoriesTable.categoryName,
         invoiceTable.invoiceNo,
         invoiceTable.fromAddress,
         invoiceTable.toAddress,
+        invoiceTable.PODate,
+        invoiceTable.invoiceDate,
         productsTable.productName,
         productsTable.productDescription,
-        locationTable.locationName,
-        locationTable.staffIncharge,
+        locationTable.locationName, // Keep for individual item data
+        locationTable.staffIncharge, // Keep for individual item data
         productsTable.productImage,
         productsTable.transferLetter,
         statusTable.statusDescription,
         productsTable.remarks,
-        productsTable.productVolPageSerial
+        productsTable.productVolPageSerial, // Key for uniqueness
+        productsTable.productPrice, // Property of the product type
+        productsTable.gstAmount // Property of the product type
       );
 
-    res.status(200).json(reportData);
+    // Now, process the rawReportData in JavaScript to achieve the desired grouping
+    const groupedData: Record<
+      string,
+      ProcessedReportDataItem & {
+        _stockIds: string[];
+        _usageMap: Record<string, number>;
+      }
+    > = {};
+
+    rawReportData.forEach((item) => {
+      // Create a key for grouping. This key includes all fields that define a "group"
+      // in your desired output, excluding the ones we need to aggregate (location, staff, stockId, price, quantity).
+      const groupKey = [
+        item.budgetName,
+        item.categoryName,
+        item.invoiceNo,
+        item.fromAddress,
+        item.toAddress,
+        item.purchaseOrderDate,
+        item.invoiceDate,
+        item.stockName,
+        item.stockDescription,
+        item.productImage,
+        item.transferLetter,
+        item.basePrice,
+        item.gstAmount,
+        item.status,
+        item.remarks,
+      ]
+        .map((val) => (val === null ? "NULL" : val))
+        .join("||"); // Handle nulls in key
+
+      if (!groupedData[groupKey]) {
+        groupedData[groupKey] = {
+          budgetName: item.budgetName,
+          categoryName: item.categoryName,
+          invoiceNo: item.invoiceNo,
+          fromAddress: item.fromAddress,
+          toAddress: item.toAddress,
+          purchaseOrderDate: item.purchaseOrderDate,
+          invoiceDate: item.invoiceDate,
+          stockName: item.stockName,
+          stockDescription: item.stockDescription,
+          productImage: item.productImage,
+          transferLetter: item.transferLetter,
+          basePrice: item.basePrice,
+          gstAmount: item.gstAmount,
+          status: item.status,
+          remarks: item.remarks,
+          // Aggregation fields
+          locations: [], // Will be populated from Set
+          staffs: [], // Will be populated from Set
+          usage: [], // Will be populated from _usageMap
+          stockId: null, // Will take the first one
+          price: "0",
+          quantity: "0",
+          // Temporary collections
+          _stockIds: [],
+          _usageMap: {}, // To count "location - staff" occurrences
+          _locationSet: new Set<string>(), // To store unique locations
+          _staffSet: new Set<string>(), // To store unique staffs
+        } as any; // Using 'any' for temp structure, will be cast later
+      }
+
+      const group = groupedData[groupKey];
+
+      // Add current item's location and staff to sets for uniqueness
+      if (item.location) group._locationSet.add(item.location);
+      if (item.staff) group._staffSet.add(item.staff);
+
+      // Store stockId (we'll pick one later for the main field)
+      if (item.stockId) group._stockIds.push(item.stockId);
+
+      // Update usage map
+      if (item.location && item.staff) {
+        const usageKey = `${item.location} - ${item.staff}`;
+        group._usageMap[usageKey] = (group._usageMap[usageKey] || 0) + 1;
+      } else if (item.location) {
+        // Only location
+        const usageKey = `${item.location} - N/A`;
+        group._usageMap[usageKey] = (group._usageMap[usageKey] || 0) + 1;
+      } else if (item.staff) {
+        // Only staff
+        const usageKey = `N/A - ${item.staff}`;
+        group._usageMap[usageKey] = (group._usageMap[usageKey] || 0) + 1;
+      }
+      // If both are null, they won't be added to usageMap, which seems reasonable.
+
+      // Accumulate price and quantity
+      // item.price is already (basePrice + gstAmount) for this single item
+      // item.quantity is '1' for this single item
+      group.price = (
+        parseFloat(group.price) + parseFloat(item.price || "0")
+      ).toString();
+      group.quantity = (
+        parseInt(group.quantity, 10) + parseInt(item.quantity || "0", 10)
+      ).toString();
+    });
+
+    // Convert the groupedData object into the final array format
+    const finalReportData: ProcessedReportDataItem[] = Object.values(
+      groupedData
+    ).map((group) => {
+      const usageStrings: string[] = [];
+      for (const key in group._usageMap) {
+        usageStrings.push(`${key} - count: ${group._usageMap[key]}`);
+      }
+
+      return {
+        budgetName: group.budgetName,
+        categoryName: group.categoryName,
+        invoiceNo: group.invoiceNo,
+        fromAddress: group.fromAddress,
+        toAddress: group.toAddress,
+        purchaseOrderDate: group.purchaseOrderDate,
+        invoiceDate: group.invoiceDate,
+        stockName: group.stockName,
+        stockDescription: group.stockDescription,
+        productImage: group.productImage,
+        transferLetter: group.transferLetter,
+        basePrice: group.basePrice,
+        gstAmount: group.gstAmount,
+        status: group.status,
+        remarks: group.remarks,
+        locations: Array.from((group as any)._locationSet),
+        staffs: Array.from((group as any)._staffSet),
+        usage: usageStrings,
+        stockId: group._stockIds.length > 0 ? group._stockIds[0] : null, // Take the first stockId
+        price: group.price,
+        quantity: group.quantity,
+      };
+    });
+
+    res.status(200).json(finalReportData);
   } catch (error) {
-    console.error(error);
+    console.error("Error in getReportData:", error);
     res.status(500).send("Failed to fetch report data");
   }
 };

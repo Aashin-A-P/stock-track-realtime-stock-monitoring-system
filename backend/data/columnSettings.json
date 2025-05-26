@@ -5,22 +5,28 @@
     "stockId": false,
     "stockName": true,
     "stockDescription": false,
-    "location": false,
+    "locations": false,
+    "staffs": false,
+    "usage": true,
     "quantity": true,
+    "basePrice": false,
+    "gstAmount": false,
     "price": true,
     "remarks": false,
     "budgetName": false,
     "categoryName": false,
     "invoiceNo": false,
+    "purchaseOrderDate": false,
+    "invoiceDate": false,
     "fromAddress": false,
     "toAddress": false,
     "status": false,
-    "staff": false,
     "custom_excess_1748248099539": true,
     "custom_shortage_1748248117972": true,
     "custom_stockidformater_1748248217758": false,
     "custom_stock_identification_1748248258089": false,
-    "custom_stock_identify_1748248620525": true
+    "custom_stock_identify_1748248620525": true,
+    "custom_total_price_1748259605299": true
   },
   "columnOrder": [
     "displaySerialNo",
@@ -30,7 +36,6 @@
     "price",
     "stockId",
     "stockDescription",
-    "location",
     "remarks",
     "budgetName",
     "categoryName",
@@ -38,12 +43,19 @@
     "fromAddress",
     "toAddress",
     "status",
-    "staff",
     "custom_excess_1748248099539",
     "custom_shortage_1748248117972",
     "custom_stockidformater_1748248217758",
     "custom_stock_identification_1748248258089",
-    "custom_stock_identify_1748248620525"
+    "custom_stock_identify_1748248620525",
+    "basePrice",
+    "gstAmount",
+    "purchaseOrderDate",
+    "invoiceDate",
+    "custom_total_price_1748259605299",
+    "locations",
+    "staffs",
+    "usage"
   ],
   "columnAliases": {
     "annexure": "ANNEXURE - I",
@@ -55,17 +67,22 @@
     "stockId": "Stock Id",
     "stockName": "Stock Name",
     "stockDescription": "Stock Description",
-    "location": "Location",
+    "locations": "Locations",
+    "staffs": "Staffs",
+    "usage": "Usage",
     "quantity": "Quantity",
+    "basePrice": "Base Price",
+    "gstAmount": "Gst Amount",
     "price": "Price",
     "remarks": "Remarks",
     "budgetName": "Budget Name",
     "categoryName": "Category Name",
     "invoiceNo": "Invoice No",
+    "purchaseOrderDate": "Purchase Order Date",
+    "invoiceDate": "Invoice Date",
     "fromAddress": "From Address",
     "toAddress": "To Address",
-    "status": "Status",
-    "staff": "Staff"
+    "status": "Status"
   },
   "customColumns": [
     {
@@ -108,6 +125,12 @@
         "stockId"
       ],
       "separator": " \"\""
+    },
+    {
+      "id": "custom_total_price_1748259605299",
+      "displayName": "Total Price",
+      "type": "arithmetic",
+      "arithmeticExpression": "quantity * ( basePrice + gstAmount)"
     }
   ]
 }
