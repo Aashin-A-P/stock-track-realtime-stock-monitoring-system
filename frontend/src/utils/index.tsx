@@ -185,9 +185,7 @@ export const uploadImageAndGetURL = async (
 };
 
 export const convertProductData = async (
-  rawIndividualProducts: RawFetchedProductItem[],
-  // baseUrl: string,
-  // headers: Record<string, string>
+  rawIndividualProducts: RawFetchedProductItem[]
 ): Promise<Product[]> => {
   if (!rawIndividualProducts || rawIndividualProducts.length === 0) return [];
 
@@ -195,79 +193,46 @@ export const convertProductData = async (
     string,
     { baseProduct: Partial<Product>; items: RawFetchedProductItem[] }
   >();
-  // console.log("RAw products",rawIndividualProducts);
 
   for (const item of rawIndividualProducts) {
-    // Ensure critical fields for grouping have default values if undefined/null from API
-    // console.log("categoryId for product Inside loop:", item.categoryId);
-
     const productName = item.productName?.trim() || "Unnamed Product";
     const productPrice = parseFloat(item.actualAmount as any) || 0;
     const productDescription = item.productDescription?.trim() || "";
-    const categoryId = item.categoryId || 0; // Default to 0 or handle as error if critical
+    const categoryId = item.categoryId || 0;
     const categoryName = item.categoryName || "Unknown Category";
-const statusName = item.statusDescription || "Unknown Status";
-// const locationName = item.locationName || "Unknown Location";
+    const statusName = item.statusDescription || "Unknown Status";
     const statusId = item.statusId || 0;
-   let volNo = item.volNo?.trim();
-let pageNo = item.pageNo?.trim();
-let serialNo = item.serialNo?.trim();
 
-// If missing, try to extract from productVolPageSerial
-if ((!volNo || !pageNo || !serialNo) && item.productVolPageSerial) {
-  const parts = item.productVolPageSerial.split("-");
-  if (parts.length === 3) {
-    volNo = volNo || parts[0].trim();
-    pageNo = pageNo || parts[1].trim();
-    serialNo = serialNo || parts[2].trim();
-  }
+    let volNo = item.volNo?.trim();
+    let pageNo = item.pageNo?.trim();
+    let serialNo = item.serialNo?.trim();
 
-}
-console.log("VOL-PAGE" ,volNo,pageNo,serialNo);
+    // Updated parsing logic for new format
+    if ((!volNo || !pageNo || !serialNo) && item.productVolPageSerial) {
+      const regexNewFormat =
+        /Vol\.No\.([^/]+)\/Pg\.No\.([^/]+)\/S\.No\.([^-\/]+)(?:-\[\d+-\d+\])?/i;
+      const match = item.productVolPageSerial.match(regexNewFormat);
+
+      if (match) {
+        volNo = volNo || match[1]?.trim() || "N/A";
+        pageNo = pageNo || match[2]?.trim() || "N/A";
+        serialNo = serialNo || match[3]?.trim() || "N/A";
+      } else {
+        // fallback: try old format
+        const oldParts = item.productVolPageSerial.split("-");
+        if (oldParts.length === 3) {
+          volNo = volNo || oldParts[0].trim();
+          pageNo = pageNo || oldParts[1].trim();
+          serialNo = serialNo || oldParts[2].trim();
+        }
+      }
+    }
+
+    console.log("VOL-PAGE", volNo, pageNo, serialNo);
 
     const groupKey = `${productName}-${productPrice}-${productDescription}-${categoryId}-${statusId}-${volNo}-${pageNo}`;
 
     if (!groupedProducts.has(groupKey)) {
-      // let categoryName = "Unknown Category";
-      // console.log("categoryId for product:", categoryId);
-
-      // if (categoryId !== 0) {
-      //   try {
-      //     const catMeta = await fetchMetadata(
-      //       baseUrl,
-      //       `stock/category/id`,
-      //       categoryId,
-      //       headers
-      //     );
-      //         console.log("Fetched catMeta for ID", categoryId, ":", catMeta);
-
-      //     if (catMeta && catMeta.category)
-      //       categoryName = catMeta.category.categoryName;
-      //   } catch (e) {
-      //     console.warn(
-      //       `Failed to fetch category name for ID ${categoryId}:`,
-      //       e
-      //     );
-      //   }
-      // }
-
-
-      // let statusName = "Unknown Status";
-      // if (statusId !== 0) {
-      //   try {
-      //     const statMeta = await fetchMetadata(
-      //       baseUrl,
-      //       `stock/status/id`,
-      //       statusId,
-      //       headers
-      //     );
-      //     if (statMeta && statMeta.status)
-      //       statusName = statMeta.status.statusDescription;
-      //   } catch (e) {
-      //     console.warn(`Failed to fetch status name for ID ${statusId}:`, e);
-      //   }
-      // }
-
       groupedProducts.set(groupKey, {
         baseProduct: {
           productName: productName,
@@ -283,79 +248,87 @@ console.log("VOL-PAGE" ,volNo,pageNo,serialNo);
           gstAmount: parseFloat(item.gstAmount as any) || 0,
           volNo: volNo || "N/A",
           pageNo: pageNo || "N/A",
-          },
+        },
         items: [],
       });
     }
-    groupedProducts.get(groupKey)!.items.push(item);
-    // console.log(groupedProducts)
 
+    groupedProducts.get(groupKey)!.items.push(item);
   }
 
   const uiProducts: Product[] = [];
+
   for (const [_, group] of groupedProducts) {
-  const locationRangeMappings: RangeMapping[] = [];
-  let totalQuantityInGroup = 0;
+    const locationRangeMappings: RangeMapping[] = [];
+    let totalQuantityInGroup = 0;
 
-  const itemsByLocation = new Map<string, RawFetchedProductItem[]>(); // Use locationName instead of ID
-  for (const item of group.items) {
-    const locationName = item.locationName?.trim() || "Unknown Location";
-    if (!itemsByLocation.has(locationName)) {
-      itemsByLocation.set(locationName, []);
-    }
-    itemsByLocation.get(locationName)!.push(item);
-    totalQuantityInGroup++;
-  }
+    const itemsByLocation = new Map<string, RawFetchedProductItem[]>();
 
-  for (const [locationName, itemsInLocation] of itemsByLocation) {
-    const serialNumbers: number[] = [];
-    itemsInLocation.forEach((item) => {
-      const serialToParse = item.serialNo || item.productVolPageSerial;
-      const serialMatch = serialToParse?.match(/(?:[^-]*-)*(\d+)$/); // Get last number group
-      if (serialMatch && serialMatch[1]) {
-        serialNumbers.push(parseInt(serialMatch[1], 10));
-      } else {
-        console.warn(
-          `Could not parse serial: ${serialToParse} for ${group.baseProduct.productName}`
-        );
+    for (const item of group.items) {
+      const locationName = item.locationName?.trim() || "Unknown Location";
+      if (!itemsByLocation.has(locationName)) {
+        itemsByLocation.set(locationName, []);
       }
-    });
-
-    if (serialNumbers.length > 0) {
-      const rangeString = createRangeString(serialNumbers);
-      locationRangeMappings.push({
-        location: locationName,
-        range: rangeString,
-      });
+      itemsByLocation.get(locationName)!.push(item);
+      totalQuantityInGroup++;
     }
-  }
 
-  // ... Rest of the code
+    for (const [locationName, itemsInLocation] of itemsByLocation) {
+      const serialNumbers: number[] = [];
 
+      itemsInLocation.forEach((item) => {
+        let serialToParse = item.serialNo;
+        if (!serialToParse && item.productVolPageSerial) {
+          const match = item.productVolPageSerial.match(
+            /S\.No\.([^-\/]+)/
+          );
+          serialToParse = match?.[1] || "";
+        }
 
+        const serialMatch = serialToParse?.match(/\d+/);
+        if (serialMatch) {
+          serialNumbers.push(parseInt(serialMatch[0], 10));
+        } else {
+          console.warn(
+            `Could not parse serial: ${serialToParse} for ${group.baseProduct.productName}`
+          );
+        }
+      });
 
-    const productVolPageSerialTemplate = `${group.baseProduct.volNo || "N/A"}-${
+      if (serialNumbers.length > 0) {
+        const rangeString = createRangeString(serialNumbers);
+        locationRangeMappings.push({
+          location: locationName,
+          range: rangeString,
+        });
+      }
+    }
+
+    const productVolPageSerialTemplate = `MIT/IT/Vol.No.${
+      group.baseProduct.volNo || "N/A"
+    }/Pg.No.${
       group.baseProduct.pageNo || "N/A"
-    }-[1-${totalQuantityInGroup || "N/A"}]`;
+    }/S.No.N/A-[1-${totalQuantityInGroup}]`;
 
     uiProducts.push({
-      ...defaultProduct, // Ensure all Product fields are initialized
+      ...defaultProduct,
       ...group.baseProduct,
       quantity: totalQuantityInGroup,
       productVolPageSerial: productVolPageSerialTemplate,
       locationRangeMappings,
-      // Use the serialNo from the first item in the group as a representative serial for the batch
-      // or an empty string if not available. This is for the top-level `serialNo` field of the `Product`.
       serialNo:
         group.items[0]?.serialNo ||
-        group.items[0]?.productVolPageSerial?.match(/(?:[^-]*-)*(\d+)$/)?.[1] ||
+        group.items[0]?.productVolPageSerial?.match(
+          /S\.No\.([^-\/]+)/
+        )?.[1] ||
         "",
     } as Product);
   }
-  console.log("Final products for UI:", uiProducts);
 
+  console.log("Final products for UI:", uiProducts);
   return uiProducts;
 };
+
 
 function createRangeString(numbers: number[]): string {
   if (!numbers || numbers.length === 0) return "";

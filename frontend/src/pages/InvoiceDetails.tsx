@@ -17,7 +17,6 @@ const InvoiceDetailsPage: React.FC = () => {
 
   useEffect(() => {
     if (!authTokenFromContext) {
-      toast.error("You must be logged in to access this page.");
       navigate("/login");
     }
   }, [authTokenFromContext, navigate]);
@@ -348,29 +347,25 @@ const InvoiceDetailsPage: React.FC = () => {
       productToUpdate.quantity > 0
     ) {
       if (productToUpdate.quantity > 1) {
-        productToUpdate.productVolPageSerial = `${
+        productToUpdate.productVolPageSerial = `MIT/IT/Vol.No.${
           productToUpdate.volNo || "N/A"
-        }-${productToUpdate.pageNo || "N/A"}-[1-${
-          productToUpdate.quantity || "N/A"
-        }]`;
+        }/Pg.No.${productToUpdate.pageNo || "N/A"}/S.No.${
+          productToUpdate.serialNo || "N/A"
+        }-[1-${productToUpdate.quantity || "N/A"}]`;
       } else if (
         productToUpdate.quantity === 1 &&
         productToUpdate.locationRangeMappings.length > 0 &&
         productToUpdate.locationRangeMappings[0].range
       ) {
-        const singleUnitSerial =
-          parseRange(productToUpdate.locationRangeMappings[0].range)[0] ||
-          productToUpdate.serialNo ||
-          "N/A";
         productToUpdate.productVolPageSerial = `${
           productToUpdate.volNo || "N/A"
-        }-${productToUpdate.pageNo || "N/A"}-${singleUnitSerial}`;
+        }-${productToUpdate.pageNo || "N/A"}-${productToUpdate.serialNo}`;
       } else {
-        productToUpdate.productVolPageSerial = `${
+        productToUpdate.productVolPageSerial = `MIT/IT/Vol.No.${
           productToUpdate.volNo || "N/A"
-        }-${productToUpdate.pageNo || "N/A"}-${
+        }/Pg.No.${productToUpdate.pageNo || "N/A"}/S.No.${
           productToUpdate.serialNo || "N/A"
-        }`;
+        }-[1-${productToUpdate.quantity || "N/A"}]`;
       }
     } else if (field === "serialNo" && productToUpdate.quantity <= 1) {
       productToUpdate.productVolPageSerial = `${
@@ -684,7 +679,11 @@ const InvoiceDetailsPage: React.FC = () => {
           const unitNumbers = parseRange(mapping.range); // e.g., "1-3" -> [1,2,3]
           const productAddPromises = unitNumbers.map(async (unitNo) => {
             const singleProductData = {
-              productVolPageSerial: `${product.volNo}-${product.pageNo}-${unitNo}`, // Unique serial for each unit
+              productVolPageSerial: `MIT/IT/Vol.No.${
+                product.volNo || "N/A"
+              }/Pg.No.${product.pageNo || "N/A"}/S.No.${
+                product.serialNo || "N/A"
+              }-[${unitNo}-${product.quantity || "N/A"}]`, // Unique serial for each unit
               productName: product.productName,
               productDescription: product.productDescription,
               locationId: locationMeta.locationId,

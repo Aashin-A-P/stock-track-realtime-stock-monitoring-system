@@ -228,11 +228,11 @@ const AddProduct: React.FC = () => {
       ["pageNo", "volNo"].includes(field) ||
       (field === "quantity" && productToUpdate.quantity > 0)
     ) {
-      productToUpdate.productVolPageSerial = `${
+      productToUpdate.productVolPageSerial = `MIT/IT/Vol.No.${
         productToUpdate.volNo || "N/A"
-      }-${productToUpdate.pageNo || "N/A"}-[1-${
-        productToUpdate.quantity || "N/A"
-      }]`;
+        }/Pg.No.${productToUpdate.pageNo || "N/A"
+        }/S.No.${productToUpdate.serialNo || "N/A"
+      }-[1-${productToUpdate.quantity || "N/A"}]`;
     }
 
     updatedProducts[index] = productToUpdate;
@@ -541,7 +541,11 @@ const AddProduct: React.FC = () => {
 
           const unitNumbers = parseRange(mapping.range);
           const productAddPromises = unitNumbers.map(async (unitNo) => {
-            const individualProductVolPageSerial = `${product.volNo}-${product.pageNo}-${unitNo}`;
+            const individualProductVolPageSerial = `MIT/IT/Vol.No.${
+              product.volNo || "N/A"
+            }/Pg.No.${product.pageNo || "N/A"}/S.No.${
+              product.serialNo || "N/A"
+            }-[${unitNo}-${product.quantity || "N/A"}]`;
             const singleProductData = {
               productVolPageSerial: individualProductVolPageSerial,
               productName: product.productName,

@@ -72,8 +72,7 @@ const contributorsData: Contributor[] = [
     name: "John Prabu A",
     role: "Team Lead & Full Stack Developer",
     isLead: true,
-    imageUrl:
-      "/images/profile_pic_me.png",
+    imageUrl: "/images/profile_pic_me.png",
     bio: "Overseeing the project's development lifecycle, from conceptualization to deployment. Focused on core architecture, key feature implementation, and team coordination.",
     portfolioUrl: "https://www.jpdevland.com",
     linkedinUrl: "https://www.linkedin.com/in/johnprabu",
@@ -94,7 +93,8 @@ const contributorsData: Contributor[] = [
     role: "Backend Lead & Developer",
     imageUrl: "/images/profile_pic_sandhip.jpg",
     bio: "Led the backend development, ensuring robust and scalable server-side logic, API development, and database management.",
-    linkedinUrl: "https://www.linkedin.com/in/sandhip-suriya-k-s-5aa011264?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app",
+    linkedinUrl:
+      "https://www.linkedin.com/in/sandhip-suriya-k-s-5aa011264?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app",
     githubUrl: "https://github.com/sandhipsuriya",
     contributions: [
       "Backend API Development (Node.js/Express)",
@@ -108,10 +108,11 @@ const contributorsData: Contributor[] = [
     id: 3,
     name: "Aashin A.P",
     role: "Frontend Developer",
-    imageUrl: "https://placehold.co/400x400/82A0D8/FFFFFF?text=Aashin+A", // Updated placeholder color
+    imageUrl: "/images/profile_pic_aashin.jpeg",
     bio: "Contributed to building responsive and interactive user interfaces, focusing on component development and user experience.",
-    linkedinUrl: "#", // Replace with actual
-    githubUrl: "#", // Replace with actual
+    linkedinUrl:
+      "https://www.linkedin.com/in/aashin-a-p-21jan2005?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app",
+    githubUrl: "https://github.com/Aashin-A-P",
     contributions: [
       "User Interface Development (React/Tailwind CSS)",
       "Component Design",
@@ -124,10 +125,10 @@ const contributorsData: Contributor[] = [
     id: 4,
     name: "Aadharsh S",
     role: "Frontend Developer",
-    imageUrl: "https://placehold.co/400x400/A0D8B3/333?text=Aadharsh+S", // Updated placeholder color
+    imageUrl: "/images/profile_pic_aadharsh.jpeg",
     bio: "Worked on various frontend tasks, including UI enhancements, feature implementation, and ensuring cross-browser compatibility.",
-    linkedinUrl: "#", // Replace with actual
-    githubUrl: "#", // Replace with actual
+    linkedinUrl: "https://www.linkedin.com/in/aadharsh-senthil-334084257?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app",
+    githubUrl: "https://github.com/Aadharsh12", 
     contributions: [
       "UI/UX Enhancements",
       "Feature Implementation (Frontend)",

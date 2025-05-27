@@ -5,10 +5,10 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DndProvider, useDrag, useDrop, DropTargetMonitor } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import YearDropdown from "../components/YearDropdown";
-import { useDashboard } from "../context/DashboardContext";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import FilterDateRangePicker from "../components/FilterDateRangePicker";
+import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -73,19 +73,19 @@ interface DragItem {
   type: string;
 }
 
-interface ExcelSubColumnInfo {
-  id: (typeof STOCK_REG_SUB_COLUMNS)[number]["id"];
-  defaultHeader: (typeof STOCK_REG_SUB_COLUMNS)[number]["defaultHeader"];
-  dataKey: (typeof STOCK_REG_SUB_COLUMNS)[number]["dataKey"];
-  groupHeader: string;
-}
+// interface ExcelSubColumnInfo {
+//   id: (typeof STOCK_REG_SUB_COLUMNS)[number]["id"];
+//   defaultHeader: (typeof STOCK_REG_SUB_COLUMNS)[number]["defaultHeader"];
+//   dataKey: (typeof STOCK_REG_SUB_COLUMNS)[number]["dataKey"];
+//   groupHeader: string;
+// }
 
-interface ExcelMainColumnInfo {
-  id: string;
-  defaultHeader: string;
-  dataKey: keyof Stock | "displaySerialNo" | string;
-}
-type ActualExcelColumnInfo = ExcelSubColumnInfo | ExcelMainColumnInfo;
+// interface ExcelMainColumnInfo {
+//   id: string;
+//   defaultHeader: string;
+//   dataKey: keyof Stock | "displaySerialNo" | string;
+// }
+// type ActualExcelColumnInfo = ExcelSubColumnInfo | ExcelMainColumnInfo;
 
 interface CustomColumnDefinition {
   id: string;
@@ -114,38 +114,38 @@ const formatColumnKeyForDisplay = (
     .replace(/^./, (str) => str.toUpperCase());
 };
 
-interface FilterDropdownProps {
-  year: number;
-  onYearChange: (year: number, startDate: string, endDate: string) => void;
-}
+// interface FilterDropdownProps {
+//   year: number;
+//   onYearChange: (year: number, startDate: string, endDate: string) => void;
+// }
 
-const FilterDropdown: React.FC<FilterDropdownProps> = ({
-  year,
-  onYearChange,
-}) => {
-  const { years } = useDashboard();
-  const handleYearSelect = (selectedYearValue: number) => {
-    const yearStr = selectedYearValue.toString();
-    const [startYearStr, endYearStr] = yearStr.split("-");
-    const startYear = parseInt(startYearStr);
-    const endYear = endYearStr ? parseInt(endYearStr) : startYear;
-    const startDate = `${startYear}-04-01`;
-    const financialEndDate = `${endYear + (endYearStr ? 0 : 1)}-03-31`;
-    onYearChange(selectedYearValue, startDate, financialEndDate);
-  };
-  return (
-    <div className="mb-6 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
-      <label className="block font-medium mb-2 text-gray-700">
-        Filter by Budget Year
-      </label>
-      <YearDropdown
-        selectedYear={year}
-        onSelectYear={handleYearSelect}
-        years={years}
-      />
-    </div>
-  );
-};
+// const FilterDropdown: React.FC<FilterDropdownProps> = ({
+//   year,
+//   onYearChange,
+// }) => {
+//   const { years } = useDashboard();
+//   const handleYearSelect = (selectedYearValue: number) => {
+//     const yearStr = selectedYearValue.toString();
+//     const [startYearStr, endYearStr] = yearStr.split("-");
+//     const startYear = parseInt(startYearStr);
+//     const endYear = endYearStr ? parseInt(endYearStr) : startYear;
+//     const startDate = `${startYear}-04-01`;
+//     const financialEndDate = `${endYear + (endYearStr ? 0 : 1)}-03-31`;
+//     onYearChange(selectedYearValue, startDate, financialEndDate);
+//   };
+//   return (
+//     <div className="mb-6 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
+//       <label className="block font-medium mb-2 text-gray-700">
+//         Filter by Budget Year
+//       </label>
+//       <YearDropdown
+//         selectedYear={year}
+//         onSelectYear={handleYearSelect}
+//         years={years}
+//       />
+//     </div>
+//   );
+// };
 
 interface ColumnSelectionProps {
   selectedColumns: SelectedColumns;
@@ -208,6 +208,7 @@ interface DraggableColumnProps {
     e: React.ChangeEvent<HTMLInputElement>,
     columnKey: string
   ) => void;
+  children?: React.ReactNode
 }
 
 const DraggableColumn: React.FC<DraggableColumnProps> = ({
@@ -302,7 +303,15 @@ interface ColumnReorderProps {
       | "stockRegNameAndVolNo"
       | "statementOfVerification"
   ) => void;
+  onRemoveCustomColumn: (columnKey: string) => void;
 }
+
+type SpecialHeaderKey =
+  | "annexure"
+  | "nameOfCenter"
+  | "stockRegNameAndVolNo"
+  | "statementOfVerification";
+
 
 const ColumnReorder: React.FC<ColumnReorderProps> = ({
   draggableColumnOrder,
@@ -311,13 +320,9 @@ const ColumnReorder: React.FC<ColumnReorderProps> = ({
   moveColumn,
   onAliasChange,
   onAliasChangeForSpecialHeader,
+  onRemoveCustomColumn,
 }) => {
-  const specialHeaderKeys: Array<
-    | "annexure"
-    | "nameOfCenter"
-    | "stockRegNameAndVolNo"
-    | "statementOfVerification"
-  > = [
+  const specialHeaderKeys: SpecialHeaderKey[] = [
     "annexure",
     "nameOfCenter",
     "stockRegNameAndVolNo",
@@ -327,8 +332,13 @@ const ColumnReorder: React.FC<ColumnReorderProps> = ({
   const getDraggableColumnDisplayName = (key: string) => {
     const customCol = customColumnDefs.find((cc) => cc.id === key);
     if (customCol) return customCol.displayName;
+    // Pass customColumnDefs to formatColumnKeyForDisplay if it can use it
+    // to find original names if an alias is not set.
+    // console.log(
+    //   columnAliases[key], formatColumnKeyForDisplay(key, customColumnDefs),
+    //   columnAliases, key);
     return (
-      columnAliases[key] || formatColumnKeyForDisplay(key, customColumnDefs)
+      key || formatColumnKeyForDisplay(key, customColumnDefs)
     );
   };
 
@@ -342,19 +352,60 @@ const ColumnReorder: React.FC<ColumnReorderProps> = ({
           {draggableColumnOrder.map((columnKey, index) => {
             const isCustom = customColumnDefs.some((cc) => cc.id === columnKey);
             return (
-              <DraggableColumn
+              <div
                 key={columnKey}
-                columnKey={columnKey}
-                index={index}
-                moveColumn={moveColumn}
-                columnDisplayName={getDraggableColumnDisplayName(columnKey)}
-                isCustomColumn={isCustom}
-                aliasInputValue={
-                  columnAliases[columnKey] ||
-                  formatColumnKeyForDisplay(columnKey, [])
-                }
-                handleAliasChange={onAliasChange}
-              />
+                className="flex items-center space-x-2 group" // Added group for potential hover effects on button
+              >
+                <DraggableColumn
+                  // key prop is on the wrapping div now
+                  columnKey={columnKey}
+                  index={index}
+                  moveColumn={moveColumn}
+                  columnDisplayName={getDraggableColumnDisplayName(columnKey)}
+                  isCustomColumn={isCustom}
+                  aliasInputValue={
+                    columnAliases[columnKey] ||
+                    // For initial display of alias input, if no alias, show formatted key
+                    // If it's a custom column, its displayName is already part of getDraggableColumnDisplayName.
+                    // The alias input should ideally start empty or with the current alias.
+                    // If customCol.displayName is the "true name" and alias is different, then this is fine.
+                    (customColumnDefs.find((cc) => cc.id === columnKey)
+                      ?.displayName !==
+                    (columnAliases[columnKey] ||
+                      formatColumnKeyForDisplay(columnKey, []))
+                      ? columnAliases[columnKey] || ""
+                      : formatColumnKeyForDisplay(columnKey, []))
+                  }
+                  handleAliasChange={onAliasChange}
+                />
+                {isCustom && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveCustomColumn(columnKey)}
+                    className="p-1.5 text-red-500 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 rounded-md transition-colors duration-150 ease-in-out"
+                    title="Remove custom column"
+                    aria-label={`Remove custom column ${getDraggableColumnDisplayName(
+                      columnKey
+                    )}`}
+                  >
+                    {/* Using a simple 'X' icon, you can replace with an SVG or icon font */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -379,7 +430,7 @@ const ColumnReorder: React.FC<ColumnReorderProps> = ({
                 type="text"
                 id={`alias-${key}`}
                 value={columnAliases[key] || ""}
-                onChange={(e) => onAliasChangeForSpecialHeader(e, key as any)}
+                onChange={(e) => onAliasChangeForSpecialHeader(e, key)} // key is correctly typed here
                 placeholder={`Enter ${formatColumnKeyForDisplay(key)}`}
                 className="text-sm p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -789,7 +840,7 @@ const StockTable: React.FC<StockTableProps> = ({
     );
 
   return (
-    <div className="overflow-x-auto shadow-lg rounded-lg bg-white">
+    <div className="overflow-x-auto shadow-lg bg-white">
       <table
         id="stockReportTable"
         className="w-full text-xs text-left border-collapse border border-black"
@@ -961,17 +1012,17 @@ const StockTable: React.FC<StockTableProps> = ({
 
 interface ExportButtonsProps {
   onExportExcel: () => void;
-  onExportPDF: (pageSize: "a4" | "a3" | "a2" | "letter" | "legal") => void;
+  // onExportPDF: (pageSize: "a4" | "a3" | "a2" | "letter" | "legal") => void;
   onPrintTable: () => void;
   hasData: boolean;
 }
 const ExportButtons: React.FC<ExportButtonsProps> = ({
   onExportExcel,
-  onExportPDF,
+  // onExportPDF,
   onPrintTable,
   hasData,
 }) => {
-  const [isPdfDropdownOpen, setIsPdfDropdownOpen] = useState(false);
+  // const [isPdfDropdownOpen, setIsPdfDropdownOpen] = useState(false);
   return (
     <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-3 p-4 border border-gray-300 rounded-lg shadow-sm bg-white">
       <button
@@ -979,7 +1030,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
         disabled={!hasData}
         className="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Print Table
+        Generate Report
       </button>
       <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
         <button
@@ -989,7 +1040,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
         >
           Export to Excel
         </button>
-        <div className="relative w-full sm:w-auto">
+        {/* <div className="relative w-full sm:w-auto">
           <button
             onClick={() => setIsPdfDropdownOpen(!isPdfDropdownOpen)}
             disabled={!hasData}
@@ -1020,7 +1071,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
               ))}
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </div>
   );
@@ -1029,16 +1080,16 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
 const ALL_BASE_SELECTABLE_COLUMNS: string[] = [
   "displaySerialNo",
   STOCK_REGISTER_GROUP_KEY,
-  "stockId", // Representative stockId
+  "stockId",
   "stockName",
   "stockDescription",
-  "locations", // Was "location"
-  "staffs", // Was "staff", now an array
-  "usage", // New array field
-  "quantity", // Summed
-  "basePrice", // Representative
-  "gstAmount", // Representative
-  "price", // Summed
+  "locations",
+  "staffs",
+  "usage",
+  "quantity",
+  "basePrice",
+  "gstAmount",
+  "price",
   "remarks",
   "budgetName",
   "categoryName",
@@ -1049,6 +1100,31 @@ const ALL_BASE_SELECTABLE_COLUMNS: string[] = [
   "toAddress",
   "status",
 ];
+
+const PRE_COMPUTED_INITIAL_SELECTED_COLUMNS =
+  ALL_BASE_SELECTABLE_COLUMNS.reduce((acc, colKey) => {
+    acc[colKey] = [
+      "displaySerialNo",
+      STOCK_REGISTER_GROUP_KEY,
+      "stockName",
+      "quantity",
+      "price",
+    ].includes(colKey);
+    return acc;
+  }, {} as SelectedColumns);
+
+const PRE_COMPUTED_INITIAL_COLUMN_ALIASES: ColumnAliases = {
+  annexure: "ANNEXURE - I",
+  nameOfCenter: "Name of the Center/Department: Example Department",
+  stockRegNameAndVolNo:
+    "Name of the Stock Register & Vol.No: Example Register Vol. 1",
+  statementOfVerification:
+    "STATEMENT SHOWING THE DETAILS OF VERIFICATION OF STORES AND STOCK FOR THE YEAR 2023-2024",
+  ...ALL_BASE_SELECTABLE_COLUMNS.reduce((acc, colKey) => {
+    acc[colKey] = formatColumnKeyForDisplay(colKey, []);
+    return acc;
+  }, {} as ColumnAliases),
+};
 
 const ReportGeneration: React.FC = () => {
   const navigate = useNavigate();
@@ -1142,7 +1218,7 @@ const ReportGeneration: React.FC = () => {
 
             const argValues: any[] = [];
             const argNames: string[] = [];
-            let unresolvedVariable = false;
+            const unresolvedVariable = false;
 
             for (const varName of variableNamesInExpression) {
               const value = getSourceValue(varName);
@@ -1215,52 +1291,89 @@ const ReportGeneration: React.FC = () => {
     ]);
   }, [customColumns]);
 
-  const initialSelectedColumns = ALL_BASE_SELECTABLE_COLUMNS.reduce(
-    (acc, colKey) => {
-      acc[colKey] = [
-        "displaySerialNo",
-        STOCK_REGISTER_GROUP_KEY,
-        "stockName",
-        "quantity",
-        "price",
-      ].includes(colKey);
-      return acc;
-    },
-    {} as SelectedColumns
-  );
+  // const initialSelectedColumns = ALL_BASE_SELECTABLE_COLUMNS.reduce(
+  //   (acc, colKey) => {
+  //     acc[colKey] = [
+  //       "displaySerialNo",
+  //       STOCK_REGISTER_GROUP_KEY,
+  //       "stockName",
+  //       "quantity",
+  //       "price",
+  //     ].includes(colKey);
+  //     return acc;
+  //   },
+  //   {} as SelectedColumns
+  // );
   const [selectedColumns, setSelectedColumns] = useState<SelectedColumns>(
-    initialSelectedColumns
+    PRE_COMPUTED_INITIAL_SELECTED_COLUMNS // Use the stable constant
+  );
+  const [columnAliases, setColumnAliases] = useState<ColumnAliases>(
+    PRE_COMPUTED_INITIAL_COLUMN_ALIASES // Use the stable constant
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>([
     ...ALL_BASE_SELECTABLE_COLUMNS,
   ]);
 
-  const initialColumnAliases: ColumnAliases = {
-    annexure: "ANNEXURE - I",
-    nameOfCenter: "Name of the Center/Department: Example Department",
-    stockRegNameAndVolNo:
-      "Name of the Stock Register & Vol.No: Example Register Vol. 1",
-    statementOfVerification:
-      "STATEMENT SHOWING THE DETAILS OF VERIFICATION OF STORES AND STOCK FOR THE YEAR 2023-2024",
-    ...ALL_BASE_SELECTABLE_COLUMNS.reduce((acc, colKey) => {
-      acc[colKey] = formatColumnKeyForDisplay(colKey, []);
-      return acc;
-    }, {} as ColumnAliases),
+  // const initialColumnAliases: ColumnAliases = {
+  //   annexure: "ANNEXURE - I",
+  //   nameOfCenter: "Name of the Center/Department: Example Department",
+  //   stockRegNameAndVolNo:
+  //     "Name of the Stock Register & Vol.No: Example Register Vol. 1",
+  //   statementOfVerification:
+  //     "STATEMENT SHOWING THE DETAILS OF VERIFICATION OF STORES AND STOCK FOR THE YEAR 2023-2024",
+  //   ...ALL_BASE_SELECTABLE_COLUMNS.reduce((acc, colKey) => {
+  //     acc[colKey] = formatColumnKeyForDisplay(colKey, []);
+  //     return acc;
+  //   }, {} as ColumnAliases),
+  // };
+
+  const getInitialFinancialDates = () => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0 (Jan) - 11 (Dec)
+
+    let startYear = currentYear;
+    // If current month is before April, the financial year started last year
+    if (currentMonth < 3) {
+      // Before April (Jan, Feb, Mar)
+      startYear = currentYear - 1;
+    }
+    const financialStartDate = `${startYear}-04-01`;
+    const financialEndDate = `${startYear + 1}-03-31`;
+    return { financialStartDate, financialEndDate };
   };
-  const [columnAliases, setColumnAliases] =
-    useState<ColumnAliases>(initialColumnAliases);
 
-  const [selectedYear, setSelectedYear] = useState<number>(
-    new Date().getFullYear()
-  );
-  const [startDate, setStartDate] = useState<string | null>(null);
-  const [endDate, setEndDate] = useState<string | null>(null);
+  const { financialStartDate, financialEndDate } = getInitialFinancialDates();
 
-  const handleYearChange = (year: number, startDt: string, endDt: string) => {
-    setSelectedYear(year);
-    setStartDate(startDt);
-    setEndDate(endDt);
+  const [startDate, setStartDate] = useState<string | null>(financialStartDate);
+  const [endDate, setEndDate] = useState<string | null>(financialEndDate);
+
+  // This is where you would typically fetch or filter data based on startDate and endDate
+  useEffect(() => {
+    if (startDate && endDate) {
+      console.log("Selected date range for filtering:");
+      console.log("Start Date:", startDate);
+      console.log("End Date:", endDate);
+      // Example: fetchData(startDate, endDate);
+    }
+  }, [startDate, endDate]);
+
+  const handleStartDateChange = (date: string) => {
+    setStartDate(date);
+    // Optional: Add validation, e.g., startDate should not be after endDate
+    if (endDate && new Date(date) > new Date(endDate)) {
+      setEndDate(null); // Or set to startDate, or show an error
+      toast.warn("Start date cannot be after end date. End date cleared.");
+    }
+  };
+
+  const handleEndDateChange = (date: string) => {
+    setEndDate(date);
+    // Optional: Add validation, e.g., endDate should not be before startDate
+    if (startDate && new Date(date) < new Date(startDate)) {
+      setStartDate(null); // Or set to endDate, or show an error
+      toast.warn("End date cannot be before start date. Start date cleared.");
+    }
   };
 
   const getColumnEffectiveDisplayName = useCallback(
@@ -1283,29 +1396,36 @@ const ReportGeneration: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log("Data : ", JSON.stringify(data, null, 2));
         const loadedCustomColumns = Array.isArray(data.customColumns)
           ? data.customColumns
           : [];
         setCustomColumns(loadedCustomColumns);
 
         const currentAllEffectiveCols = [
-          ...ALL_BASE_SELECTABLE_COLUMNS,
+          ...ALL_BASE_SELECTABLE_COLUMNS, // Stable constant
           ...loadedCustomColumns.map((cc: CustomColumnDefinition) => cc.id),
         ];
-        const newSelectedColumns: SelectedColumns = {};
-        Object.keys(initialSelectedColumns).forEach((key) => {
-          newSelectedColumns[key] = initialSelectedColumns[key];
+
+        // Build newSelectedColumns based on PRE_COMPUTED_INITIAL_SELECTED_COLUMNS and fetched data
+        const newSelectedColumnsState: SelectedColumns = {};
+        Object.keys(PRE_COMPUTED_INITIAL_SELECTED_COLUMNS).forEach((key) => {
+          // Use stable constant
+          newSelectedColumnsState[key] =
+            PRE_COMPUTED_INITIAL_SELECTED_COLUMNS[key];
         });
         if (data.selectedColumns) {
           currentAllEffectiveCols.forEach((key) => {
-            if (data.selectedColumns[key] !== undefined)
-              newSelectedColumns[key] = data.selectedColumns[key];
-            else if (!newSelectedColumns.hasOwnProperty(key))
-              newSelectedColumns[key] = false;
+            if (data.selectedColumns[key] !== undefined) {
+              newSelectedColumnsState[key] = data.selectedColumns[key];
+            } else if (!newSelectedColumnsState.hasOwnProperty(key)) {
+              newSelectedColumnsState[key] = false; // Default for new custom cols not in fetched settings
+            }
           });
         }
-        setSelectedColumns(newSelectedColumns);
+        setSelectedColumns(newSelectedColumnsState);
 
+        // Order logic (ensure ALL_BASE_SELECTABLE_COLUMNS is stable)
         let savedOrder =
           data.columnOrder && Array.isArray(data.columnOrder)
             ? data.columnOrder.filter((col: string) =>
@@ -1313,37 +1433,40 @@ const ReportGeneration: React.FC = () => {
               )
             : [];
         const defaultOrder = [
-          ...ALL_BASE_SELECTABLE_COLUMNS,
+          ...ALL_BASE_SELECTABLE_COLUMNS, // Stable constant
           ...loadedCustomColumns
             .map((cc: CustomColumnDefinition) => cc.id)
             .filter((id: string) => !ALL_BASE_SELECTABLE_COLUMNS.includes(id)),
         ];
         setColumnOrder([...new Set([...savedOrder, ...defaultOrder])]);
 
-        const newAliases: ColumnAliases = { ...initialColumnAliases };
+        // Build newAliases based on PRE_COMPUTED_INITIAL_COLUMN_ALIASES and fetched data
+        const newAliasesState: ColumnAliases = {
+          ...PRE_COMPUTED_INITIAL_COLUMN_ALIASES,
+        }; // Use stable constant
         if (data.columnAliases) {
           Object.keys(data.columnAliases).forEach((key) => {
-            if (initialColumnAliases.hasOwnProperty(key))
-              // Only update if it's a known alias key
-              newAliases[key] = data.columnAliases[key];
+            if (PRE_COMPUTED_INITIAL_COLUMN_ALIASES.hasOwnProperty(key))
+              // Only update known alias keys
+              newAliasesState[key] = data.columnAliases[key];
           });
         }
-        setColumnAliases(newAliases);
+        setColumnAliases(newAliasesState);
       } else {
         console.warn("Failed to fetch settings, using defaults.");
         setCustomColumns([]);
-        setSelectedColumns(initialSelectedColumns);
-        setColumnOrder([...ALL_BASE_SELECTABLE_COLUMNS]);
-        setColumnAliases(initialColumnAliases);
+        setSelectedColumns(PRE_COMPUTED_INITIAL_SELECTED_COLUMNS); // Use stable constant
+        setColumnOrder([...ALL_BASE_SELECTABLE_COLUMNS]); // Use stable constant
+        setColumnAliases(PRE_COMPUTED_INITIAL_COLUMN_ALIASES); // Use stable constant
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
       setCustomColumns([]);
-      setSelectedColumns(initialSelectedColumns);
-      setColumnOrder([...ALL_BASE_SELECTABLE_COLUMNS]);
-      setColumnAliases(initialColumnAliases);
+      setSelectedColumns(PRE_COMPUTED_INITIAL_SELECTED_COLUMNS); // Use stable constant
+      setColumnOrder([...ALL_BASE_SELECTABLE_COLUMNS]); // Use stable constant
+      setColumnAliases(PRE_COMPUTED_INITIAL_COLUMN_ALIASES);
     }
-  }, [token, initialSelectedColumns, initialColumnAliases]);
+  }, [token]);
 
   useEffect(() => {
     if (token) fetchSettingsCallback();
@@ -1352,7 +1475,7 @@ const ReportGeneration: React.FC = () => {
   useEffect(() => {
     const getReportData = async () => {
       if (!token) return;
-      let url = `${API_URL}/stock/report`; // Ensure this matches your backend controller path
+      let url = `${API_URL}/stock/report`;
       if (startDate && endDate)
         url += `?startDate=${startDate}&endDate=${endDate}`;
       try {
@@ -1364,41 +1487,63 @@ const ReportGeneration: React.FC = () => {
         });
         if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
+
         const rawApiData = await response.json();
+        console.log("Raw api data : ", JSON.stringify(rawApiData, null, 2));
 
         const processedData = (Array.isArray(rawApiData) ? rawApiData : []).map(
           (item: any): Stock => {
-            const [vol = "", page = "", ser = ""] =
-              item.stockId?.toString().split("-") || [];
+            let vol = "",
+              page = "",
+              ser = "";
+
+            const stockId = item.stockId?.toString() || "";
+
+            // New format regex
+            const newFormatMatch = stockId.match(
+              /Vol\.No\.([^/]+)\/Pg\.No\.([^/]+)\/S\.No\.([^\-/\[]+)/
+            );
+
+            if (newFormatMatch) {
+              vol = newFormatMatch[1]?.trim() || "N/A";
+              page = newFormatMatch[2]?.trim() || "N/A";
+              ser = newFormatMatch[3]?.trim() || "N/A";
+            } else {
+              // fallback to old format: "vol-page-serial"
+              const [v = "", p = "", s = ""] = stockId.split("-");
+              vol = v.trim();
+              page = p.trim();
+              ser = s.trim();
+            }
+
             return {
-              stockId: item.stockId || "",
+              stockId: stockId,
               stockName: item.stockName || "N/A",
               stockDescription: item.stockDescription || "",
               locations: Array.isArray(item.locations) ? item.locations : [],
               staffs: Array.isArray(item.staffs) ? item.staffs : [],
               usage: Array.isArray(item.usage) ? item.usage : [],
               quantity: parseInt(item.quantity, 10) || 0,
-              basePrice: parseFloat(item.basePrice) || 0, // Corrected from item.BasePrice
+              basePrice: parseFloat(item.basePrice) || 0,
               gstAmount: parseFloat(item.gstAmount) || 0,
               price: parseFloat(item.price) || 0,
               remarks: item.remarks || "",
               budgetName: item.budgetName || "N/A",
-              volNo: vol.trim(),
-              pageNo: page.trim(),
-              serialNo: ser.trim(),
+              volNo: vol,
+              pageNo: page,
+              serialNo: ser,
               categoryName: item.categoryName || undefined,
               invoiceNo: item.invoiceNo || undefined,
               fromAddress: item.fromAddress || undefined,
               toAddress: item.toAddress || undefined,
               purchaseOrderDate: item.purchaseOrderDate
-                ? new Date(item.purchaseOrderDate).toISOString().split("T")[0] // Format as YYYY-MM-DD
+                ? new Date(item.purchaseOrderDate).toISOString().split("T")[0]
                 : "",
               invoiceDate: item.invoiceDate
-                ? new Date(item.invoiceDate).toISOString().split("T")[0] // Format as YYYY-MM-DD
+                ? new Date(item.invoiceDate).toISOString().split("T")[0]
                 : "",
               status: item.status || undefined,
-              // These fields are for report headers, not typically in per-item data from this API
-              annexure: undefined, // Usually set via columnAliases
+              annexure: undefined,
               nameOfCenter: undefined,
               stockRegNameAndVolNo: undefined,
               statementOfVerification: undefined,
@@ -1454,6 +1599,80 @@ const ReportGeneration: React.FC = () => {
       columnAliases,
       customColumns: newCustomCols,
     });
+  };
+
+  const removeCustomColumnHandler = (columnIdToRemove: string) => {
+    // --- Debugging Step: ---
+    // Log the values here to confirm they are what you expect before calling the main logic.
+    // If customColumns is undefined here, the problem is how this handler accesses the state.
+    console.log(
+      "Attempting to remove column. Current states in wrapper handler:"
+    );
+    console.log("columnIdToRemove:", columnIdToRemove);
+    console.log("customColumns:", customColumns); // Crucial check!
+    console.log("selectedColumns:", selectedColumns);
+    console.log("columnOrder:", columnOrder);
+    console.log("columnAliases:", columnAliases);
+
+    // Ensure all arguments are correctly passed from the component's state
+    handleRemoveCustomColumn(
+      columnIdToRemove,
+      customColumns, // Make sure this 'customColumns' is the state variable
+      setCustomColumns,
+      selectedColumns, // Same for selectedColumns
+      setSelectedColumns,
+      columnOrder, // Same for columnOrder
+      setColumnOrder,
+      columnAliases // Same for columnAliases
+      // If saveSettings is a function from context or props, pass it too, or ensure it's in scope for handleRemoveCustomColumn
+      // For instance, if handleRemoveCustomColumn relies on a saveSettings in its own scope:
+      // saveSettings // (if handleRemoveCustomColumn is defined in the same scope as saveSettings)
+    );
+  };
+  
+
+  const handleRemoveCustomColumn = (
+    columnIdToRemove: string,
+    customColumns: CustomColumnDefinition[],
+    setCustomColumns: React.Dispatch<
+      React.SetStateAction<CustomColumnDefinition[]>
+    >,
+    selectedColumns: Record<string, boolean>,
+    setSelectedColumns: React.Dispatch<
+      React.SetStateAction<Record<string, boolean>>
+    >,
+    columnOrder: string[],
+    setColumnOrder: React.Dispatch<React.SetStateAction<string[]>>,
+    columnAliases: Record<string, string> 
+  ) => {
+    // 1. Remove from customColumns
+    const newCustomCols = customColumns.filter(
+      (col) => col.id !== columnIdToRemove
+    );
+    setCustomColumns(newCustomCols);
+
+    // 2. Remove from selectedColumns
+    const newSelectedCols = { ...selectedColumns };
+    delete newSelectedCols[columnIdToRemove];
+    setSelectedColumns(newSelectedCols);
+
+    // 3. Remove from columnOrder
+    const newColumnOrder = columnOrder.filter(
+      (cId) => cId !== columnIdToRemove
+    );
+    setColumnOrder(newColumnOrder);
+
+    // 4. Persist changes
+    saveSettings({
+      selectedColumns: newSelectedCols,
+      columnOrder: newColumnOrder,
+      columnAliases, 
+      customColumns: newCustomCols,
+    });
+
+    console.log(
+      `Custom column with ID "${columnIdToRemove}" has been removed.`
+    );
   };
 
   const moveColumn = (dragIndex: number, hoverIndex: number) => {
@@ -1543,9 +1762,376 @@ const ReportGeneration: React.FC = () => {
     });
   };
 
+  // const exportToExcel = async () => {
+  //   const workbook = new ExcelJS.Workbook();
+  //   const worksheet = workbook.addWorksheet("Stock Report");
+  //   const isStockRegisterGroupSelected =
+  //     selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
+  //     columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
+
+  //   const excelColumnsStructure: {
+  //     id: string;
+  //     header: string;
+  //     isSub: boolean;
+  //     parentGroup?: string;
+  //     dataKeyForStock?: keyof Stock;
+  //   }[] = [];
+  //   columnOrder.forEach((colKey) => {
+  //     if (!selectedColumns[colKey]) return;
+  //     if (colKey === STOCK_REGISTER_GROUP_KEY) {
+  //       STOCK_REG_SUB_COLUMNS.forEach((sc) =>
+  //         excelColumnsStructure.push({
+  //           id: sc.id,
+  //           header: sc.defaultHeader,
+  //           isSub: true,
+  //           parentGroup: getColumnEffectiveDisplayName(
+  //             STOCK_REGISTER_GROUP_KEY
+  //           ),
+  //           dataKeyForStock: sc.dataKey,
+  //         })
+  //       );
+  //     } else {
+  //       excelColumnsStructure.push({
+  //         id: colKey,
+  //         header: getColumnEffectiveDisplayName(colKey),
+  //         isSub: false,
+  //       });
+  //     }
+  //   });
+
+  //   const colCount = excelColumnsStructure.length;
+  //   if (colCount === 0) return;
+  //   let currentRowIdx = 1;
+  //   const styleCell = (
+  //     cell: ExcelJS.Cell,
+  //     style: Partial<ExcelJS.Style & { value: any }>
+  //   ) => {
+  //     cell.border = {
+  //       top: { style: "thin" },
+  //       left: { style: "thin" },
+  //       bottom: { style: "thin" },
+  //       right: { style: "thin" },
+  //     };
+  //     cell.font = { ...cell.font, ...style.font };
+  //     cell.alignment = { ...cell.alignment, ...style.alignment };
+  //     cell.fill = { ...cell.fill, ...style.fill };
+  //     if (style.value !== undefined) cell.value = style.value;
+  //   };
+
+  //   if (columnAliases.annexure) {
+  //     worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+  //     styleCell(worksheet.getCell(currentRowIdx, 1), {
+  //       value: columnAliases.annexure,
+  //       font: { bold: true, size: 12 },
+  //       alignment: { horizontal: "center", vertical: "middle" },
+  //       fill: {
+  //         type: "pattern",
+  //         pattern: "solid",
+  //         fgColor: { argb: "FFFFFFFF" },
+  //       },
+  //     });
+  //     worksheet.getRow(currentRowIdx).height = 20;
+  //     currentRowIdx++;
+  //   }
+  //   if (columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo) {
+  //     const midPoint = Math.ceil(colCount / 2);
+  //     if (columnAliases.nameOfCenter && columnAliases.stockRegNameAndVolNo) {
+  //       worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, midPoint);
+  //       styleCell(worksheet.getCell(currentRowIdx, 1), {
+  //         value: columnAliases.nameOfCenter,
+  //         alignment: { horizontal: "center", vertical: "middle" },
+  //         fill: {
+  //           type: "pattern",
+  //           pattern: "solid",
+  //           fgColor: { argb: "FFFFFFFF" },
+  //         },
+  //       });
+  //       worksheet.mergeCells(
+  //         currentRowIdx,
+  //         midPoint + 1,
+  //         currentRowIdx,
+  //         colCount
+  //       );
+  //       styleCell(worksheet.getCell(currentRowIdx, midPoint + 1), {
+  //         value: columnAliases.stockRegNameAndVolNo,
+  //         alignment: { horizontal: "center", vertical: "middle" },
+  //         fill: {
+  //           type: "pattern",
+  //           pattern: "solid",
+  //           fgColor: { argb: "FFFFFFFF" },
+  //         },
+  //       });
+  //     } else if (columnAliases.nameOfCenter) {
+  //       worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+  //       styleCell(worksheet.getCell(currentRowIdx, 1), {
+  //         value: columnAliases.nameOfCenter,
+  //         alignment: { horizontal: "center", vertical: "middle" },
+  //         fill: {
+  //           type: "pattern",
+  //           pattern: "solid",
+  //           fgColor: { argb: "FFFFFFFF" },
+  //         },
+  //       });
+  //     } else if (columnAliases.stockRegNameAndVolNo) {
+  //       worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+  //       styleCell(worksheet.getCell(currentRowIdx, 1), {
+  //         value: columnAliases.stockRegNameAndVolNo,
+  //         alignment: { horizontal: "center", vertical: "middle" },
+  //         fill: {
+  //           type: "pattern",
+  //           pattern: "solid",
+  //           fgColor: { argb: "FFFFFFFF" },
+  //         },
+  //       });
+  //     }
+  //     worksheet.getRow(currentRowIdx).height = 20;
+  //     currentRowIdx++;
+  //   }
+  //   if (columnAliases.statementOfVerification) {
+  //     worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
+  //     styleCell(worksheet.getCell(currentRowIdx, 1), {
+  //       value: columnAliases.statementOfVerification,
+  //       font: { bold: true, size: 12 },
+  //       alignment: { horizontal: "center", vertical: "middle" },
+  //       fill: {
+  //         type: "pattern",
+  //         pattern: "solid",
+  //         fgColor: { argb: "FFFFFFFF" },
+  //       },
+  //     });
+  //     worksheet.getRow(currentRowIdx).height = 20;
+  //     currentRowIdx++;
+  //   }
+
+  //   const headerRow1Values: (string | null)[] = [];
+  //   columnOrder
+  //     .filter((colKey) => selectedColumns[colKey])
+  //     .forEach((colKey) => {
+  //       if (colKey === STOCK_REGISTER_GROUP_KEY) {
+  //         headerRow1Values.push(getColumnEffectiveDisplayName(colKey));
+  //         for (let i = 1; i < STOCK_REG_SUB_COLUMNS.length; i++)
+  //           headerRow1Values.push(null);
+  //       } else {
+  //         headerRow1Values.push(getColumnEffectiveDisplayName(colKey));
+  //       }
+  //     });
+
+  //   const r1 = worksheet.addRow(headerRow1Values);
+  //   r1.height = 25;
+  //   r1.eachCell((cell) =>
+  //     styleCell(cell, {
+  //       font: { bold: true, size: 9 },
+  //       alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+  //       fill: {
+  //         type: "pattern",
+  //         pattern: "solid",
+  //         fgColor: { argb: "FFFFFFFF" },
+  //       },
+  //     })
+  //   );
+
+  //   let currentExcelCol = 1;
+  //   columnOrder
+  //     .filter((colKey) => selectedColumns[colKey])
+  //     .forEach((colKey) => {
+  //       if (colKey === STOCK_REGISTER_GROUP_KEY) {
+  //         worksheet.mergeCells(
+  //           currentRowIdx,
+  //           currentExcelCol,
+  //           currentRowIdx,
+  //           currentExcelCol + STOCK_REG_SUB_COLUMNS.length - 1
+  //         );
+  //         currentExcelCol += STOCK_REG_SUB_COLUMNS.length;
+  //       } else {
+  //         if (isStockRegisterGroupSelected)
+  //           worksheet.mergeCells(
+  //             currentRowIdx,
+  //             currentExcelCol,
+  //             currentRowIdx + 1,
+  //             currentExcelCol
+  //           );
+  //         currentExcelCol++;
+  //       }
+  //     });
+  //   const mainHeaderRow1Number = currentRowIdx;
+  //   currentRowIdx++;
+
+  //   if (isStockRegisterGroupSelected) {
+  //     let excelColForSub = 1;
+  //     columnOrder
+  //       .filter((colKey) => selectedColumns[colKey])
+  //       .forEach((colKey) => {
+  //         if (colKey === STOCK_REGISTER_GROUP_KEY) {
+  //           STOCK_REG_SUB_COLUMNS.forEach((sc) => {
+  //             worksheet.getCell(currentRowIdx, excelColForSub).value =
+  //               sc.defaultHeader;
+  //             styleCell(worksheet.getCell(currentRowIdx, excelColForSub), {
+  //               font: { bold: true, size: 9 },
+  //               alignment: {
+  //                 horizontal: "center",
+  //                 vertical: "middle",
+  //                 wrapText: true,
+  //               },
+  //               fill: {
+  //                 type: "pattern",
+  //                 pattern: "solid",
+  //                 fgColor: { argb: "FFFFFFFF" },
+  //               },
+  //             });
+  //             excelColForSub++;
+  //           });
+  //         } else {
+  //           excelColForSub++; 
+  //         }
+  //       });
+  //     worksheet.getRow(currentRowIdx).height = 25;
+  //     currentRowIdx++;
+  //   }
+
+  //   stocks.forEach((stock, idx) => {
+  //     const rowData = excelColumnsStructure.map((colInfo) => {
+  //       if (
+  //         colInfo.parentGroup ===
+  //           getColumnEffectiveDisplayName(STOCK_REGISTER_GROUP_KEY) &&
+  //         colInfo.dataKeyForStock
+  //       )
+  //         return stock[colInfo.dataKeyForStock as keyof Stock] ?? "";
+  //       if (colInfo.id === "displaySerialNo") return idx + 1;
+  //       const customDef = customColumns.find((cc) => cc.id === colInfo.id);
+  //       if (customDef)
+  //         return computeCustomColumnValue(
+  //           stock,
+  //           colInfo.id,
+  //           customColumns,
+  //           stocks,
+  //           idx
+  //         );
+
+  //       const val = stock[colInfo.id as keyof Stock];
+  //       return Array.isArray(val) ? val.join(", ") : val ?? ""; 
+  //     });
+  //     const dataRow = worksheet.addRow(rowData);
+  //     dataRow.height = 18;
+  //     dataRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+  //       const colInfo = excelColumnsStructure[colNum - 1];
+  //       if (!colInfo) return;
+  //       styleCell(cell, {
+  //         font: { size: 8 },
+  //         alignment: {
+  //           vertical: "top",
+  //           wrapText: true,
+  //           horizontal: [
+  //             "quantity",
+  //             "price",
+  //             "basePrice",
+  //             "gstAmount",
+  //             "displaySerialNo",
+  //             ...STOCK_REG_SUB_COLUMNS.map((s) => s.id),
+  //           ].includes(colInfo.id)
+  //             ? "center"
+  //             : "left",
+  //         },
+  //       });
+
+  //       if (typeof cell.value === "number") {
+  //         if (["price", "basePrice", "gstAmount"].includes(colInfo.id)) {
+  //           cell.numFmt = "#,##0.00";
+  //         } else if (
+  //           colInfo.id === "quantity" ||
+  //           colInfo.id === "serialNoSub"
+  //         ) {
+  //           cell.numFmt = "#,##0";
+  //         } else {
+  //           const customDef = customColumns.find((cc) => cc.id === colInfo.id);
+  //           if (customDef && customDef.type === "arithmetic") {
+  //             cell.numFmt = "0.00##";
+  //           } else {
+  //             cell.numFmt = "#,##0.####";
+  //           }
+  //         }
+  //       }
+  //     });
+  //   });
+
+  //   excelColumnsStructure.forEach((colInfo, i) => {
+  //     const column = worksheet.getColumn(i + 1);
+  //     let maxLength = colInfo.header.length;
+  //     stocks.forEach((stock, stockIdx) => {
+  //       let cellValueStr = "";
+  //       if (
+  //         colInfo.parentGroup ===
+  //           getColumnEffectiveDisplayName(STOCK_REGISTER_GROUP_KEY) &&
+  //         colInfo.dataKeyForStock
+  //       )
+  //         cellValueStr = String(
+  //           stock[colInfo.dataKeyForStock as keyof Stock] ?? ""
+  //         );
+  //       else if (colInfo.id === "displaySerialNo")
+  //         cellValueStr = String(stockIdx + 1);
+  //       else {
+  //         const customDef = customColumns.find((cc) => cc.id === colInfo.id);
+  //         if (customDef)
+  //           cellValueStr = String(
+  //             computeCustomColumnValue(
+  //               stock,
+  //               colInfo.id,
+  //               customColumns,
+  //               stocks,
+  //               stockIdx
+  //             ) ?? ""
+  //           );
+  //         else {
+  //           const val = stock[colInfo.id as keyof Stock];
+  //           cellValueStr = Array.isArray(val)
+  //             ? val.join(", ")
+  //             : String(val ?? "");
+  //         }
+  //       }
+  //       if (cellValueStr.length > maxLength) maxLength = cellValueStr.length;
+  //     });
+  //     if (colInfo.id === "stockDescription") column.width = 40;
+  //     else if (colInfo.id === "stockName") column.width = 25;
+  //     else column.width = Math.max(10, Math.min(30, maxLength + 2));
+  //   });
+
+  //   worksheet.pageSetup.printTitlesRow = `${mainHeaderRow1Number}:${
+  //     isStockRegisterGroupSelected
+  //       ? mainHeaderRow1Number + 1
+  //       : mainHeaderRow1Number
+  //   }`;
+  //   worksheet.pageSetup.orientation = "landscape";
+  //   worksheet.pageSetup.fitToPage = true;
+  //   worksheet.pageSetup.fitToWidth = 1;
+  //   worksheet.pageSetup.fitToHeight = 0; // Allow multiple pages vertically
+  //   worksheet.pageSetup.margins = {
+  //     left: 0.5,
+  //     right: 0.5,
+  //     top: 0.75,
+  //     bottom: 0.75,
+  //     header: 0.3,
+  //     footer: 0.3,
+  //   };
+
+  //   const buffer = await workbook.xlsx.writeBuffer();
+  //   const blob = new Blob([buffer], {
+  //     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  //   });
+  //   const url = window.URL.createObjectURL(blob);
+  //   const link = document.createElement("a");
+  //   link.href = url;
+  //   link.download = `Stock_Report_${startDate}_to_${endDate}.xlsx`;
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  //   window.URL.revokeObjectURL(url);
+  // };
+
+  const MAX_EXCEL_CELL_LENGTH = 32767;
+
   const exportToExcel = async () => {
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Stock Report");
+    const worksheet = workbook.addWorksheet("Stock_Report");
+
     const isStockRegisterGroupSelected =
       selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
       columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
@@ -1557,8 +2143,10 @@ const ReportGeneration: React.FC = () => {
       parentGroup?: string;
       dataKeyForStock?: keyof Stock;
     }[] = [];
+
     columnOrder.forEach((colKey) => {
       if (!selectedColumns[colKey]) return;
+
       if (colKey === STOCK_REGISTER_GROUP_KEY) {
         STOCK_REG_SUB_COLUMNS.forEach((sc) =>
           excelColumnsStructure.push({
@@ -1582,10 +2170,12 @@ const ReportGeneration: React.FC = () => {
 
     const colCount = excelColumnsStructure.length;
     if (colCount === 0) return;
+
     let currentRowIdx = 1;
+
     const styleCell = (
       cell: ExcelJS.Cell,
-      style: Partial<ExcelJS.Style & { value: any }>
+      style: Partial<ExcelJS.Style> & { value?: any }
     ) => {
       cell.border = {
         top: { style: "thin" },
@@ -1593,16 +2183,16 @@ const ReportGeneration: React.FC = () => {
         bottom: { style: "thin" },
         right: { style: "thin" },
       };
-      cell.font = { ...cell.font, ...style.font };
-      cell.alignment = { ...cell.alignment, ...style.alignment };
-      cell.fill = { ...cell.fill, ...style.fill };
       if (style.value !== undefined) cell.value = style.value;
+      if (style.font) cell.font = style.font;
+      if (style.alignment) cell.alignment = style.alignment;
+      if (style.fill) cell.fill = style.fill;
     };
 
-    if (columnAliases.annexure) {
+    const addCenteredMergedRow = (value: string) => {
       worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
       styleCell(worksheet.getCell(currentRowIdx, 1), {
-        value: columnAliases.annexure,
+        value,
         font: { bold: true, size: 12 },
         alignment: { horizontal: "center", vertical: "middle" },
         fill: {
@@ -1613,76 +2203,34 @@ const ReportGeneration: React.FC = () => {
       });
       worksheet.getRow(currentRowIdx).height = 20;
       currentRowIdx++;
-    }
+    };
+
+    if (columnAliases.annexure) addCenteredMergedRow(columnAliases.annexure);
+
     if (columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo) {
-      const midPoint = Math.ceil(colCount / 2);
+      const mid = Math.ceil(colCount / 2);
       if (columnAliases.nameOfCenter && columnAliases.stockRegNameAndVolNo) {
-        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, midPoint);
+        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, mid);
+        worksheet.mergeCells(currentRowIdx, mid + 1, currentRowIdx, colCount);
         styleCell(worksheet.getCell(currentRowIdx, 1), {
           value: columnAliases.nameOfCenter,
           alignment: { horizontal: "center", vertical: "middle" },
-          fill: {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFFFFFFF" },
-          },
         });
-        worksheet.mergeCells(
-          currentRowIdx,
-          midPoint + 1,
-          currentRowIdx,
-          colCount
+        styleCell(worksheet.getCell(currentRowIdx, mid + 1), {
+          value: columnAliases.stockRegNameAndVolNo,
+          alignment: { horizontal: "center", vertical: "middle" },
+        });
+      } else {
+        addCenteredMergedRow(
+          columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo
         );
-        styleCell(worksheet.getCell(currentRowIdx, midPoint + 1), {
-          value: columnAliases.stockRegNameAndVolNo,
-          alignment: { horizontal: "center", vertical: "middle" },
-          fill: {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFFFFFFF" },
-          },
-        });
-      } else if (columnAliases.nameOfCenter) {
-        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
-        styleCell(worksheet.getCell(currentRowIdx, 1), {
-          value: columnAliases.nameOfCenter,
-          alignment: { horizontal: "center", vertical: "middle" },
-          fill: {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFFFFFFF" },
-          },
-        });
-      } else if (columnAliases.stockRegNameAndVolNo) {
-        worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
-        styleCell(worksheet.getCell(currentRowIdx, 1), {
-          value: columnAliases.stockRegNameAndVolNo,
-          alignment: { horizontal: "center", vertical: "middle" },
-          fill: {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FFFFFFFF" },
-          },
-        });
       }
       worksheet.getRow(currentRowIdx).height = 20;
       currentRowIdx++;
     }
-    if (columnAliases.statementOfVerification) {
-      worksheet.mergeCells(currentRowIdx, 1, currentRowIdx, colCount);
-      styleCell(worksheet.getCell(currentRowIdx, 1), {
-        value: columnAliases.statementOfVerification,
-        font: { bold: true, size: 12 },
-        alignment: { horizontal: "center", vertical: "middle" },
-        fill: {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFFFFFFF" },
-        },
-      });
-      worksheet.getRow(currentRowIdx).height = 20;
-      currentRowIdx++;
-    }
+
+    if (columnAliases.statementOfVerification)
+      addCenteredMergedRow(columnAliases.statementOfVerification);
 
     const headerRow1Values: (string | null)[] = [];
     columnOrder
@@ -1697,9 +2245,9 @@ const ReportGeneration: React.FC = () => {
         }
       });
 
-    const r1 = worksheet.addRow(headerRow1Values);
-    r1.height = 25;
-    r1.eachCell((cell) =>
+    const headerRow = worksheet.addRow(headerRow1Values);
+    headerRow.height = 25;
+    headerRow.eachCell((cell) =>
       styleCell(cell, {
         font: { bold: true, size: 9 },
         alignment: { horizontal: "center", vertical: "middle", wrapText: true },
@@ -1711,42 +2259,44 @@ const ReportGeneration: React.FC = () => {
       })
     );
 
-    let currentExcelCol = 1;
+    let excelCol = 1;
     columnOrder
       .filter((colKey) => selectedColumns[colKey])
       .forEach((colKey) => {
         if (colKey === STOCK_REGISTER_GROUP_KEY) {
           worksheet.mergeCells(
             currentRowIdx,
-            currentExcelCol,
+            excelCol,
             currentRowIdx,
-            currentExcelCol + STOCK_REG_SUB_COLUMNS.length - 1
+            excelCol + STOCK_REG_SUB_COLUMNS.length - 1
           );
-          currentExcelCol += STOCK_REG_SUB_COLUMNS.length;
+          excelCol += STOCK_REG_SUB_COLUMNS.length;
         } else {
-          if (isStockRegisterGroupSelected)
+          if (isStockRegisterGroupSelected) {
             worksheet.mergeCells(
               currentRowIdx,
-              currentExcelCol,
+              excelCol,
               currentRowIdx + 1,
-              currentExcelCol
+              excelCol
             );
-          currentExcelCol++;
+          }
+          excelCol++;
         }
       });
-    const mainHeaderRow1Number = currentRowIdx;
+
+    const mainHeaderRow = currentRowIdx;
     currentRowIdx++;
 
     if (isStockRegisterGroupSelected) {
-      let excelColForSub = 1;
+      let subColIdx = 1;
       columnOrder
         .filter((colKey) => selectedColumns[colKey])
         .forEach((colKey) => {
           if (colKey === STOCK_REGISTER_GROUP_KEY) {
             STOCK_REG_SUB_COLUMNS.forEach((sc) => {
-              worksheet.getCell(currentRowIdx, excelColForSub).value =
-                sc.defaultHeader;
-              styleCell(worksheet.getCell(currentRowIdx, excelColForSub), {
+              const cell = worksheet.getCell(currentRowIdx, subColIdx++);
+              styleCell(cell, {
+                value: sc.defaultHeader,
                 font: { bold: true, size: 9 },
                 alignment: {
                   horizontal: "center",
@@ -1759,10 +2309,9 @@ const ReportGeneration: React.FC = () => {
                   fgColor: { argb: "FFFFFFFF" },
                 },
               });
-              excelColForSub++;
             });
           } else {
-            excelColForSub++; // Increment even if not stock_register_group to keep columns aligned
+            subColIdx++;
           }
         });
       worksheet.getRow(currentRowIdx).height = 25;
@@ -1771,119 +2320,104 @@ const ReportGeneration: React.FC = () => {
 
     stocks.forEach((stock, idx) => {
       const rowData = excelColumnsStructure.map((colInfo) => {
-        if (
-          colInfo.parentGroup ===
-            getColumnEffectiveDisplayName(STOCK_REGISTER_GROUP_KEY) &&
-          colInfo.dataKeyForStock
-        )
-          return stock[colInfo.dataKeyForStock as keyof Stock] ?? "";
-        if (colInfo.id === "displaySerialNo") return idx + 1;
-        const customDef = customColumns.find((cc) => cc.id === colInfo.id);
-        if (customDef)
-          return computeCustomColumnValue(
-            stock,
-            colInfo.id,
-            customColumns,
-            stocks,
-            idx
-          );
+        let value: any = "";
+        if (colInfo.id === "displaySerialNo") value = idx + 1;
+        else if (colInfo.dataKeyForStock) {
+          value = stock[colInfo.dataKeyForStock];
+        } else {
+          const custom = customColumns.find((cc) => cc.id === colInfo.id);
+          value = custom
+            ? computeCustomColumnValue(
+                stock,
+                colInfo.id,
+                customColumns,
+                stocks,
+                idx
+              )
+            : stock[colInfo.id as keyof Stock];
+        }
 
-        const val = stock[colInfo.id as keyof Stock];
-        return Array.isArray(val) ? val.join(", ") : val ?? ""; // Join arrays for Excel
+        const strVal = Array.isArray(value)
+          ? value.join(", ")
+          : String(value ?? "");
+        return strVal.length > MAX_EXCEL_CELL_LENGTH
+          ? strVal.substring(0, MAX_EXCEL_CELL_LENGTH)
+          : strVal;
       });
+
       const dataRow = worksheet.addRow(rowData);
       dataRow.height = 18;
+
       dataRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
         const colInfo = excelColumnsStructure[colNum - 1];
-        if (!colInfo) return;
+        const isNumber = !isNaN(Number(cell.value));
+        const numberFormatCols = ["price", "basePrice", "gstAmount"];
+        const centeredCols = [
+          "quantity",
+          "price",
+          "basePrice",
+          "gstAmount",
+          "displaySerialNo",
+          ...STOCK_REG_SUB_COLUMNS.map((s) => s.id),
+        ];
+
         styleCell(cell, {
           font: { size: 8 },
           alignment: {
             vertical: "top",
             wrapText: true,
-            horizontal: [
-              "quantity",
-              "price",
-              "basePrice",
-              "gstAmount",
-              "displaySerialNo",
-              ...STOCK_REG_SUB_COLUMNS.map((s) => s.id),
-            ].includes(colInfo.id)
-              ? "center"
-              : "left",
+            horizontal: centeredCols.includes(colInfo.id) ? "center" : "left",
           },
         });
 
-        if (typeof cell.value === "number") {
-          if (["price", "basePrice", "gstAmount"].includes(colInfo.id)) {
-            cell.numFmt = "#,##0.00";
-          } else if (
-            colInfo.id === "quantity" ||
-            colInfo.id === "serialNoSub"
-          ) {
-            cell.numFmt = "#,##0";
-          } else {
-            const customDef = customColumns.find((cc) => cc.id === colInfo.id);
-            if (customDef && customDef.type === "arithmetic") {
-              cell.numFmt = "0.00##";
-            } else {
-              cell.numFmt = "#,##0.####";
-            }
-          }
+        if (isNumber) {
+          if (numberFormatCols.includes(colInfo.id)) cell.numFmt = "#,##0.00";
+          else if (colInfo.id === "quantity") cell.numFmt = "#,##0";
         }
       });
     });
 
     excelColumnsStructure.forEach((colInfo, i) => {
       const column = worksheet.getColumn(i + 1);
-      let maxLength = colInfo.header.length;
-      stocks.forEach((stock, stockIdx) => {
-        let cellValueStr = "";
-        if (
-          colInfo.parentGroup ===
-            getColumnEffectiveDisplayName(STOCK_REGISTER_GROUP_KEY) &&
-          colInfo.dataKeyForStock
-        )
-          cellValueStr = String(
-            stock[colInfo.dataKeyForStock as keyof Stock] ?? ""
-          );
-        else if (colInfo.id === "displaySerialNo")
-          cellValueStr = String(stockIdx + 1);
+      let maxLen = colInfo.header.length;
+
+      stocks.forEach((stock, idx) => {
+        let val = "";
+        if (colInfo.id === "displaySerialNo") val = String(idx + 1);
+        else if (colInfo.dataKeyForStock)
+          val = String(stock[colInfo.dataKeyForStock] ?? "");
         else {
-          const customDef = customColumns.find((cc) => cc.id === colInfo.id);
-          if (customDef)
-            cellValueStr = String(
-              computeCustomColumnValue(
-                stock,
-                colInfo.id,
-                customColumns,
-                stocks,
-                stockIdx
-              ) ?? ""
-            );
-          else {
-            const val = stock[colInfo.id as keyof Stock];
-            cellValueStr = Array.isArray(val)
-              ? val.join(", ")
-              : String(val ?? "");
-          }
+          const custom = customColumns.find((cc) => cc.id === colInfo.id);
+          val = custom
+            ? String(
+                computeCustomColumnValue(
+                  stock,
+                  colInfo.id,
+                  customColumns,
+                  stocks,
+                  idx
+                )
+              )
+            : String(stock[colInfo.id as keyof Stock] ?? "");
         }
-        if (cellValueStr.length > maxLength) maxLength = cellValueStr.length;
+        if (val.length > maxLen) maxLen = val.length;
       });
-      if (colInfo.id === "stockDescription") column.width = 40;
-      else if (colInfo.id === "stockName") column.width = 25;
-      else column.width = Math.max(10, Math.min(30, maxLength + 2));
+
+      column.width =
+        colInfo.id === "stockDescription"
+          ? 40
+          : colInfo.id === "stockName"
+          ? 25
+          : Math.max(10, Math.min(30, maxLen + 2));
     });
 
-    worksheet.pageSetup.printTitlesRow = `${mainHeaderRow1Number}:${
-      isStockRegisterGroupSelected
-        ? mainHeaderRow1Number + 1
-        : mainHeaderRow1Number
+    worksheet.pageSetup.printTitlesRow = `${mainHeaderRow}:${
+      isStockRegisterGroupSelected ? mainHeaderRow + 1 : mainHeaderRow
     }`;
     worksheet.pageSetup.orientation = "landscape";
     worksheet.pageSetup.fitToPage = true;
     worksheet.pageSetup.fitToWidth = 1;
-    worksheet.pageSetup.fitToHeight = 0; // Allow multiple pages vertically
+    worksheet.pageSetup.fitToHeight = 0;
     worksheet.pageSetup.margins = {
       left: 0.5,
       right: 0.5,
@@ -1900,241 +2434,242 @@ const ReportGeneration: React.FC = () => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Stock_Report_${selectedYear || "AllYears"}.xlsx`;
+    link.download = `Stock_Report_${startDate}_to_${endDate}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   };
 
-  const exportToPDF = (
-    pageSize: "a4" | "a3" | "a2" | "letter" | "legal" = "a4"
-  ) => {
-    const doc = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: pageSize,
-    });
-    const isStockRegisterGroupSelected =
-      selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
-      columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
 
-    const head: any[][] = [];
-    const headRow1: any[] = [];
-    columnOrder
-      .filter((colKey) => selectedColumns[colKey])
-      .forEach((colKey) => {
-        if (colKey === STOCK_REGISTER_GROUP_KEY)
-          headRow1.push({
-            content: getColumnEffectiveDisplayName(colKey),
-            colSpan: STOCK_REG_SUB_COLUMNS.length,
-          });
-        else
-          headRow1.push({
-            content: getColumnEffectiveDisplayName(colKey),
-            rowSpan: isStockRegisterGroupSelected ? 2 : 1,
-          });
-      });
-    head.push(headRow1);
+  // const exportToPDF = (
+  //   pageSize: "a4" | "a3" | "a2" | "letter" | "legal" = "a4"
+  // ) => {
+  //   const doc = new jsPDF({
+  //     orientation: "landscape",
+  //     unit: "mm",
+  //     format: pageSize,
+  //   });
+  //   const isStockRegisterGroupSelected =
+  //     selectedColumns[STOCK_REGISTER_GROUP_KEY] === true &&
+  //     columnOrder.includes(STOCK_REGISTER_GROUP_KEY);
 
-    if (isStockRegisterGroupSelected) {
-      const dynamicHeadRow2: any[] = [];
-      // This logic needs to ensure that subheaders are only added under the STOCK_REGISTER_GROUP_KEY
-      // For PDF, autotable handles cell placement based on colSpans in previous rows
-      columnOrder
-        .filter((colKey) => selectedColumns[colKey])
-        .forEach((colKey) => {
-          if (colKey === STOCK_REGISTER_GROUP_KEY) {
-            STOCK_REG_SUB_COLUMNS.forEach((sc) =>
-              dynamicHeadRow2.push(sc.defaultHeader)
-            );
-          }
-          // No 'else' needed here, as rowSpanned cells from headRow1 cover other columns
-        });
-      if (dynamicHeadRow2.length > 0) head.push(dynamicHeadRow2);
-    }
+  //   const head: any[][] = [];
+  //   const headRow1: any[] = [];
+  //   columnOrder
+  //     .filter((colKey) => selectedColumns[colKey])
+  //     .forEach((colKey) => {
+  //       if (colKey === STOCK_REGISTER_GROUP_KEY)
+  //         headRow1.push({
+  //           content: getColumnEffectiveDisplayName(colKey),
+  //           colSpan: STOCK_REG_SUB_COLUMNS.length,
+  //         });
+  //       else
+  //         headRow1.push({
+  //           content: getColumnEffectiveDisplayName(colKey),
+  //           rowSpan: isStockRegisterGroupSelected ? 2 : 1,
+  //         });
+  //     });
+  //   head.push(headRow1);
 
-    const body = stocks.map((stock, idx) => {
-      const rowData: (string | number)[] = [];
-      columnOrder
-        .filter((colKey) => selectedColumns[colKey])
-        .forEach((outerColKey) => {
-          if (outerColKey === STOCK_REGISTER_GROUP_KEY)
-            STOCK_REG_SUB_COLUMNS.forEach((sc) =>
-              rowData.push(String(stock[sc.dataKey as keyof Stock] ?? ""))
-            );
-          else if (outerColKey === "displaySerialNo")
-            rowData.push(String(idx + 1));
-          else {
-            const customDef = customColumns.find((cc) => cc.id === outerColKey);
-            if (customDef)
-              rowData.push(
-                String(
-                  computeCustomColumnValue(
-                    stock,
-                    outerColKey,
-                    customColumns,
-                    stocks,
-                    idx
-                  ) ?? ""
-                )
-              );
-            else {
-              const val = stock[outerColKey as keyof Stock];
-              rowData.push(
-                Array.isArray(val) ? val.join(", ") : String(val ?? "")
-              ); // Join arrays for PDF
-            }
-          }
-        });
-      return rowData;
-    });
+  //   if (isStockRegisterGroupSelected) {
+  //     const dynamicHeadRow2: any[] = [];
+  //     // This logic needs to ensure that subheaders are only added under the STOCK_REGISTER_GROUP_KEY
+  //     // For PDF, autotable handles cell placement based on colSpans in previous rows
+  //     columnOrder
+  //       .filter((colKey) => selectedColumns[colKey])
+  //       .forEach((colKey) => {
+  //         if (colKey === STOCK_REGISTER_GROUP_KEY) {
+  //           STOCK_REG_SUB_COLUMNS.forEach((sc) =>
+  //             dynamicHeadRow2.push(sc.defaultHeader)
+  //           );
+  //         }
+  //         // No 'else' needed here, as rowSpanned cells from headRow1 cover other columns
+  //       });
+  //     if (dynamicHeadRow2.length > 0) head.push(dynamicHeadRow2);
+  //   }
 
-    const columnStyles: any = {};
-    let currentPdfColIndex = 0;
-    columnOrder
-      .filter((colKey) => selectedColumns[colKey])
-      .forEach((outerColKey) => {
-        if (outerColKey === STOCK_REGISTER_GROUP_KEY) {
-          STOCK_REG_SUB_COLUMNS.forEach((subCol) => {
-            columnStyles[currentPdfColIndex++] = {
-              halign: ["volNoSub", "pageNoSub", "serialNoSub"].includes(
-                subCol.id
-              )
-                ? "center"
-                : "left",
-            };
-          });
-        } else {
-          columnStyles[currentPdfColIndex++] = {
-            halign: [
-              "quantity",
-              "price",
-              "basePrice",
-              "gstAmount",
-              "displaySerialNo",
-            ].includes(outerColKey)
-              ? "center"
-              : "left",
-          };
-        }
-      });
+  //   const body = stocks.map((stock, idx) => {
+  //     const rowData: (string | number)[] = [];
+  //     columnOrder
+  //       .filter((colKey) => selectedColumns[colKey])
+  //       .forEach((outerColKey) => {
+  //         if (outerColKey === STOCK_REGISTER_GROUP_KEY)
+  //           STOCK_REG_SUB_COLUMNS.forEach((sc) =>
+  //             rowData.push(String(stock[sc.dataKey as keyof Stock] ?? ""))
+  //           );
+  //         else if (outerColKey === "displaySerialNo")
+  //           rowData.push(String(idx + 1));
+  //         else {
+  //           const customDef = customColumns.find((cc) => cc.id === outerColKey);
+  //           if (customDef)
+  //             rowData.push(
+  //               String(
+  //                 computeCustomColumnValue(
+  //                   stock,
+  //                   outerColKey,
+  //                   customColumns,
+  //                   stocks,
+  //                   idx
+  //                 ) ?? ""
+  //               )
+  //             );
+  //           else {
+  //             const val = stock[outerColKey as keyof Stock];
+  //             rowData.push(
+  //               Array.isArray(val) ? val.join(", ") : String(val ?? "")
+  //             ); // Join arrays for PDF
+  //           }
+  //         }
+  //       });
+  //     return rowData;
+  //   });
 
-    let startY = 10;
-    const margin = 10;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const availableWidth = pageWidth - margin * 2;
-    const drawManualHeader = (
-      text: string | undefined,
-      yPos: number,
-      isBold = false,
-      isCentered = true,
-      colSpan = 1,
-      splitCols?: number
-    ): number => {
-      if (
-        !text &&
-        !(
-          splitCols &&
-          colSpan === 2 &&
-          columnAliases.nameOfCenter &&
-          columnAliases.stockRegNameAndVolNo
-        )
-      )
-        return yPos;
-      doc.setFont("helvetica", isBold ? "bold" : "normal");
-      doc.setFontSize(isBold ? 9 : 8);
-      const textHeight = 7;
-      if (
-        splitCols &&
-        colSpan === 2 &&
-        columnAliases.nameOfCenter &&
-        columnAliases.stockRegNameAndVolNo
-      ) {
-        const firstColWidth = availableWidth / 2;
-        const secondColWidth = availableWidth / 2;
-        doc.text(
-          columnAliases.nameOfCenter,
-          margin + firstColWidth / 2,
-          yPos + textHeight / 2 + 1.5,
-          { align: "center", maxWidth: firstColWidth - 4 }
-        );
-        doc.text(
-          columnAliases.stockRegNameAndVolNo,
-          margin + firstColWidth + secondColWidth / 2,
-          yPos + textHeight / 2 + 1.5,
-          { align: "center", maxWidth: secondColWidth - 4 }
-        );
-      } else if (text) {
-        doc.text(
-          text,
-          isCentered ? pageWidth / 2 : margin + 2,
-          yPos + textHeight / 2 + 1.5,
-          {
-            align: isCentered ? "center" : "left",
-            maxWidth: availableWidth - 4,
-          }
-        );
-      }
-      yPos += textHeight + 1;
-      return yPos;
-    };
+  //   const columnStyles: any = {};
+  //   let currentPdfColIndex = 0;
+  //   columnOrder
+  //     .filter((colKey) => selectedColumns[colKey])
+  //     .forEach((outerColKey) => {
+  //       if (outerColKey === STOCK_REGISTER_GROUP_KEY) {
+  //         STOCK_REG_SUB_COLUMNS.forEach((subCol) => {
+  //           columnStyles[currentPdfColIndex++] = {
+  //             halign: ["volNoSub", "pageNoSub", "serialNoSub"].includes(
+  //               subCol.id
+  //             )
+  //               ? "center"
+  //               : "left",
+  //           };
+  //         });
+  //       } else {
+  //         columnStyles[currentPdfColIndex++] = {
+  //           halign: [
+  //             "quantity",
+  //             "price",
+  //             "basePrice",
+  //             "gstAmount",
+  //             "displaySerialNo",
+  //           ].includes(outerColKey)
+  //             ? "center"
+  //             : "left",
+  //         };
+  //       }
+  //     });
 
-    startY = drawManualHeader(columnAliases.annexure, startY, true, true);
-    if (columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo) {
-      if (columnAliases.nameOfCenter && columnAliases.stockRegNameAndVolNo)
-        startY = drawManualHeader(undefined, startY, false, true, 2, 2);
-      else if (columnAliases.nameOfCenter)
-        startY = drawManualHeader(
-          columnAliases.nameOfCenter,
-          startY,
-          false,
-          true
-        );
-      else if (columnAliases.stockRegNameAndVolNo)
-        startY = drawManualHeader(
-          columnAliases.stockRegNameAndVolNo,
-          startY,
-          false,
-          true
-        );
-    }
-    startY = drawManualHeader(
-      columnAliases.statementOfVerification,
-      startY,
-      true,
-      true
-    );
-    startY += 2;
+  //   let startY = 10;
+  //   const margin = 10;
+  //   const pageWidth = doc.internal.pageSize.getWidth();
+  //   const availableWidth = pageWidth - margin * 2;
+  //   const drawManualHeader = (
+  //     text: string | undefined,
+  //     yPos: number,
+  //     isBold = false,
+  //     isCentered = true,
+  //     colSpan = 1,
+  //     splitCols?: number
+  //   ): number => {
+  //     if (
+  //       !text &&
+  //       !(
+  //         splitCols &&
+  //         colSpan === 2 &&
+  //         columnAliases.nameOfCenter &&
+  //         columnAliases.stockRegNameAndVolNo
+  //       )
+  //     )
+  //       return yPos;
+  //     doc.setFont("helvetica", isBold ? "bold" : "normal");
+  //     doc.setFontSize(isBold ? 9 : 8);
+  //     const textHeight = 7;
+  //     if (
+  //       splitCols &&
+  //       colSpan === 2 &&
+  //       columnAliases.nameOfCenter &&
+  //       columnAliases.stockRegNameAndVolNo
+  //     ) {
+  //       const firstColWidth = availableWidth / 2;
+  //       const secondColWidth = availableWidth / 2;
+  //       doc.text(
+  //         columnAliases.nameOfCenter,
+  //         margin + firstColWidth / 2,
+  //         yPos + textHeight / 2 + 1.5,
+  //         { align: "center", maxWidth: firstColWidth - 4 }
+  //       );
+  //       doc.text(
+  //         columnAliases.stockRegNameAndVolNo,
+  //         margin + firstColWidth + secondColWidth / 2,
+  //         yPos + textHeight / 2 + 1.5,
+  //         { align: "center", maxWidth: secondColWidth - 4 }
+  //       );
+  //     } else if (text) {
+  //       doc.text(
+  //         text,
+  //         isCentered ? pageWidth / 2 : margin + 2,
+  //         yPos + textHeight / 2 + 1.5,
+  //         {
+  //           align: isCentered ? "center" : "left",
+  //           maxWidth: availableWidth - 4,
+  //         }
+  //       );
+  //     }
+  //     yPos += textHeight + 1;
+  //     return yPos;
+  //   };
 
-    autoTable(doc, {
-      head: head,
-      body: body,
-      startY: startY,
-      theme: "grid",
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        fontStyle: "bold",
-        halign: "center",
-        valign: "middle",
-      },
-      columnStyles: columnStyles,
-      didDrawPage: (hookData: any) => {
-        const pageCount = (doc as any).internal.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.text(
-          `Page ${hookData.pageNumber} of ${pageCount}`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - margin / 2,
-          { align: "center" }
-        );
-      },
-    });
-    doc.save(
-      `Stock_Report_${selectedYear || "AllYears"}_${pageSize.toUpperCase()}.pdf`
-    );
-  };
+  //   startY = drawManualHeader(columnAliases.annexure, startY, true, true);
+  //   if (columnAliases.nameOfCenter || columnAliases.stockRegNameAndVolNo) {
+  //     if (columnAliases.nameOfCenter && columnAliases.stockRegNameAndVolNo)
+  //       startY = drawManualHeader(undefined, startY, false, true, 2, 2);
+  //     else if (columnAliases.nameOfCenter)
+  //       startY = drawManualHeader(
+  //         columnAliases.nameOfCenter,
+  //         startY,
+  //         false,
+  //         true
+  //       );
+  //     else if (columnAliases.stockRegNameAndVolNo)
+  //       startY = drawManualHeader(
+  //         columnAliases.stockRegNameAndVolNo,
+  //         startY,
+  //         false,
+  //         true
+  //       );
+  //   }
+  //   startY = drawManualHeader(
+  //     columnAliases.statementOfVerification,
+  //     startY,
+  //     true,
+  //     true
+  //   );
+  //   startY += 2;
+
+  //   autoTable(doc, {
+  //     head: head,
+  //     body: body,
+  //     startY: startY,
+  //     theme: "grid",
+  //     headStyles: {
+  //       fillColor: [255, 255, 255],
+  //       textColor: [0, 0, 0],
+  //       fontStyle: "bold",
+  //       halign: "center",
+  //       valign: "middle",
+  //     },
+  //     columnStyles: columnStyles,
+  //     didDrawPage: (hookData: any) => {
+  //       const pageCount = (doc as any).internal.getNumberOfPages();
+  //       doc.setFontSize(8);
+  //       doc.text(
+  //         `Page ${hookData.pageNumber} of ${pageCount}`,
+  //         pageWidth / 2,
+  //         doc.internal.pageSize.getHeight() - margin / 2,
+  //         { align: "center" }
+  //       );
+  //     },
+  //   });
+  //   doc.save(
+  //     `Stock_Report_${selectedYear || "AllYears"}_${pageSize.toUpperCase()}.pdf`
+  //   );
+  // };
 
   const handlePrintTable = () => {
     window.print();
@@ -2197,7 +2732,23 @@ const ReportGeneration: React.FC = () => {
               + Add Custom Column
             </button>
           </div>
-          <FilterDropdown year={selectedYear} onYearChange={handleYearChange} />
+          {/* <FilterDropdown year={selectedYear} onYearChange={handleYearChange} /> */}
+          <FilterDateRangePicker
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+          />
+          {/* Display data based on selected dates */}
+          {startDate && endDate && (
+            <div className="mt-4 p-4 bg-gray-100 rounded-lg">
+              <p>
+                Filtering data from <strong>{startDate}</strong> to{" "}
+                <strong>{endDate}</strong>.
+              </p>
+              {/* Render your filtered data here */}
+            </div>
+          )}
           <ColumnSelection
             selectedColumns={selectedColumns}
             onToggleColumn={handleColumnSelection}
@@ -2211,6 +2762,7 @@ const ReportGeneration: React.FC = () => {
             moveColumn={moveColumn}
             onAliasChange={handleAliasChange}
             onAliasChangeForSpecialHeader={handleAliasChangeForSpecialHeader}
+            onRemoveCustomColumn={removeCustomColumnHandler}
           />
         </div>
         <div className="lg:w-2/3 flex flex-col">
@@ -2233,7 +2785,7 @@ const ReportGeneration: React.FC = () => {
           <div className="mt-auto pt-4 no-print">
             <ExportButtons
               onExportExcel={exportToExcel}
-              onExportPDF={exportToPDF}
+              // onExportPDF={exportToPDF}
               onPrintTable={handlePrintTable}
               hasData={
                 stocks.length > 0 && draggableColumnsForReorder.length > 0

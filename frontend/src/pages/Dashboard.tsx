@@ -42,7 +42,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!authLoading && !token && !localStorage.getItem("token")) {
       // If auth loading is complete and no token, redirect to login
-      toast.error("You need to log in to access the dashboard.");
+      toast.info("🔒 Please log in to access the MIT IT Stock Management System.");
       localStorage.removeItem("token");
       localStorage.removeItem("username"); 
       localStorage.removeItem("role"); 

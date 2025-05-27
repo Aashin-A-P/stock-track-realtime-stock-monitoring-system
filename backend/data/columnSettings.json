@@ -2,8 +2,8 @@
   "selectedColumns": {
     "displaySerialNo": true,
     "stockRegisterGroup": true,
-    "stockId": false,
-    "stockName": true,
+    "stockId": true,
+    "stockName": false,
     "stockDescription": false,
     "locations": false,
     "staffs": false,
@@ -12,125 +12,110 @@
     "basePrice": false,
     "gstAmount": false,
     "price": true,
-    "remarks": false,
+    "remarks": true,
     "budgetName": false,
     "categoryName": false,
     "invoiceNo": false,
     "purchaseOrderDate": false,
-    "invoiceDate": false,
+    "invoiceDate": true,
     "fromAddress": false,
     "toAddress": false,
     "status": false,
-    "custom_excess_1748248099539": true,
-    "custom_shortage_1748248117972": true,
-    "custom_stockidformater_1748248217758": false,
-    "custom_stock_identification_1748248258089": false,
-    "custom_stock_identify_1748248620525": true,
-    "custom_total_price_1748259605299": true
+    "custom_stock_item_and_description_1748317974848": true,
+    "custom_book_figure_quantity_1748318119091": true,
+    "custom_book_value_in_inr_1748318207152": true,
+    "custom_excess_1748318254341": true,
+    "custom_shortage_1748318263316": true
   },
   "columnOrder": [
     "displaySerialNo",
     "stockRegisterGroup",
-    "stockName",
+    "custom_stock_item_and_description_1748317974848",
+    "invoiceDate",
+    "stockId",
+    "usage",
+    "custom_book_figure_quantity_1748318119091",
+    "custom_book_value_in_inr_1748318207152",
     "quantity",
     "price",
-    "stockId",
-    "stockDescription",
+    "custom_excess_1748318254341",
+    "custom_shortage_1748318263316",
     "remarks",
+    "stockName",
+    "stockDescription",
     "budgetName",
     "categoryName",
     "invoiceNo",
     "fromAddress",
     "toAddress",
     "status",
-    "custom_excess_1748248099539",
-    "custom_shortage_1748248117972",
-    "custom_stockidformater_1748248217758",
-    "custom_stock_identification_1748248258089",
-    "custom_stock_identify_1748248620525",
     "basePrice",
     "gstAmount",
     "purchaseOrderDate",
-    "invoiceDate",
-    "custom_total_price_1748259605299",
     "locations",
-    "staffs",
-    "usage"
+    "staffs"
   ],
   "columnAliases": {
-    "annexure": "ANNEXURE - I",
-    "nameOfCenter": "Name of the Center/Department: Example Department",
-    "stockRegNameAndVolNo": "Name of the Stock Register & Vol.No: Example Register Vol. 1",
-    "statementOfVerification": "STATEMENT SHOWING THE DETAILS OF VERIFICATION OF STORES AND STOCK FOR THE YEAR 2023-2024",
-    "displaySerialNo": "S.No.",
-    "stockRegisterGroup": "Stock Register",
-    "stockId": "Stock Id",
+    "annexure": "ANNEXURE - II",
+    "nameOfCenter": "Name of the Center: Department of Information Technology",
+    "stockRegNameAndVolNo": "Stock Register Name & Volume No: Non-Consumable Register Vol-1, Vol-2, and Vol-3",
+    "statementOfVerification": "STATEMENT OF VERIFICATION OF STOCKS as on 31.03.2024",
+    "displaySerialNo": "SI.NO",
+    "stockRegisterGroup": "STOCK REGISTER",
+    "stockId": "STOCK ITEM IDENTIFICATION NUMBER",
     "stockName": "Stock Name",
     "stockDescription": "Stock Description",
     "locations": "Locations",
     "staffs": "Staffs",
-    "usage": "Usage",
-    "quantity": "Quantity",
+    "usage": "LOCATION AND USAGE",
+    "quantity": "ACTUAL QUANTITY",
     "basePrice": "Base Price",
     "gstAmount": "Gst Amount",
-    "price": "Price",
+    "price": "VALUE OF ACTUALS IN INR",
     "remarks": "Remarks",
     "budgetName": "Budget Name",
     "categoryName": "Category Name",
     "invoiceNo": "Invoice No",
     "purchaseOrderDate": "Purchase Order Date",
-    "invoiceDate": "Invoice Date",
+    "invoiceDate": "Purchase Date",
     "fromAddress": "From Address",
     "toAddress": "To Address",
     "status": "Status"
   },
   "customColumns": [
     {
-      "id": "custom_excess_1748248099539",
-      "displayName": "Excess",
-      "type": "static",
-      "sourceColumns": [],
-      "staticValue": "NIL"
-    },
-    {
-      "id": "custom_shortage_1748248117972",
-      "displayName": "SHORTAGE",
-      "type": "static",
-      "sourceColumns": [],
-      "staticValue": "NIL"
-    },
-    {
-      "id": "custom_stockidformater_1748248217758",
-      "displayName": "stockIdformater",
-      "type": "static",
-      "sourceColumns": [],
-      "staticValue": "MIT/IT/"
-    },
-    {
-      "id": "custom_stock_identification_1748248258089",
-      "displayName": "Stock Identification",
+      "id": "custom_stock_item_and_description_1748317974848",
+      "displayName": "STOCK ITEM AND DESCRIPTION",
       "type": "concatenation",
       "sourceColumns": [
-        "stockId",
-        "custom_stockidformater_1748248217758"
+        "stockName",
+        "stockDescription"
       ],
       "separator": " "
     },
     {
-      "id": "custom_stock_identify_1748248620525",
-      "displayName": "Stock Identify",
-      "type": "concatenation",
-      "sourceColumns": [
-        "custom_stockidformater_1748248217758",
-        "stockId"
-      ],
-      "separator": " \"\""
+      "id": "custom_book_figure_quantity_1748318119091",
+      "displayName": "BOOK FIGURE QUANTITY",
+      "type": "arithmetic",
+      "arithmeticExpression": "quantity"
     },
     {
-      "id": "custom_total_price_1748259605299",
-      "displayName": "Total Price",
+      "id": "custom_book_value_in_inr_1748318207152",
+      "displayName": "BOOK VALUE IN INR",
       "type": "arithmetic",
-      "arithmeticExpression": "quantity * ( basePrice + gstAmount)"
+      "arithmeticExpression": "quantity * (basePrice + gstAmount)"
+    },
+    {
+      "id": "custom_excess_1748318254341",
+      "displayName": "EXCESS",
+      "type": "static",
+      "staticValue": "NIL"
+    },
+    {
+      "id": "custom_shortage_1748318263316",
+      "displayName": "SHORTAGE",
+      "type": "static",
+      "staticValue": "NIL"
     }
   ]
 }
