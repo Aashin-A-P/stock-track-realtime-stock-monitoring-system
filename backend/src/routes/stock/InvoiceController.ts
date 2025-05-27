@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../db/index";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { invoiceTable } from "../../db/schemas/invoicesSchema";
-import { Product } from '../../../../.history/frontend/src/types/index_20250526101116';
 import { productsTable } from "../../db/schemas/productsSchema";
 
 export const addInvoice = async (req: Request, res: Response) => {

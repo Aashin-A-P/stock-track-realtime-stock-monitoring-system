@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import BudgetForm from "../components/BudgetForm";
-import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 

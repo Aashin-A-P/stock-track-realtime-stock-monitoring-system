@@ -842,9 +842,8 @@ export const getReportData = async (req: Request, res: Response) => {
         remarks: group.remarks,
         locations: Array.from(group.locations),
         staffs: Array.from(group.staffs),
-        usage: Array.from(group.usageMap.entries()).map(
-          ([key, count]) => `${key} - count: ${count}`
-        ),
+        usage: Array.from(group.usageMap.entries() as [string, number][])
+        .map(([key, count]) => `${key} - count: ${count}`),
         stockId: Array.from(group.stockIds)[0] || null,
         price: group.price.toString(),
         quantity: group.quantity.toString(),

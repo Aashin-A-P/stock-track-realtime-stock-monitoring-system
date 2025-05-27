@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "../components/Navbar";
-import * as ExcelJS from "exceljs";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { DndProvider, useDrag, useDrop, DropTargetMonitor } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import FilterDateRangePicker from "../components/FilterDateRangePicker";
 import { toast } from "react-toastify";
+import ExcelJS from "exceljs";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -795,7 +793,13 @@ const StockTable: React.FC<StockTableProps> = ({
     );
   };
 
-  const renderableColumns = columnOrder
+  const renderableColumns: {
+    id: string;
+    header: string;
+    isSubColumn: boolean;
+    dataKeyForStock: keyof Stock;
+    parentGroupKey?: string;
+}[] = columnOrder
     .flatMap((colKey) => {
       if (!selectedColumns[colKey]) return [];
       if (colKey === STOCK_REGISTER_GROUP_KEY) {
@@ -951,8 +955,8 @@ const StockTable: React.FC<StockTableProps> = ({
               {renderableColumns.map((rCol) => {
                 let cellValue: string | number | undefined;
                 if (
-                  rCol.parentGroupKey === STOCK_REGISTER_GROUP_KEY &&
-                  rCol.dataKeyForStock
+                  rCol.parentGroupKey! === STOCK_REGISTER_GROUP_KEY &&
+                  rCol.dataKeyForStock!
                 ) {
                   cellValue = String(
                     stock[rCol.dataKeyForStock as keyof Stock] ?? ""
@@ -2247,7 +2251,7 @@ const ReportGeneration: React.FC = () => {
 
     const headerRow = worksheet.addRow(headerRow1Values);
     headerRow.height = 25;
-    headerRow.eachCell((cell) =>
+    headerRow.eachCell((cell: any) =>
       styleCell(cell, {
         font: { bold: true, size: 9 },
         alignment: { horizontal: "center", vertical: "middle", wrapText: true },
@@ -2348,7 +2352,7 @@ const ReportGeneration: React.FC = () => {
       const dataRow = worksheet.addRow(rowData);
       dataRow.height = 18;
 
-      dataRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      dataRow.eachCell({ includeEmpty: true }, (cell: any, colNum: any) => {
         const colInfo = excelColumnsStructure[colNum - 1];
         const isNumber = !isNaN(Number(cell.value));
         const numberFormatCols = ["price", "basePrice", "gstAmount"];
