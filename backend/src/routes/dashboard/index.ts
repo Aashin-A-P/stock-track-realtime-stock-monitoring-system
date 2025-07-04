@@ -7,14 +7,14 @@ const router = Router();
 // Route to get pie chart analysis data for the given year
 
 // @ts-ignore
-router.get('/analysis', verifyToken, AdminOnlyAccess, getPieChartAnalysis);
+router.get('/analysis', verifyToken, getPieChartAnalysis);
 // @ts-ignore
 
 // @ts-ignore
-router.get('/budget-years', verifyToken, AdminOnlyAccess, getAllYears);
+router.get('/budget-years', verifyToken, getAllYears);
 
 // @ts-ignore
-router.get('/all-years-analysis', verifyToken, AdminOnlyAccess, getAllYearPieChartAnalysis);
+router.get('/all-years-analysis', verifyToken, getAllYearPieChartAnalysis);
 
 
 

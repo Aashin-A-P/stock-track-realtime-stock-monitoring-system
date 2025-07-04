@@ -87,6 +87,7 @@ const Navbar: React.FC = () => {
                   Logs
                 </Link>
               </li>
+
               {role === "admin" && (
                 <>
                   <li>
@@ -97,25 +98,24 @@ const Navbar: React.FC = () => {
                       User Management
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      to="/reportgeneration"
-                      className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-                    >
-                      Report Generation
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/budgetform"
-                      className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
-                    >
-                      Budgets
-                    </Link>
-                  </li>
-
                 </>
               )}
+              <li>
+                <Link
+                  to="/reportgeneration"
+                  className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+                >
+                  Report Generation
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/budgetform"
+                  className="text-white hover:text-blue-300 transition duration-300 transform hover:scale-105"
+                >
+                  Budgets
+                </Link>
+              </li>
             </>
           )}
           <li></li>
