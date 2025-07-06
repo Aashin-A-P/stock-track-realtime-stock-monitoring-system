@@ -129,7 +129,7 @@ export const searchStock = async (req: Request, res: Response) => {
     };
 
     const columnType = columnTypes[column as string];
-    console.log(column);
+    // console.log(column);
     if (!columnType) {
       return res.status(400).send("Invalid column name");
     }
@@ -452,7 +452,7 @@ export const getPaginatedProducts = async (req: Request, res: Response) => {
 
     const columnType = columnTypes[column as string]; // columnType is declared but not used after this.
     // The whereClause logic below does not use columnType.
-    console.log(column,columnType);
+    // console.log(column,columnType);
     if (!columnType) {
       return res.status(400).send("Invalid column name");
     }

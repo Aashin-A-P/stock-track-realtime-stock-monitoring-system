@@ -78,11 +78,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
       }
 
       setLoading(true);
-      console.log(
-        `Dashboard loading started for year: ${
-          yearToFetch === 0 ? "All Years" : yearToFetch
-        }...`
-      );
+      // console.log(
+      //   `Dashboard loading started for year: ${
+      //     yearToFetch === 0 ? "All Years" : yearToFetch
+      //   }...`
+      // );
       setError(null);
 
       const controller = new AbortController();
@@ -119,11 +119,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
             ? `${API_URL}/dashboard/analysis?year=${yearToFetch}`
             : `${API_URL}/dashboard/all-years-analysis`;
 
-        console.log("Fetching analysis data from:", analysisEndpoint);
-        const analysisResponse = await fetch(analysisEndpoint, {
-          headers,
-          signal,
-        });
+        // console.log("Fetching analysis data from:", analysisEndpoint);
+        // const analysisResponse = await fetch(analysisEndpoint, {
+        //   headers,
+        //   signal,
+        // });
 
         if (!analysisResponse.ok) {
           const errorText = await analysisResponse.text();
@@ -137,7 +137,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
           );
         }
         const analysisResult = await analysisResponse.json();
-        console.log("Raw analysis data received:", analysisResult);
+        // console.log("Raw analysis data received:", analysisResult);
 
         // Normalize analysisResult to ensure monthlySpent is always an array of 12 numbers
         const processedAnalysisData: AnalysisData = (analysisResult || []).map(
@@ -158,11 +158,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
                 : Array(12).fill(0), // Default to array of 12 zeros if missing/malformed
           })
         );
-        console.log("Processed analysis data:", processedAnalysisData);
+        // console.log("Processed analysis data:", processedAnalysisData);
         setAnalysisData(processedAnalysisData);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
-          console.log("Fetch aborted");
+          // console.log("Fetch aborted");
         } else {
           const message =
             err instanceof Error ? err.message : "Unknown error occurred";
@@ -173,7 +173,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
         }
       } finally {
         setLoading(false);
-        console.log("Dashboard loading ended.");
+        // console.log("Dashboard loading ended.");
       }
     },
     [authTokenFromAuth]
@@ -182,14 +182,14 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
   // Initial data fetch on mount or when token changes
   useEffect(() => {
     if (authTokenFromAuth) {
-      console.log(
-        "Token available. Setting year to 0 and fetching initial data."
-      );
+      // console.log(
+      //   "Token available. Setting year to 0 and fetching initial data."
+      // );
       setYear(0); // Ensure year state is '0' for "all years"
       fetchData(0); // Fetch data for "all years"
     } else {
       // Clear data if token becomes unavailable (e.g., logout)
-      console.log("Token unavailable. Clearing dashboard data.");
+      // console.log("Token unavailable. Clearing dashboard data.");
       setAnalysisData(null);
       setLogs([]);
       setYears([]);

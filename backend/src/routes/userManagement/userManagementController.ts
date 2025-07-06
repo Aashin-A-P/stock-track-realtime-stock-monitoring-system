@@ -77,7 +77,7 @@ export const registerUser = async (
       privilegeId,
     }));
 
-    console.log("User Privileges Data", userPrivilegesData);
+    // console.log("User Privileges Data", userPrivilegesData);
 
     // Insert user-privilege relationships
     await db.insert(userPrivilegeTable).values(userPrivilegesData);
@@ -152,7 +152,7 @@ export const updateUser = async (
   try {
     const userId = Number(req.params.userId);
     const { userName, privileges } = req.cleanBody;
-    console.log("Update User", req.cleanBody);
+    // console.log("Update User", req.cleanBody);
 
     // Validate user ID
     if (!userId) {

@@ -1355,9 +1355,9 @@ const ReportGeneration: React.FC = () => {
   // This is where you would typically fetch or filter data based on startDate and endDate
   useEffect(() => {
     if (startDate && endDate) {
-      console.log("Selected date range for filtering:");
-      console.log("Start Date:", startDate);
-      console.log("End Date:", endDate);
+    //   console.log("Selected date range for filtering:");
+    //   console.log("Start Date:", startDate);
+    //   console.log("End Date:", endDate);
       // Example: fetchData(startDate, endDate);
     }
   }, [startDate, endDate]);
@@ -1400,7 +1400,7 @@ const ReportGeneration: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log("Data : ", JSON.stringify(data, null, 2));
+        // console.log("Data : ", JSON.stringify(data, null, 2));
         const loadedCustomColumns = Array.isArray(data.customColumns)
           ? data.customColumns
           : [];
@@ -1493,7 +1493,7 @@ const ReportGeneration: React.FC = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
 
         const rawApiData = await response.json();
-        console.log("Raw api data : ", JSON.stringify(rawApiData, null, 2));
+        // console.log("Raw api data : ", JSON.stringify(rawApiData, null, 2));
 
         const processedData = (Array.isArray(rawApiData) ? rawApiData : []).map(
           (item: any): Stock => {
@@ -1609,14 +1609,14 @@ const ReportGeneration: React.FC = () => {
     // --- Debugging Step: ---
     // Log the values here to confirm they are what you expect before calling the main logic.
     // If customColumns is undefined here, the problem is how this handler accesses the state.
-    console.log(
-      "Attempting to remove column. Current states in wrapper handler:"
-    );
-    console.log("columnIdToRemove:", columnIdToRemove);
-    console.log("customColumns:", customColumns); // Crucial check!
-    console.log("selectedColumns:", selectedColumns);
-    console.log("columnOrder:", columnOrder);
-    console.log("columnAliases:", columnAliases);
+    // console.log(
+    //   "Attempting to remove column. Current states in wrapper handler:"
+    // );
+    // console.log("columnIdToRemove:", columnIdToRemove);
+    // console.log("customColumns:", customColumns); // Crucial check!
+    // console.log("selectedColumns:", selectedColumns);
+    // console.log("columnOrder:", columnOrder);
+    // console.log("columnAliases:", columnAliases);
 
     // Ensure all arguments are correctly passed from the component's state
     handleRemoveCustomColumn(
@@ -1674,9 +1674,9 @@ const ReportGeneration: React.FC = () => {
       customColumns: newCustomCols,
     });
 
-    console.log(
-      `Custom column with ID "${columnIdToRemove}" has been removed.`
-    );
+    // console.log(
+    //   `Custom column with ID "${columnIdToRemove}" has been removed.`
+    // );
   };
 
   const moveColumn = (dragIndex: number, hoverIndex: number) => {

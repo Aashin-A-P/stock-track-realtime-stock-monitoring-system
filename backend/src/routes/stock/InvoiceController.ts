@@ -175,7 +175,7 @@ export const deleteInvoice = async (req: Request, res: Response) => {
 export const deleteAllProductsByInvoiceId = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    console.log("Delete Products Id invoice : ", id);
+    // console.log("Delete Products Id invoice : ", id);
 
     const result = await db
       .delete(productsTable)

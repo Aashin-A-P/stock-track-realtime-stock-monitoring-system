@@ -74,7 +74,7 @@ export const addUserPrivilege = async (req: Request, res: Response): Promise<voi
 export const getAllPrivileges = async (req: Request, res: Response): Promise<void> => {
   try {
     const privileges = await db.select().from(privilegesTable);
-    console.log('Privileges:', JSON.stringify(privileges, null, 2));
+    // console.log('Privileges:', JSON.stringify(privileges, null, 2));
 
     res.status(200).json({ privileges });
   } catch (error) {

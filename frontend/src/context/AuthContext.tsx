@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Login function
   const login = async (username: string, password: string) => {
     setIsLoading(true);
-    console.log("auth loading started...");
+    // console.log("auth loading started...");
     setError(null);
 
     try {
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setError(err.message || "An unknown error occurred.");
     } finally {
       setIsLoading(false);
-      console.log("auth loading ended...");
+      // console.log("auth loading ended...");
     }
   };
 

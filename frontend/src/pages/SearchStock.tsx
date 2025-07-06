@@ -37,7 +37,7 @@ const SearchStock: React.FC = () => {
   }, [token, navigate]);
 
   const [products, setProducts] = useState<Product[]>([]);
-  console.log(products);
+  // console.log(products);
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 10,
