@@ -207,10 +207,10 @@ export const convertProductData = async (
     let pageNo = item.pageNo?.trim();
     let serialNo = item.serialNo?.trim();
 
-    // Updated parsing logic for new format
+    // If volNo, pageNo, or serialNo are not provided, try to extract them from productVolPageSerial
     if ((!volNo || !pageNo || !serialNo) && item.productVolPageSerial) {
       const regexNewFormat =
-        /Vol\.No\.([^/]+)\/Pg\.No\.([^/]+)\/S\.No\.([^-\/]+)(?:-\[\d+-\d+\])?/i;
+        /Vol\.No\.([^/]+)\/Pg\.No\.([^/]+)\/S\.No\.([^-\/]+)/i;
       const match = item.productVolPageSerial.match(regexNewFormat);
 
       if (match) {
@@ -218,7 +218,6 @@ export const convertProductData = async (
         pageNo = pageNo || match[2]?.trim() || "N/A";
         serialNo = serialNo || match[3]?.trim() || "N/A";
       } else {
-        // fallback: try old format
         const oldParts = item.productVolPageSerial.split("-");
         if (oldParts.length === 3) {
           volNo = volNo || oldParts[0].trim();
@@ -228,8 +227,7 @@ export const convertProductData = async (
       }
     }
 
-    console.log("VOL-PAGE", volNo, pageNo, serialNo);
-
+    // Use a key that defines a unique product group (excluding location and unique serial)
     const groupKey = `${productName}-${productPrice}-${productDescription}-${categoryId}-${statusId}-${volNo}-${pageNo}`;
 
     if (!groupedProducts.has(groupKey)) {
@@ -248,6 +246,7 @@ export const convertProductData = async (
           gstAmount: parseFloat(item.gstAmount as any) || 0,
           volNo: volNo || "N/A",
           pageNo: pageNo || "N/A",
+          serialNo: serialNo || "N/A",
         },
         items: [],
       });
@@ -258,12 +257,14 @@ export const convertProductData = async (
 
   const uiProducts: Product[] = [];
 
+  // 2. Process each group to create a single UI Product with correct ranges
   for (const [_, group] of groupedProducts) {
     const locationRangeMappings: RangeMapping[] = [];
     let totalQuantityInGroup = 0;
 
     const itemsByLocation = new Map<string, RawFetchedProductItem[]>();
 
+    // 2a. Sub-group items by location
     for (const item of group.items) {
       const locationName = item.locationName?.trim() || "Unknown Location";
       if (!itemsByLocation.has(locationName)) {
@@ -273,26 +274,47 @@ export const convertProductData = async (
       totalQuantityInGroup++;
     }
 
+    // 2b. For each location, parse serial numbers and create range strings
     for (const [locationName, itemsInLocation] of itemsByLocation) {
       const serialNumbers: number[] = [];
 
       itemsInLocation.forEach((item) => {
-        let serialToParse = item.serialNo;
-        if (!serialToParse && item.productVolPageSerial) {
-          const match = item.productVolPageSerial.match(
-            /S\.No\.([^-\/]+)/
-          );
-          serialToParse = match?.[1] || "";
+        let serialToParse: string | undefined = item.serialNo;
+
+        // *** START OF FIX ***
+        // If serialNo isn't directly on the item, parse it from productVolPageSerial
+        if ((!serialToParse || serialToParse.trim() === "") && item.productVolPageSerial) {
+          // This regex is specific for batch format like "...S.No.1-[2-3]"
+          // It correctly captures the unique item number, '2' in this case.
+          const uniqueSerialMatch = item.productVolPageSerial.match(/-\[(\d+)-\d+\]/);
+
+          if (uniqueSerialMatch && uniqueSerialMatch[1]) {
+            serialToParse = uniqueSerialMatch[1];
+          } else {
+            // Fallback for single-item formats like ".../S.No.5"
+            const baseSerialMatch = item.productVolPageSerial.match(/S\.No\.([^-\/]+)/);
+            if (baseSerialMatch && baseSerialMatch[1]) {
+              serialToParse = baseSerialMatch[1];
+            }
+          }
         }
 
-        const serialMatch = serialToParse?.match(/\d+/);
-        if (serialMatch) {
-          serialNumbers.push(parseInt(serialMatch[0], 10));
+        // Now, parse the determined string into a number
+        if (serialToParse) {
+          const serialNum = parseInt(serialToParse.trim(), 10);
+          if (!isNaN(serialNum)) {
+            serialNumbers.push(serialNum);
+          } else {
+            console.warn(
+              `Could not parse serial number from value: "${serialToParse}" for product ${group.baseProduct.productName}`
+            );
+          }
         } else {
           console.warn(
-            `Could not parse serial: ${serialToParse} for ${group.baseProduct.productName}`
+            `Could not find a serial number for item (ID: ${item.productId}) in product group: ${group.baseProduct.productName}`
           );
         }
+        // *** END OF FIX ***
       });
 
       if (serialNumbers.length > 0) {
@@ -304,11 +326,10 @@ export const convertProductData = async (
       }
     }
 
-    const productVolPageSerialTemplate = `MIT/IT/Vol.No.${
-      group.baseProduct.volNo || "N/A"
-    }/Pg.No.${
-      group.baseProduct.pageNo || "N/A"
-    }/S.No.N/A-[1-${totalQuantityInGroup}]`;
+    // Create a representative productVolPageSerial for display purposes
+    const productVolPageSerialTemplate = `MIT/IT/Vol.No.${group.baseProduct.volNo || "N/A"
+      }/Pg.No.${group.baseProduct.pageNo || "N/A"
+      }/S.No.${group.baseProduct.serialNo || 'N/A'}-[1-${totalQuantityInGroup}]`;
 
     uiProducts.push({
       ...defaultProduct,
@@ -316,16 +337,10 @@ export const convertProductData = async (
       quantity: totalQuantityInGroup,
       productVolPageSerial: productVolPageSerialTemplate,
       locationRangeMappings,
-      serialNo:
-        group.items[0]?.serialNo ||
-        group.items[0]?.productVolPageSerial?.match(
-          /S\.No\.([^-\/]+)/
-        )?.[1] ||
-        "",
     } as Product);
   }
 
-  console.log("Final products for UI:", uiProducts);
+  // console.log("Final products for UI:", uiProducts);
   return uiProducts;
 };
 
