@@ -120,10 +120,10 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({
             : `${API_URL}/dashboard/all-years-analysis`;
 
         // console.log("Fetching analysis data from:", analysisEndpoint);
-        // const analysisResponse = await fetch(analysisEndpoint, {
-        //   headers,
-        //   signal,
-        // });
+        const analysisResponse = await fetch(analysisEndpoint, {
+          headers,
+          signal,
+        });
 
         if (!analysisResponse.ok) {
           const errorText = await analysisResponse.text();
